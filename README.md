@@ -1,1 +1,2 @@
-# dinamika_nosilcev
+# Dinamika nosilcev
+Skripte za račun nelinearne dinamike nosilcev.
