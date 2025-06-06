@@ -5,3 +5,4 @@ Skripte za račun nelinearne dinamike nosilcev.
 - Loči iniciacijo funkcij, vnos podatkov in zagon računa.
 - Popravi medoto ali enačbe da bo konvergirala
 
+# Test
