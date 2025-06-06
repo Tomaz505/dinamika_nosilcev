@@ -6,4 +6,3 @@ Skripte za račun nelinearne dinamike nosilcev.
 - Popravi medoto ali enačbe da bo konvergirala
 
 # Test
-Test.
