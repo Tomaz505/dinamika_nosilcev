@@ -9,7 +9,7 @@ module NonLinBeam
 
     using LinearAlgebra
 
-
+    #To lahko pobrišeš
     # Materialna matrika
     abstract type CMat 
     end
