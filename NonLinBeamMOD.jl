@@ -46,7 +46,7 @@ module NonLinBeam
     abstract type Beam 
     end
     @kwdef mutable struct BeamDataIn <:Beam
-        v::Array{Int64} = [1,1] #Vozlišča
+        v::Array{Int64} = [1,1] # Vozlišča - krajna
         C::Array{Float64} = [1 0 0;0 1 0;0 0 1] #Materialna matrika
         M::Array{Float64} = [1; 1] #Vektor [ρA; ρI]
         f::Function = x->[0,x] #Funkcija krivulje

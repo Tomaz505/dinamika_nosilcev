@@ -1,0 +1,173 @@
+               _
+   _       _ _(_)_     |  Documentation: https://docs.julialang.org
+  (_)     | (_) (_)    |
+   _ _   _| |_  __ _   |  Type "?" for help, "]?" for Pkg help.
+  | | | | | | |/ _` |  |
+  | | |_| | | | (_| |  |  Version 1.11.5 (2025-04-14)
+ _/ |\__'_|_|_|\__'_|  |  Official https://julialang.org/ release
+|__/                   |
+
+julia> nodes = collect(1:4)
+4-element Vector{Int64}:
+ 1
+ 2
+ 3
+ 4
+
+julia> elements = [1 3;1 2;2 3;2 4; 3 4]
+5×2 Matrix{Int64}:
+ 1  3
+ 1  2
+ 2  3
+ 2  4
+ 3  4
+
+julia> using Graphs
+
+julia> konst = SimpleWeightedDiGraph()
+ERROR: UndefVarError: `SimpleWeightedDiGraph` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+Stacktrace:
+ [1] top-level scope
+   @ REPL[4]:1
+
+julia> using SimpleWeightedGraphs
+
+julia> konst = SimpleGraph()
+{0, 0} undirected simple Int64 graph
+
+julia> add_vertices!(konst,length(elements))
+10
+
+julia> konst = SimpleGraph()
+{0, 0} undirected simple Int64 graph
+
+julia> add_vertices!(konst,length(nodes))
+4
+
+julia> for i = 1:length(elements[:,1])
+           add_edge!(konst,elements[i,1],elements[i,2],2)
+       end
+ERROR: MethodError: no method matching add_edge!(::SimpleGraph{Int64}, ::Int64, ::Int64, ::Int64)
+The function `add_edge!` exists, but no method is defined for this combination of argument types.
+
+Closest candidates are:
+  add_edge!(::AbstractSimpleWeightedGraph{T, U}, ::Any, ::Any, ::Any) where {T, U}
+   @ SimpleWeightedGraphs C:\Users\tomga\.julia\packages\SimpleWeightedGraphs\Ab8wv\src\abstractsimpleweightedgraph.jl:119
+  add_edge!(::Graphs.SimpleGraphs.AbstractSimpleGraph, ::Any, ::Any)
+   @ Graphs C:\Users\tomga\.julia\packages\Graphs\awp48\src\SimpleGraphs\SimpleGraphs.jl:153
+  add_edge!(::AbstractSimpleWeightedGraph{T, U}, ::Any, ::Any) where {T, U}
+   @ SimpleWeightedGraphs C:\Users\tomga\.julia\packages\SimpleWeightedGraphs\Ab8wv\src\abstractsimpleweightedgraph.jl:97
+  ...
+
+Stacktrace:
+ [1] top-level scope
+   @ .\REPL[10]:2
+
+julia> konst = SimpleWeightedDiGraph()
+{0, 0} directed simple Int64 graph with Float64 weights
+
+julia> add_vertices!(konst,length(nodes))
+true
+
+julia> for i = 1:length(elements[:,1])
+           add_edge!(konst,elements[i,1],elements[i,2],2)
+       end
+
+julia> using Plots
+
+julia> using GraphRecipes
+
+julia> graphplot(konst)
+
+julia> adjacency(konst)
+ERROR: UndefVarError: `adjacency` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+Stacktrace:
+ [1] top-level scope
+   @ REPL[17]:1
+
+julia> GraphMatrix(onst)
+ERROR: UndefVarError: `GraphMatrix` not defined in `Main`
+Suggestion: check for spelling errors or missing imports.
+Stacktrace:
+ [1] top-level scope
+   @ REPL[18]:1
+
+julia> adjacency_matrix(konst)
+4×4 SparseArrays.SparseMatrixCSC{Float64, Int64} with 5 stored entries:
+  ⋅   2.0  2.0   ⋅
+  ⋅    ⋅   2.0  2.0
+  ⋅    ⋅    ⋅   2.0
+  ⋅    ⋅    ⋅    ⋅
+
+julia> konst = SimpleWeightedGraph()
+{0, 0} undirected simple Int64 graph with Float64 weights
+
+julia> add_vertices!(konst,length(nodes))
+true
+
+julia> for i = 1:length(elements[:,1])
+           add_edge!(konst,elements[i,1],elements[i,2],2)
+       end
+
+julia> graphplot(konst)
+
+julia> adjacency_matrix(konst)
+4×4 SparseArrays.SparseMatrixCSC{Float64, Int64} with 10 stored entries:
+  ⋅   2.0  2.0   ⋅
+ 2.0   ⋅   2.0  2.0
+ 2.0  2.0   ⋅   2.0
+  ⋅   2.0  2.0   ⋅
+
+julia> pgfplotsx()
+Plots.PGFPlotsXBackend()
+
+julia> graphplot(konst)
+┌ Warning: markershape hexagon is unsupported with Plots.PGFPlotsXBackend(). Choose from: [:+, :auto,:circle, :cross, :diamond, :dtriangle, :hline, :ltriangle, :none, :pentagon, :rect, :rtriangle, :star5, :star6, :utriangle, :vline, :x, :xcross]
+└ @ Plots C:\Users\tomga\.julia\packages\Plots\MR7sb\src\args.jl:1575
+┌ Warning: markershape hexagon is unsupported with Plots.PGFPlotsXBackend(). Choose from: [:+, :auto,:circle, :cross, :diamond, :dtriangle, :hline, :ltriangle, :none, :pentagon, :rect, :rtriangle, :star5, :star6, :utriangle, :vline, :x, :xcross]
+└ @ Plots C:\Users\tomga\.julia\packages\Plots\MR7sb\src\args.jl:1575
+┌ Warning: markershape hexagon is unsupported with Plots.PGFPlotsXBackend(). Choose from: [:+, :auto,:circle, :cross, :diamond, :dtriangle, :hline, :ltriangle, :none, :pentagon, :rect, :rtriangle, :star5, :star6, :utriangle, :vline, :x, :xcross]
+└ @ Plots C:\Users\tomga\.julia\packages\Plots\MR7sb\src\args.jl:1575
+┌ Warning: markershape hexagon is unsupported with Plots.PGFPlotsXBackend(). Choose from: [:+, :auto,:circle, :cross, :diamond, :dtriangle, :hline, :ltriangle, :none, :pentagon, :rect, :rtriangle, :star5, :star6, :utriangle, :vline, :x, :xcross]
+└ @ Plots C:\Users\tomga\.julia\packages\Plots\MR7sb\src\args.jl:1575
+┌ Warning: markershape hexagon is unsupported with Plots.PGFPlotsXBackend(). Choose from: [:+, :auto,:circle, :cross, :diamond, :dtriangle, :hline, :ltriangle, :none, :pentagon, :rect, :rtriangle, :star5, :star6, :utriangle, :vline, :x, :xcross]
+└ @ Plots C:\Users\tomga\.julia\packages\Plots\MR7sb\src\args.jl:1575
+! Package pgfkeys Error: I do not know the key '/tikz/markerstrokesize', to whi
+ch you passed '0', and I am going to ignore it. Perhaps you misspelled it.
+
+See the pgfkeys package documentation for explanation.
+Type  H <return>  for immediate help.
+ ...
+
+l.369         t
+             able[row sep={\\}]
+Error showing value of type Plots.Plot{Plots.PGFPlotsXBackend}:
+
+SYSTEM (REPL): showing an error caused an error
+ERROR: The latex command `lualatex jl_49M9mJuLMT.tex` failed
+Stacktrace:
+  [1] print_response(errio::IO, response::Any, backend::Union{…}, show_value::Bool, have_color::Bool,specialdisplay::Union{…})
+    @ REPL C:\Users\tomga\AppData\Local\Programs\julia-1.11.5\share\julia\stdlib\v1.11\REPL\src\REPL.jl:446
+  [2] (::REPL.var"#70#71"{REPL.LineEditREPL, Pair{Any, Bool}, Bool, Bool})(io::Any)
+    @ REPL C:\Users\tomga\AppData\Local\Programs\julia-1.11.5\share\julia\stdlib\v1.11\REPL\src\REPL.jl:405
+  [3] with_repl_linfo(f::Any, repl::REPL.LineEditREPL)
+    @ REPL C:\Users\tomga\AppData\Local\Programs\julia-1.11.5\share\julia\stdlib\v1.11\REPL\src\REPL.jl:678
+  [4] print_response(repl::REPL.AbstractREPL, response::Any, show_value::Bool, have_color::Bool)
+    @ REPL C:\Users\tomga\AppData\Local\Programs\julia-1.11.5\share\julia\stdlib\v1.11\REPL\src\REPL.jl:403
+  [5] (::REPL.var"#do_respond#100"{…})(s::REPL.LineEdit.MIState, buf::Any, ok::Bool)
+    @ REPL C:\Users\tomga\AppData\Local\Programs\julia-1.11.5\share\julia\stdlib\v1.11\REPL\src\REPL.jl:1035
+  [6] #invokelatest#2
+    @ .\essentials.jl:1055 [inlined]
+  [7] invokelatest
+    @ .\essentials.jl:1052 [inlined]
+  [8] run_interface(terminal::REPL.Terminals.TextTerminal, m::REPL.LineEdit.ModalInterface, s::REPL.LineEdit.MIState)
+    @ REPL.LineEdit C:\Users\tomga\AppData\Local\Programs\julia-1.11.5\share\julia\stdlib\v1.11\REPL\src\LineEdit.jl:2755
+  [9] run_frontend(repl::REPL.LineEditREPL, backend::REPL.REPLBackendRef)
+    @ REPL C:\Users\tomga\AppData\Local\Programs\julia-1.11.5\share\julia\stdlib\v1.11\REPL\src\REPL.jl:1506
+ [10] (::REPL.var"#79#85"{REPL.LineEditREPL, REPL.REPLBackendRef})()
+    @ REPL C:\Users\tomga\AppData\Local\Programs\julia-1.11.5\share\julia\stdlib\v1.11\REPL\src\REPL.jl:497
+Some type information was truncated. Use `show(err)` to see complete types.
+
+julia>

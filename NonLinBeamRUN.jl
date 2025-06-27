@@ -1,45 +1,22 @@
-#   Moduli
-begin
-    include("NonLinBeamMOD.jl");
-    using LinearAlgebra, .NonLinBeam, SparseArrays
-    using BenchmarkTools, Plots
-    macro assignto(DatVar::Any,ei::Any,Prop::Expr,StrucField::Any)
-        ei = eval(ei)
-        for i in ei
-            eval(
-                Meta.parse(string(eval(DatVar))*"["*string(i)*"]."*string(eval(StrucField))*"="*string(eval(Prop)))
-            )
-        end
-    end    
-    #pgfplotsx() 
-end;
-
-
-
-
-
-
-
-
-
 #   V N O S   P O D A T K O V
 #       Vozlišča in elementi
 begin
-    vozlisca = [0 0; 0 -1]
+    vozlisca::Array{Float64} = [
+        0 0;
+        0 -1
+        ]
     #Koordinate vozlisc
 
-    elementi = [1 2]
+    elementi::Array{Int64} = [
+        1 2
+        ]
     #Povezave vozlisc 
 
     begin
-        n_elem = Int(length(elementi)/2)
-        n_voz = Int(length(vozlisca)/2)
+        n_elem::Int64 = Int(length(elementi)/2)
+        n_voz::Int64 = Int(length(vozlisca)/2)
 
-        if maximum(elementi)>n_voz
-            fail = findall(x-> x > n_voz, elementi)
-            error("Vozlišča:$(union(elementi[fail])), na katere se navezujejo nekateri elementi, niso definirana.\n")
-        end
-
+        # Iniciacija BeamDataIn in NodeDataIn
         ElementDataIn = fill(BeamDataIn(),n_elem,1)
         VozDataIn = fill(NodeDataIn(),n_voz,1)
 
@@ -49,19 +26,6 @@ begin
         for i =1:n_voz
             VozDataIn[i] = NodeDataIn(x=vozlisca[i,1],y=vozlisca[i,2],i=i)
         end
-
-        #=
-        p=plot(;yticks = union(vozlisca[:,2]),xticks =  union(vozlisca[:,1]),legend = false, aspect_ratio= :equal)
-        for i=1:n_elem
-            c=vozlisca[ElementDataIn[i].v,:]
-            plot!( c[:,1],c[:,2] ; color = :black )
-            scatter!([(c[1,1]+c[2,1])/2] ,[(c[1,2]+c[2,2])/2] ; marker = (100,0,:white),series_annotations=[("E$i ", :right,12)])
-        end
-        for i =1:n_voz
-            scatter!([VozDataIn[i].x],[VozDataIn[i].y] ; markercolor = :red, series_annotations=[("V$i", :right,12)])
-        end
-        display(p)
-        =#
     end
 end; 
 
@@ -84,7 +48,7 @@ end;
 begin
     #@assignto :(ElementDataIn) [1 2] :(x -> [cos(x),sin(x)]) :(f)
     @assignto :(ElementDataIn) [1] :( [0.; 0.] ) :(M)
-    @assignto :(ElementDataIn) [1] :( [100_000_000. 0. 0.;0. 100_000_000. 0.; 0. 0. 100_000_000.] ) :(C)
+    @assignto :(ElementDataIn) [1] :( [10000. 0. 0.;0. 10000. 0.; 0. 0. 100000.] ) :(C)
 
     @assignto :(ElementDataIn) [1] :( [0, 1] ) :(div1)
     @assignto :(ElementDataIn) [1] :( [2] ) :(div2)
