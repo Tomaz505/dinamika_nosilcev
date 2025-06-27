@@ -1,8 +1,7 @@
 module NonLinBeam
     
     export Beam,BeamDataIn,BeamDataProcess,
-    Motion, BeamMotion,
-    CMat,DiaMat,SymMat,AnyMat,CMat_class,
+    Motion, BeamMotion,datainit,
     Node, NodeDataIn,
     R2, GaussInt,InterpolKoeff,Interpolated,JacKoeff,BalanceEq,evaluateKoefficient
 
@@ -139,6 +138,23 @@ module NonLinBeam
         xg = map(k->E[k].values,1:length(n))
 
         return xg,wg
+    end
+
+    function datainit(elem::Array{Int64},voz::Array{Float64})
+        n_elem::Int64 = length(elem[:,1])
+        n_voz::Int64 = length(voz[:,1])
+
+        element_data = fill(BeamDataIn(),n_elem)
+        voz_data = fill(NodeDataIn(),n_voz)
+
+        for i =1:n_elem
+            element_data[i] = BeamDataIn(v=elem[i,[1,2]])
+        end
+        for i =1:n_voz
+            voz_data[i] = NodeDataIn(x=voz[i,1],y=voz[i,2],i=i)
+        end
+
+        return n_elem,e_voz,element_data,voz_data
     end
 
     #Funkcija za določitev koeficientov standardne baze za interpolacijo v danih točkah

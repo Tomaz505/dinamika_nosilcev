@@ -4,15 +4,19 @@ begin
     vozlisca::Array{Float64} = [
         0 0;
         0 -1
-        ]
+    ]
     #Koordinate vozlisc
 
     elementi::Array{Int64} = [
         1 2
-        ]
+    ]
     #Povezave vozlisc 
 
+    n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
+
+    #=
     begin
+    
         n_elem::Int64 = Int(length(elementi)/2)
         n_voz::Int64 = Int(length(vozlisca)/2)
 
@@ -27,6 +31,7 @@ begin
             VozDataIn[i] = NodeDataIn(x=vozlisca[i,1],y=vozlisca[i,2],i=i)
         end
     end
+    =#
 end; 
 
 
