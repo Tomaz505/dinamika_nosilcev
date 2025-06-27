@@ -8,38 +8,6 @@ module NonLinBeam
 
     using LinearAlgebra
 
-    #To lahko pobrišeš
-    # Materialna matrika
-    abstract type CMat 
-    end
-    struct DiaMat<:CMat
-        Cd::Array{Float64}
-    end
-    struct SymMat<:CMat
-        Cd::DiaMat
-        Cs::Array{Float64}
-    end
-    struct AnyMat<:CMat
-        #Cd::DiaMat
-        Cs::SymMat
-        Ca::Array{Float64}
-    end
-    function CMat_class(C::Array)
-        C_diag =  C.*Matrix(I,3,3)
-        C_sym = (C + C')/2 - C_diag
-        C_ant_sym = (C - C')/2
-
-        if all(C_sym.==0)
-            CM = DiaMat(C_diag)
-        elseif all(C_ant_sym.==0)
-            CM = SymMat(DiaMat(C_diag),C_sym)
-        else
-            CM = AnyMat( SymMat( DiaMat(C_diag), C_sym),C_ant_sym)
-        end
-        return CM
-    end
-
-
 
     # Struktura podatkov za nosilec
     abstract type Beam 
@@ -102,9 +70,10 @@ module NonLinBeam
 
 
 
-    # Funkcije
+    #Funkcije
     #Funkcija za rotacijo 2-terice za kot a
     R2(a) = [cos(a) -sin(a); sin(a) cos(a)]
+    #Funkcija za rotacijo 3-terice za kot a okrov e3
     R(a) = [cos(a) -sin(a) 0 ; sin(a) cos(a) 0 ; 0 0 1]
     dR(a) = [-sin(a) -cos(a) 0 ; cos(a) -sin(a) 0 ; 0 0 0]
     ddR(a) = [-cos(a) sin(a) 0 ; -sin(a) -cos(a) 0 ; 0 0 0]
@@ -140,12 +109,14 @@ module NonLinBeam
         return xg,wg
     end
 
+
+    #Pripravi osnovne podatke
     function datainit(elem::Array{Int64},voz::Array{Float64})
         n_elem::Int64 = length(elem[:,1])
         n_voz::Int64 = length(voz[:,1])
 
-        element_data = fill(BeamDataIn(),n_elem)
-        voz_data = fill(NodeDataIn(),n_voz)
+        element_data::Vector{BeamDataIn} = fill(BeamDataIn(),n_elem)
+        voz_data::Vector{NodeDataIn} = fill(NodeDataIn(),n_voz)
 
         for i =1:n_elem
             element_data[i] = BeamDataIn(v=elem[i,[1,2]])
@@ -154,8 +125,10 @@ module NonLinBeam
             voz_data[i] = NodeDataIn(x=voz[i,1],y=voz[i,2],i=i)
         end
 
-        return n_elem,e_voz,element_data,voz_data
+        return n_elem,n_voz,element_data,voz_data
     end
+
+
 
     #Funkcija za določitev koeficientov standardne baze za interpolacijo v danih točkah
     function InterpolKoeff(IterpPoint::Union{Array,StepRangeLen,StepRange})
@@ -503,11 +476,6 @@ module NonLinBeam
         #round.(fpi,digits = 14)
 
         return fxi,fzi,fpi
-    end
-
-
-    struct Polynomial
-        ai :: Array{<:Real}
     end
 
 end

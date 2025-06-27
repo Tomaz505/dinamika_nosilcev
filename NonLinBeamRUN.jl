@@ -13,25 +13,6 @@ begin
     #Povezave vozlisc 
 
     n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
-
-    #=
-    begin
-    
-        n_elem::Int64 = Int(length(elementi)/2)
-        n_voz::Int64 = Int(length(vozlisca)/2)
-
-        # Iniciacija BeamDataIn in NodeDataIn
-        ElementDataIn = fill(BeamDataIn(),n_elem,1)
-        VozDataIn = fill(NodeDataIn(),n_voz,1)
-
-        for i =1:n_elem
-            ElementDataIn[i] = BeamDataIn(v=elementi[i,[1,2]])
-        end
-        for i =1:n_voz
-            VozDataIn[i] = NodeDataIn(x=vozlisca[i,1],y=vozlisca[i,2],i=i)
-        end
-    end
-    =#
 end; 
 
 

@@ -1,17 +1,23 @@
 #iniciacija funkcij
 
 #   Moduli
-begin
-    include("NonLinBeamMOD.jl");
-    using LinearAlgebra, .NonLinBeam, SparseArrays, Graphs
-    using BenchmarkTools, Plots, GraphRecipes
-    macro assignto(DatVar::Any,ei::Any,Prop::Expr,StrucField::Any)
-        ei = eval(ei)
-        for i in ei
-            eval(
-                Meta.parse(string(eval(DatVar))*"["*string(i)*"]."*string(eval(StrucField))*"="*string(eval(Prop)))
-            )
-        end
-    end    
-    #pgfplotsx()
-end;
+
+include("NonLinBeamMOD.jl");
+using LinearAlgebra, .NonLinBeam, SparseArray
+# TILE NISO NUJNI ||
+#using BenchmarkTools, Plots, GraphRecipes,Graphs
+
+# SPRAVI TA MACRO V MODUL !
+macro assignto(DatVar::Any,ei::Any,Prop::Expr,StrucField::Any)
+    ei = eval(ei)
+    for i in ei
+        eval(
+            Meta.parse(string(eval(DatVar))*"["*string(i)*"]."*string(eval(StrucField))*"="*string(eval(Prop)))
+        )
+    end
+end;    
+#pgfplotsx()
+
+# Precompile
+datainit([1 2],Float64.([0 0;0 -1]));
+InterpolKoeff([0,1]);
