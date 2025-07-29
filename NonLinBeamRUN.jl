@@ -31,6 +31,8 @@ end;
             - :(nInt)   -> :([k₁,...,kₙ₋₁])         Število integracijskih točk na podelementih
             - :(C)      -> :([Cᵢⱼ])                Matrika materialne togosti
 =#
+
+
 begin
     #@assignto :(ElementDataIn) [1 2] :(x -> [cos(x),sin(x)]) :(f)
     @assignto :(ElementDataIn) [1] :( [0.; 0.] ) :(M)
@@ -46,6 +48,11 @@ begin
 
 
     @assignto :(VozDataIn) [1] :( Bool[0 0 0] ) :(Supp)
+
+
+
+
+
 
     begin
         #println.(ElementDataIn)

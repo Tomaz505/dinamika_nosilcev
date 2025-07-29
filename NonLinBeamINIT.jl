@@ -1,11 +1,13 @@
 #iniciacija funkcij
-
 #   Moduli
 
 include("NonLinBeamMOD.jl");
 using LinearAlgebra, .NonLinBeam, SparseArray
+
 # TILE NISO NUJNI ||
-#using BenchmarkTools, Plots, GraphRecipes,Graphs
+	#using BenchmarkTools, Plots, GraphRecipes,Graphs
+
+
 
 # SPRAVI TA MACRO V MODUL !
 macro assignto(DatVar::Any,ei::Any,Prop::Expr,StrucField::Any)
@@ -16,7 +18,10 @@ macro assignto(DatVar::Any,ei::Any,Prop::Expr,StrucField::Any)
         )
     end
 end;    
-#pgfplotsx()
+	#pgfplotsx()
+
+
+
 
 # Precompile
 datainit([1 2],Float64.([0 0;0 -1]));
