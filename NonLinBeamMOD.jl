@@ -10,21 +10,43 @@ module NonLinBeam
 
 
     # Struktura podatkov za nosilec
-    abstract type Beam 
-    end
+    abstract type Beam end
+
     @kwdef mutable struct BeamDataIn <:Beam
-        v::Array{Int64} = [1,1] # Vozlišča - krajna
+        v::Array{Int64} = [1,2] # Vozlišča - krajna
         C::Array{Float64} = [1 0 0;0 1 0;0 0 1] #Materialna matrika
         M::Array{Float64} = [1; 1] #Vektor [ρA; ρI]
+
+
+	# spremeni na interpolacijske točke in polinom
+	# uporabi agoritem za interpolacijsko bazo... vnos relativnih koordinat na (-1,1) za vrednosti, odvode, druge odvode itd.
+	# podatek geometrije so potem koordinate in vektorji.
+	# Robna vozlišča so že določena, uporabnik poda samo vmesne točke
+	# shraniš bazne funkcije in koeficiente razvoja
         f::Function = x->[0,x] #Funkcija krivulje
         df::Function = x->[0,1] #Odvod funkcije krivulje
-        px::Function = t->[0. 0.] #Linearna distribucija obtežbe med robnima vrednostima [p1 p2] na poddelitvah
-        pz::Function = t->[0. 0.]
+	# to boš lahko pobrisal ker se enostavno odvaja
+
+	# Naj bodo matrike 2xN kjer je N st. elementov
+	#Linearna distribucija obtežbe med robnima vrednostima [p1 p2] na poddelitvah
+        px::Function = t->[0. 0.] 
+	pz::Function = t->[0. 0.]
         my::Function = t->[0. 0.]
-        div1::Array{Float64} = [-1,1] #Relativne koordinate vozlišč primarne delitve.
-        div2::Array{Int64} = [4] #Število vozlišč v sekundarni delitvi. Dve sta robni
-        nInt::Array{Int64} = [100] #Število integracijskih točk v posameznem div1
+
+
+
+        div1::Array{Float64} = [-1,1]
+	#Relativne koordinate vozlišč primarne delitve.
+
+        div2::Array{Int64} = [4]
+	#Število vozlišč v sekundarni delitvi. Dve sta robni. Int za vsak element.
+
+        nInt::Array{Int64} = [100]
+	#Število integracijskih točk v posameznem div1. Smiselno je približno 3*div2. Ponovno Int za vsak element
+
     end 
+
+
     struct BeamDataProcess <:Beam
         C::Array{Float64}
         M::Array{Float64} 
@@ -47,17 +69,24 @@ module NonLinBeam
 
     abstract type Node 
     end
+
     @kwdef mutable struct NodeDataIn <:Node
-        x::Float64 = 0.
+        # te poračuna algoritem
+	x::Float64 = 0.
         y::Float64 = 0.
         i::Int64 = 1
+
+	# prilagodi tako, da lahko nastavis drsno pod kotom.
+	# sprostitev v smeri vektorja [x,y] pomeni vezno enačbo
+	# y*ux-x*uy = 0 [ux,uy] je pravokoten na [y,-x]
         Supp::Array{Bool} = [1 1 1]
+	# lahko nastaviš številko za rotacijo globalnih koordinat v kateri je ta sprostitev jasna in je potem supp podan za ta rotiran koordinatni sistem
     end
 
 
 
-    abstract type Motion
-    end
+    abstract type Motion end
+
     mutable struct BeamMotion <:Motion
         ux::Array{Float64}
         uz::Array{Float64}
@@ -131,6 +160,9 @@ module NonLinBeam
 
 
     #Funkcija za določitev koeficientov standardne baze za interpolacijo v danih točkah
+    #
+    #Tole zamenjaj za gramshchmita
+
     function InterpolKoeff(IterpPoint::Union{Array,StepRangeLen,StepRange})
         n = length(IterpPoint)-1
         IterpPoint=reshape(collect(IterpPoint),(n+1,1))
@@ -155,10 +187,19 @@ module NonLinBeam
     end
 
     #Funkcija za račun funkcijske vrednosti v x za interpolacijsko bazo Ib in koeficiente razvoja Kn
+    #tole malo polepšaj
     Interpolated(x::Float64,Kn::Array{Float64},Ib::Vector{Array{Float64}}) = ((Kn' *Ib)'*(x.^(0:(length(Ib)-1))) )
     Interpolated(x::Float64,Kn::Float64,Ib::Array{Float64}) = (Kn*Ib)' * (x.^(0:(length(Ib)-1))) 
     Interpolated(x::Array{Float64},Kn::Array{Float64},Ib::Vector{Array{Float64}}) = map(x->Interpolated(x::Float64,Kn::Array{Float64},Ib::Vector{Array{Float64}}),x)
     Interpolated(x::Array{Float64},Kn::Float64,Ib::Array{Float64}) = map(x->Interpolated(x::Float64,Kn::Float64,Ib::Array{Float64}),x)
+
+	
+
+
+	# TOLE JE NASTY |
+	# 		ˇ
+
+
 
     function evaluateKoefficient(ux,uz,phi,vx,vz,Omg,phi0,L,C,px,pz,my,g,xInt,wInt,dt,P,dP,A1,A2,A3,A4,A5,A6)
         #=  Popravi
@@ -478,4 +519,4 @@ module NonLinBeam
         return fxi,fzi,fpi
     end
 
-end
+end # module

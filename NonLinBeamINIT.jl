@@ -18,7 +18,6 @@ macro assignto(DatVar::Any,ei::Any,Prop::Expr,StrucField::Any)
         )
     end
 end;    
-	#pgfplotsx()
 
 
 
@@ -26,3 +25,5 @@ end;
 # Precompile
 datainit([1 2],Float64.([0 0;0 -1]));
 InterpolKoeff([0,1]);
+
+
