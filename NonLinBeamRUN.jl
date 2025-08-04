@@ -36,20 +36,47 @@ end;
 
 
 begin
-    #@assignto :(ElementDataIn) [1 2] :(x -> [cos(x),sin(x)]) :(f)
-    @assignto :(ElementDataIn) [1] :( [0.; 0.] ) :(M)
-    @assignto :(ElementDataIn) [1] :( [10000. 0. 0.;0. 10000. 0.; 0. 0. 100000.] ) :(C)
 
-    @assignto :(ElementDataIn) [1] :( [-1, 1] ) :(div1)
-    @assignto :(ElementDataIn) [1] :( [2] ) :(div2)
-    @assignto :(ElementDataIn) [1] :( [30] ) :(nInt) 
-
-    @assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(pz)
-    @assignto :(ElementDataIn) [1] :(t->[0.001 0.001]) :(px)
-    @assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(my)
+		#Materialne karakterisike; bi moral biti M 2xN za N elementov
+	@assignto :(ElementDataIn) [1] :( [0.; 0.] ) :(M)
+	@assignto :(ElementDataIn) [1] :( [10000. 0. 0.;0. 10000. 0.; 0. 0. 100000.] ) :(C)
 
 
-    @assignto :(VozDataIn) [1] :( Bool[0 0 0] ) :(Supp)
+		#Podatki obtežbe po elementih
+			#pz matrika 2xN za N k.e. 
+				#predstavlja linearen potek obtežbe med krajiški k.e.
+			#px podobno
+			#my podobno
+	@assignto :(ElementDataIn) [1] :(t->[0. 0.;0. 0.]) :(pz)
+	@assignto :(ElementDataIn) [1] :(t->[0.001 0.001; 0. 0.]) :(px)
+	@assignto :(ElementDataIn) [1] :(t->[0. 0.; 0. 0.]) :(my)
+
+
+		#Podatki delitve na elemente
+			#div1 naj bo seznam relativnih koordinat med -1 in 1 za delitev na končne elemente.
+				#v osnovi je interpolacija linearna. če interpoliraš kolinearne točke potem 0. ni točno med robnima.
+			#div2 naj bo seznam naravnih števil.
+				#Te so enakomerno razporejene interpolacijske točke posameznega elementa
+			#nInt je število integracijskih točk za numerično integracijo po Gaussu
+	@assignto :(ElementDataIn) [1] :( [-1.; 0.; 1.] ) :(div1)
+	@assignto :(ElementDataIn) [1] :( [4;4] ) :(div2)
+	@assignto :(ElementDataIn) [1] :( [30;30] ) :(nInt) 
+
+		
+		#Podatki geometrije
+			#Ib_geom interpolacijska baza z interpolacijo med -1 in 1. 
+				#Indeks seznama v seznamu je stopnja odvoda-1 interpolacije
+			#Kb so koeficienti razvoja interpolacije.
+				#Naj bo v obliki [x1 y1; x2 y1; ...]
+	@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,0.,-1.]])) :(Ib_geom)
+	@assignto :(ElementDataIn) [1] :( [0.5 -0.5]) :(Kb) 
+	
+		#Podatki podpor
+			#Supp so sprostitve v lokalnem koordinatnem sistemu
+			#dir je rotacija globalnega ks za dan kot. 
+	@assignto :(VozDataIn) [1] :( Bool[0 0 0] ) :(Supp)
+	@assignto :(VozDataIn) [1] :( pi/3. ) :(dir)
+
 
 
 

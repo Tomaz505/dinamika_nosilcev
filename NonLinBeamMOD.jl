@@ -16,29 +16,14 @@ module NonLinBeam
         v::Array{Int64} = [1,2] # Vozlišča - krajna
         C::Array{Float64} = [1 0 0;0 1 0;0 0 1] #Materialna matrika
         M::Array{Float64} = [1; 1] #Vektor [ρA; ρI]
+	Ib_geom::Matrix{Float64} = [0.5 0.5; -0.5 0.5] #re_gramschmid(DataIn::Vector{Vector{Float64}})
+	Kb::Matrix{Float64} = [] 
 	
-	#tole lahko brišeš
-        f::Function = x->[0,x] #Funkcija krivulje
-        df::Function = x->[0,1] #Odvod funkcije krivulje
-
-	
-	#baza
-	#Ib::Matrix{Float64} = [0.5 0.5; -0.5 0.5]
-	# Za drugo bazo podaš Ib = re_gramschmid(DataIn::Vector{Vector{Float64}})
-	#razvoj + vozlišči
-	#Kb::Matrix{Float64} = [] # samo za več kot dve intepolacijski točki dodaš elemente v to matriko
-	# Za več kot dve interpolacijski točki podaj [x1 y1;x2 y2;...]
-
-	# Naj bodo matrike 2xN kjer je N st. elementov
-	# Linearna distribucija obtežbe med robnima vrednostima [p1 p2] na poddelitvah
         px::Function = t->[0. 0.] 
 	pz::Function = t->[0. 0.]
         my::Function = t->[0. 0.]
 
-
-
-        div1::Array{Float64} = [-1,1]
-	#Relativne koordinate vozlišč primarne delitve.
+        div1::Array{Float64} = [-1.,1.]
 	#Naj bo vedno med -1 in 1
 
         div2::Array{Int64} = [4]
@@ -46,28 +31,32 @@ module NonLinBeam
 
         nInt::Array{Int64} = [20]
 	#Število integracijskih točk v posameznem div1. Smiselno je približno 3*div2. Ponovno Int za vsak element
+	
+
 	#Ci::Int64 = 0 ali Ci::Bool = false
+	#Ib::Array{Matrix{Float64}} = ... 
 	#Zveznost odvodov
-	#Bi shranil tudi bazo?
+	#Bi shranil tudi baze?
     end 
 
 
     struct BeamDataProcess <:Beam
-        C::Array{Float64}
-        M::Array{Float64} 
-        L::Array{Float64}
+        C::Array{Float64} #
+        M::Array{Float64} #
+        L::Array{Float64} 
         ϕ0::Array{Float64}
-        P::Array{Array{Array{Float64}}}
-        dP::Array{Array{Array{Float64}}}
-        A1::Array{Array{Array{Float64}}}
-        A2::Array{Array{Array{Float64}}}
-        A3::Array{Array{Array{Float64}}}
-        A4::Array{Array{Array{Float64}}}
-        A5::Array{Array{Array{Float64}}}
-        A6::Array{Array{Array{Float64}}}
+	#kapa0::Array{Float64}
+        P::Array{Array{Array{Float64}}} #
+        dP::Array{Array{Array{Float64}}} #
+        A1::Array{Array{Array{Float64}}} #
+        A2::Array{Array{Array{Float64}}} #
+        A3::Array{Array{Array{Float64}}} #
+        A4::Array{Array{Array{Float64}}} #
+        A5::Array{Array{Array{Float64}}} #
+        A6::Array{Array{Array{Float64}}} #
         xInt::Array{Array{Float64}}
         wInt::Array{Array{Float64}} # Jih dejansko rabim s sabo če so v A1,...? Lahko jih poračunam samo lokalno.
-        v::Array{Array{Int64}}
+        v::Array{Array{Int64}} #
     end
     
 
@@ -308,7 +297,7 @@ module NonLinBeam
 
         
         Einit = [-1.;0.;0.]
-        # Začetni čas
+        # Začetni časp 
         Rot0 = R.(ϕₙ₁)
         dRot0 = dR.(ϕₙ₁)
         D0 = map( k -> [Dxₙ₁[k]; Dzₙ₁[k];dϕₙ₁[k]], eachindex(x_Int))
