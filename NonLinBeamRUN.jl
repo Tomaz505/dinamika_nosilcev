@@ -1,5 +1,13 @@
 #   V N O S   P O D A T K O V
 #       Vozlišča in elementi
+
+
+#=
+data = read("data.txt")
+data1 = eval(Meta.parse(remouve(data[1:findfirst("elementi",data)[1]-1],"\n" => "", "  "=>"")))
+=#
+
+
 begin
     vozlisca::Array{Float64} = [
         0 0;
