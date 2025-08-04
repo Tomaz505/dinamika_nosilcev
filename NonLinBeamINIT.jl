@@ -23,7 +23,10 @@ end;
 
 
 # Precompile
-datainit([1 2],Float64.([0 0;0 -1]));
-InterpolKoeff([0,1]);
+datainit([1 2],[0. 0.;0. -1.]);
+re_gramschmid([[-1.,1.]]);
+GaussInt(2);
+
+#InterpolKoeff([0,1]);
 
 

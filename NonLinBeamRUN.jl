@@ -12,6 +12,8 @@ begin
     ]
     #Povezave vozlisc 
 
+
+    #Podatkovne strukture
     n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 end; 
 
@@ -38,7 +40,7 @@ begin
     @assignto :(ElementDataIn) [1] :( [0.; 0.] ) :(M)
     @assignto :(ElementDataIn) [1] :( [10000. 0. 0.;0. 10000. 0.; 0. 0. 100000.] ) :(C)
 
-    @assignto :(ElementDataIn) [1] :( [0, 1] ) :(div1)
+    @assignto :(ElementDataIn) [1] :( [-1, 1] ) :(div1)
     @assignto :(ElementDataIn) [1] :( [2] ) :(div2)
     @assignto :(ElementDataIn) [1] :( [30] ) :(nInt) 
 

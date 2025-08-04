@@ -16,19 +16,21 @@ module NonLinBeam
         v::Array{Int64} = [1,2] # Vozlišča - krajna
         C::Array{Float64} = [1 0 0;0 1 0;0 0 1] #Materialna matrika
         M::Array{Float64} = [1; 1] #Vektor [ρA; ρI]
-
-
-	# spremeni na interpolacijske točke in polinom
-	# uporabi agoritem za interpolacijsko bazo... vnos relativnih koordinat na (-1,1) za vrednosti, odvode, druge odvode itd.
-	# podatek geometrije so potem koordinate in vektorji.
-	# Robna vozlišča so že določena, uporabnik poda samo vmesne točke
-	# shraniš bazne funkcije in koeficiente razvoja
+	
+	#tole lahko brišeš
         f::Function = x->[0,x] #Funkcija krivulje
         df::Function = x->[0,1] #Odvod funkcije krivulje
-	# to boš lahko pobrisal ker se enostavno odvaja
+
+	
+	#baza
+	#Ib::Matrix{Float64} = [0.5 0.5; -0.5 0.5]
+	# Za drugo bazo podaš Ib = re_gramschmid(DataIn::Vector{Vector{Float64}})
+	#razvoj + vozlišči
+	#Kb::Matrix{Float64} = [] # samo za več kot dve intepolacijski točki dodaš elemente v to matriko
+	# Za več kot dve interpolacijski točki podaj [x1 y1;x2 y2;...]
 
 	# Naj bodo matrike 2xN kjer je N st. elementov
-	#Linearna distribucija obtežbe med robnima vrednostima [p1 p2] na poddelitvah
+	# Linearna distribucija obtežbe med robnima vrednostima [p1 p2] na poddelitvah
         px::Function = t->[0. 0.] 
 	pz::Function = t->[0. 0.]
         my::Function = t->[0. 0.]
@@ -37,13 +39,16 @@ module NonLinBeam
 
         div1::Array{Float64} = [-1,1]
 	#Relativne koordinate vozlišč primarne delitve.
+	#Naj bo vedno med -1 in 1
 
         div2::Array{Int64} = [4]
 	#Število vozlišč v sekundarni delitvi. Dve sta robni. Int za vsak element.
 
-        nInt::Array{Int64} = [100]
+        nInt::Array{Int64} = [20]
 	#Število integracijskih točk v posameznem div1. Smiselno je približno 3*div2. Ponovno Int za vsak element
-
+	#Ci::Int64 = 0 ali Ci::Bool = false
+	#Zveznost odvodov
+	#Bi shranil tudi bazo?
     end 
 
 
@@ -80,7 +85,9 @@ module NonLinBeam
 	# sprostitev v smeri vektorja [x,y] pomeni vezno enačbo
 	# y*ux-x*uy = 0 [ux,uy] je pravokoten na [y,-x]
         Supp::Array{Bool} = [1 1 1]
-	# lahko nastaviš številko za rotacijo globalnih koordinat v kateri je ta sprostitev jasna in je potem supp podan za ta rotiran koordinatni sistem
+	dir::Float64 = 0.
+	# lahko nastaviš številko za rotacijo globalnih koordinat v kateri je ta sprostitev jasna in je potem supp podan za ta rotiran koordinatni sistem. smiselno je le za 0-pi/2
+	# dokler ne urediš vsega naj bo vedno 0.
     end
 
 
@@ -99,13 +106,18 @@ module NonLinBeam
 
 
 
-    #Funkcije
-    #Funkcija za rotacijo 2-terice za kot a
-    R2(a) = [cos(a) -sin(a); sin(a) cos(a)]
+    
+    #Funkcija za rotacijo 2-terice za kot
+    function R2(a)::Matrix{Float64} 
+	    return [cos(a) -sin(a); sin(a) cos(a)]
+    end
     #Funkcija za rotacijo 3-terice za kot a okrov e3
-    R(a) = [cos(a) -sin(a) 0 ; sin(a) cos(a) 0 ; 0 0 1]
-    dR(a) = [-sin(a) -cos(a) 0 ; cos(a) -sin(a) 0 ; 0 0 0]
-    ddR(a) = [-cos(a) sin(a) 0 ; -sin(a) -cos(a) 0 ; 0 0 0]
+    function R(a;n = 0)::Matrix{Float64}
+	    # n je stopnja odvoda
+	    return [0. -1. 0.;1. 0. 0.; 0. 0. 0.]^n * [cos(a) -sin(a) 0. ; sin(a) cos(a) 0. ; 0. 0. 1.]
+    end
+
+
 
 
     #Funkcija za določitev uteži wi in koordinat xi za gaussovo integracijo
@@ -193,7 +205,63 @@ module NonLinBeam
     Interpolated(x::Array{Float64},Kn::Array{Float64},Ib::Vector{Array{Float64}}) = map(x->Interpolated(x::Float64,Kn::Array{Float64},Ib::Vector{Array{Float64}}),x)
     Interpolated(x::Array{Float64},Kn::Float64,Ib::Array{Float64}) = map(x->Interpolated(x::Float64,Kn::Float64,Ib::Array{Float64}),x)
 
-	
+
+
+
+
+	# Funkcije za interpolacijsko bazo	
+    	function DotP(a::Array{Float64},DataIn::Vector{Vector{Float64}})
+        	m = length(DataIn)
+       	 	n = sum(length.(DataIn))-1
+		#Diferencialni operator
+        	Dp = diagm(1=>1:n)
+		
+		#Seznam funkcijskih vrednosti polinoma glede na DataIn
+        	b = vcat(map( (A,i) -> (((Dp^i)*a)'* (A'.^(0:n)) )' ,DataIn,0:(m-1))...)
+        	return b
+    	end
+	function DotP(a::Array{Float64},b::Array{Float64},DataIn::Vector{Vector{Float64}})
+		#Skalarni produkt vektorjev iz DotP(a,A)
+		return DotP(a::Array{Float64},DataIn::Vector{Vector{Float64}})'*DotP(b::Array{Float64},DataIn::Vector{Vector{Float64}})
+	end
+    	function gramschmid(DataIn::Vector{Vector{Float64}}; B0::Union{Array{Float64},Int64} = 1)
+        	n::Int64 = sum(length.(DataIn))-1
+        	
+		#Standardna baza        
+       	 	Id = Matrix{Float64}(I,n+1,n+1);
+
+		#Re-ortogoanalizacija
+        	if typeof(B0) == Int64 
+		    B0::Array{Float64} = copy(Id)
+		end
+
+		#Diferencialni operator
+		Dp::Array{Float64} = diagm(1=>Float64.(1:n))
+
+		#Skalarni produkti standardne baze + normiranje
+		ei = B0./sqrt.(DotP(B0,B0,DataIn)[CartesianIndex.(1:n+1,1:n+1)])
+
+		#Ortogonalizacija
+		bi = copy(ei);
+		for i1 = 2:n+1
+		    c1 =ei[:,i1] - sum(DotP(ei[:,i1],bi[:,1:i1-1],DataIn) .*bi[:,1:i1-1],dims=2)[:,1]
+		    bi[:,i1] = c1/sqrt(DotP(c1,c1,DataIn)[1])
+		end
+		
+		#Interpolacija
+		Ib = hcat(map(i-> round.(sum(DotP(bi,DataIn)[i,:]'.*bi,dims=2),digits = 13) ,1:n+1)...)
+
+		return Ib,n,Dp,bi
+	end
+
+	function re_gramshcmid(DataIn::Vector{Vector{Float64}})
+		bi = gramschmid(DataIn)[4]
+		Ib,n,Dp,bi = gramshchmid(DataIn;B0 = bi)
+		return Ib,n,Dp,bi
+	end
+
+
+
 
 
 	# TOLE JE NASTY |
