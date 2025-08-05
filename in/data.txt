@@ -40,7 +40,7 @@ elementi::Array{Int64} = [
 			#Indeks seznama v seznamu je stopnja odvoda-1 interpolacije
 		#Kb so koeficienti razvoja interpolacije.
 			#Naj bo v obliki [x1 y1; x2 y1; ...]
-@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,0.,-1.]])[4]) :(Ib_geom)
+@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,1.,0.]])[4]) :(Ib_geom)
 @assignto :(ElementDataIn) [1] :( [0.5 -0.5]) :(Kb) 
 
 	#Podatki podpor

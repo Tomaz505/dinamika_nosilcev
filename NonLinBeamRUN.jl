@@ -1,5 +1,5 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
-include("NonLinBeamINIT.jl");
+#include("NonLinBeamINIT.jl");
 data1,data2,data3 = readdata();
 eval(Meta.parse(data1));
 eval(Meta.parse(data2));

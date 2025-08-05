@@ -17,7 +17,7 @@ module NonLinBeam
         C::Matrix{Float64} = [1 0 0;0 1 0;0 0 1] #Materialna matrika
         M::Vector{Float64} = [1; 1] #Vektor [ρA; ρI]
 	Ib_geom::Matrix{Float64} = [0.5 0.5; -0.5 0.5] #re_gramschmid(DataIn::Vector{Vector{Float64}})
-	Kb::Matrix{Float64} = Array{Float64,2}(undef,(0,0)) 
+	Kb::Matrix{Float64} = Array{Float64,2}(undef,(0,2)) 
 	
         px::Function = t->[0. 0.] 
 	pz::Function = t->[0. 0.]
@@ -151,7 +151,7 @@ module NonLinBeam
 
 
 		for i =1:n_elem
-		    element_data[i] = BeamDataIn(v=elem[i,[1,2]])
+		    element_data[i] = BeamDataIn(v = elem[i,[1,2]]) 
 		end
 
 		for i =1:n_voz
@@ -160,6 +160,57 @@ module NonLinBeam
 
 		return n_elem,n_voz,element_data,voz_data
 	end #datainit
+
+	function dataproces(elem_dat::BeamDataIn,node_dat::Array{NodeDataIn})
+		node1 = [node_dat[1].x node_dat[1].y]
+		node2 = [node_dat[2].x node_dat[2].y]
+		n_ke = length(elem_dat.div1)-1
+		
+		#koeficienti razoja geometrije
+		geom_koeff = vcat(node1,node2,elem_dat.Kb)
+		#vektor koeficientov polinoma za x in y
+		f_geom = sum(map( i -> elem_dat.Ib_geom[:,i].*geom_koeff[i,:],1:size(elem_dat.Ib_geom)[1]))
+		#diff operator za geometrijo
+		Df_geom = diagm(1=>1:length(geom_koeff[:,1])-1)
+
+
+		#zacetna ukrivljenost v točkah za integracijo
+			#odvajaj 1x in 2x
+			#determinanta v integracijskih tockah iz vektorja
+			#norma na 3
+		Ki = 1
+		#zacetni kot v točkah za integracijo
+			#odvajaj f_geom
+			#izvrednoti v integracijskih tockah
+			#izracunaj kot vektorja
+		Pi = 1
+		#dolžina krivulje k.e.
+			#odvajaj polinom za interpolacijo geom
+			#izvrednoti v integracijskih točkah
+			#kvadriraj
+			#seštej
+			#koreni
+			#množi z utežmi
+			#faktor transformacije koordinat (t1,t2)->(-1,1)
+		Li = 1
+
+
+		
+
+		# Interpolacijska baza za vsak končni element
+		Ib = map(i -> (elem_dat.Ci) ? re_gramschmid([collect(range(-1.,1.,length = div2[i]))]) : (1<i<n_ke ? re_gramschmid([collect(range(-1.,1.,length = div2[i])),[-1.,1.]]) : ( i==1 ? re_gramschmid([collect(range(-1.,1.,length = div2[i])),[-1.]]):re_gramschmid([collect(range(-1.,1.,length = div2[i])),[1.]]))),1:n_ke)
+
+
+		
+		#integracijske točke in uteži
+		xi = map(i-> GaussInt(nInt[i]),1:n_ke)
+
+		
+		#Li,Pi,Ki,Ib,xi,wi
+		elem_dat.Ib_geom[:,i]
+	end
+
+
 
 	function readdata()::Tuple{String,String,Array{String}}
 		print("Pot do datoteke z podatki:")
