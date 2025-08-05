@@ -1,6 +1,6 @@
 vozlisca::Array{Float64} = [
-        0 0;
-        0 -1
+        0. 0.;
+        0. -1.
     ]
 
 elementi::Array{Int64} = [
@@ -34,19 +34,19 @@ elementi::Array{Int64} = [
 @assignto :(ElementDataIn) [1] :( [4;4] ) :(div2)
 @assignto :(ElementDataIn) [1] :( [30;30] ) :(nInt) 
 
-	
+
 	#Podatki geometrije
 		#Ib_geom interpolacijska baza z interpolacijo med -1 in 1. 
 			#Indeks seznama v seznamu je stopnja odvoda-1 interpolacije
 		#Kb so koeficienti razvoja interpolacije.
 			#Naj bo v obliki [x1 y1; x2 y1; ...]
-@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,0.,-1.]])) :(Ib_geom)
+@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,0.,-1.]])[4]) :(Ib_geom)
 @assignto :(ElementDataIn) [1] :( [0.5 -0.5]) :(Kb) 
 
 	#Podatki podpor
-		#Supp so sprostitve v lokalnem koordinatnem sistemu
+		#Supp so sprostitve v lokalnem koordinatnem sistemu. Defoult vrednost je [1,1,1].
 		#dir je rotacija globalnega ks za dan kot. 
-@assignto :(VozDataIn) [1] :( Bool[0 0 0] ) :(Supp)
+@assignto :(VozDataIn) [1] :( Bool[0, 0, 0] ) :(Supp)
 @assignto :(VozDataIn) [1] :( pi/3. ) :(dir)
 
 

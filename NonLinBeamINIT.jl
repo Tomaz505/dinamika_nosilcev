@@ -2,7 +2,7 @@
 #   Moduli
 
 include("NonLinBeamMOD.jl");
-using LinearAlgebra, .NonLinBeam, SparseArray
+using .NonLinBeam#, SparseArray,LinearAlgebra, 
 
 # TILE NISO NUJNI ||
 	#using BenchmarkTools, Plots, GraphRecipes,Graphs

@@ -1,9 +1,9 @@
 module NonLinBeam
     
-    export Beam,BeamDataIn,BeamDataProcess,
-    Motion, BeamMotion,datainit,
-    Node, NodeDataIn,
-    R2, GaussInt,InterpolKoeff,Interpolated,JacKoeff,BalanceEq,evaluateKoefficient
+	export Beam,BeamDataIn,BeamDataProcess,
+	Motion, BeamMotion,datainit,readdata,
+	Node, NodeDataIn,
+	R2, GaussInt,InterpolKoeff,Interpolated,JacKoeff,BalanceEq,evaluateKoefficient,re_gramschmid
 
 
     using LinearAlgebra
@@ -13,11 +13,11 @@ module NonLinBeam
     abstract type Beam end
 
     @kwdef mutable struct BeamDataIn <:Beam
-        v::Array{Int64} = [1,2] # Vozlišča - krajna
-        C::Array{Float64} = [1 0 0;0 1 0;0 0 1] #Materialna matrika
-        M::Array{Float64} = [1; 1] #Vektor [ρA; ρI]
+        v::Vector{Int64} = [1;2] # Vozlišča - krajna
+        C::Matrix{Float64} = [1 0 0;0 1 0;0 0 1] #Materialna matrika
+        M::Vector{Float64} = [1; 1] #Vektor [ρA; ρI]
 	Ib_geom::Matrix{Float64} = [0.5 0.5; -0.5 0.5] #re_gramschmid(DataIn::Vector{Vector{Float64}})
-	Kb::Matrix{Float64} = [] 
+	Kb::Matrix{Float64} = Array{Float64,2}(undef,(0,0)) 
 	
         px::Function = t->[0. 0.] 
 	pz::Function = t->[0. 0.]
@@ -73,7 +73,7 @@ module NonLinBeam
 	# prilagodi tako, da lahko nastavis drsno pod kotom.
 	# sprostitev v smeri vektorja [x,y] pomeni vezno enačbo
 	# y*ux-x*uy = 0 [ux,uy] je pravokoten na [y,-x]
-        Supp::Array{Bool} = [1 1 1]
+        Supp::Array{Bool} = [1, 1, 1]
 	dir::Float64 = 0.
 	# lahko nastaviš številko za rotacijo globalnih koordinat v kateri je ta sprostitev jasna in je potem supp podan za ta rotiran koordinatni sistem. smiselno je le za 0-pi/2
 	# dokler ne urediš vsega naj bo vedno 0.
@@ -140,23 +140,48 @@ module NonLinBeam
     end
 
 
-    #Pripravi osnovne podatke
-    function datainit(elem::Array{Int64},voz::Array{Float64})
-        n_elem::Int64 = length(elem[:,1])
-        n_voz::Int64 = length(voz[:,1])
+	#Pripravi osnovne podatke
+	function datainit(elem::Matrix{Int64},voz::Matrix{Float64})
+		n_elem::Int64 = length(elem[:,1])
+		n_voz::Int64 = length(voz[:,1])
 
-        element_data::Vector{BeamDataIn} = fill(BeamDataIn(),n_elem)
-        voz_data::Vector{NodeDataIn} = fill(NodeDataIn(),n_voz)
 
-        for i =1:n_elem
-            element_data[i] = BeamDataIn(v=elem[i,[1,2]])
-        end
-        for i =1:n_voz
-            voz_data[i] = NodeDataIn(x=voz[i,1],y=voz[i,2],i=i)
-        end
+		element_data::Vector{BeamDataIn} = fill(BeamDataIn(),n_elem)
+		voz_data::Vector{NodeDataIn} = fill(NodeDataIn(),n_voz)
 
-        return n_elem,n_voz,element_data,voz_data
-    end
+
+		for i =1:n_elem
+		    element_data[i] = BeamDataIn(v=elem[i,[1,2]])
+		end
+
+		for i =1:n_voz
+		    voz_data[i] = NodeDataIn(x=voz[i,1],y=voz[i,2],i=i)
+		end
+
+		return n_elem,n_voz,element_data,voz_data
+	end #datainit
+
+	function readdata()::Tuple{String,String,Array{String}}
+		print("Pot do datoteke z podatki:")
+		file = readline()
+		
+		if isempty(findall(".txt",file))
+			file = file*".txt"
+		end
+
+		data = readlines("data.txt")
+		data = data[setdiff(1:length(data),findall(sizeof.(data).==0))]
+		data = data[findall(isempty.(findall.("#",replace.(data,"\t"=>""))))]
+		print(data)
+
+		data1 = data[1:findfirst(isempty.(findall.("elementi::Array",data)).==0) - 1]
+		data2 = data[(length(data1)+1):findfirst(isempty.(findall.("@assignto",data)).==0)-1]
+		data1 = prod(data1)
+		data2 = prod(data2)
+		data3 = data[setdiff(1:length(data),findall(isempty.(findall.("@assignto",data))))]
+
+		return data1,data2,data3
+    	end #readdata
 
 
 
@@ -243,9 +268,9 @@ module NonLinBeam
 		return Ib,n,Dp,bi
 	end
 
-	function re_gramshcmid(DataIn::Vector{Vector{Float64}})
+	function re_gramschmid(DataIn::Vector{Vector{Float64}})
 		bi = gramschmid(DataIn)[4]
-		Ib,n,Dp,bi = gramshchmid(DataIn;B0 = bi)
+		Ib,n,Dp,bi = gramschmid(DataIn;B0 = bi)
 		return Ib,n,Dp,bi
 	end
 
@@ -420,160 +445,6 @@ module NonLinBeam
         
             return hcat(J,F)
         =#
-    end
-
-    #Metode funkcij za račun koeficientov pred integracijo koefcientov v Lineariziranih ravnotežnih enačbah
-    function JacKoeff(C::DiaMat,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},Omg::Array{Float64},phi0::Float64,xInt::Array{Float64},dt::Float64,P::Vector{Array{Float64}},dP::Vector{Array{Float64}})
-        C=C.Cd[CartesianIndex.(1:3,1:3)]
-        
-        
-
-        #Mogoče bi lahko prej izračunal sin in cos...
-
-        #uxInt = Interpolated(xInt,ux,P)
-        #uzInt = Interpolated(xInt,uz,P)
-        phiInt = Interpolated(xInt,phi,P)
-
-        duxInt = Interpolated(xInt,ux,dP)
-        duzInt = Interpolated(xInt,uz,dP)
-        #dphiInt = Interpolated(xInt,phi,dP)
-
-        #vxInt = Interpolated(xInt,vx,P)
-        #vzInt = Interpolated(xInt,vz,P)
-        OmgInt = Interpolated(xInt,Omg,P)
-        
-        dvxInt = Interpolated(xInt,vx,dP)
-        dvzInt = Interpolated(xInt,vz,dP)
-        #dOmgInt = Interpolated(xInt,Omg,dP)
-
-
-        #Popravi!! Vrjetno mam vse količine zgoraj.
-        #Preveri k_ph_Om !! Zadnji C[2] ?!?!
-        epsInt = (cos(phi0) .+duxInt).*cos.(phiInt) + (sin(phi0) .+duzInt).*sin.(phiInt) .-1
-        gamInt = -(cos(phi0) .+duxInt).*sin.(phiInt) + (sin(phi0) .+duzInt).*cos.(phiInt)
-
-
-        k_x_Om::Array{Float64} =    (2*(C[2]-C[1])*(duzInt + dt/2*dvzInt .+ sin(phi0)) 
-                                    + 4*(C[1]*epsInt.*sin.(phiInt + dt/2*OmgInt) - C[2]*gamInt.*cos.(phiInt+dt/2*OmgInt)) 
-                                    + (C[1]+C[2])*( 2*(1+dt)*sin.(-phi0.+2*phiInt+dt*OmgInt) + 2*dt*OmgInt.*cos.(phi0.+2*phiInt+dt*OmgInt) + (2*duxInt +3*dt*dvxInt -dt*OmgInt.*(2*duzInt + dt*dvzInt)).*sin.(2*phiInt+dt*OmgInt) - (2*duzInt +3*dt*dvzInt - dt*OmgInt.*(2*duxInt + dt*dvxInt)).*cos.(2*phiInt+dt*OmgInt))) 
-        k_x_dvx::Array{Float64} =   ( 2(C[2]-C[1]) .+ (C[1]+C[2])*( -2*cos.(2*phiInt +dt*OmgInt) + dt*OmgInt.*sin.(2*phiInt +dt*OmgInt)))
-        k_x_dvz::Array{Float64} =   ( dt*(C[2]-C[1])*OmgInt - (C[1]+C[2])*( 2*sin.(2*phiInt +dt*OmgInt) + dt*OmgInt.*cos.(2*phiInt +dt*OmgInt)))
-
-        k_z_Om::Array{Float64} =    (2*(C[2]-C[1])*(duxInt + dt/2*dvxInt .+ cos(phi0)) 
-                                    + 4*(C[1]*epsInt.*cos.(phiInt + dt/2*OmgInt) + C[2]*gamInt.*sin.(phiInt+dt/2*OmgInt)) 
-                                    + (C[1]+C[2])*( 2*(1+dt)*cos.(phi0.+2*phiInt+dt*OmgInt) - 2*dt*OmgInt.*sin.(phi0.+2*phiInt+dt*OmgInt) + (2*duxInt +3*dt*dvxInt -dt*OmgInt.*(2*duzInt + dt*dvzInt)).*cos.(2*phiInt+dt*OmgInt) + (2*duzInt +3*dt*dvzInt -dt*OmgInt.*(2*duxInt + dt*dvxInt)).*sin.(2*phiInt+dt*OmgInt))) 
-        k_z_dvx::Array{Float64} =   ( dt*(C[2]+C[1])*OmgInt.*cos.(2*phiInt +dt*OmgInt) +    (C[2]+C[1])*2*sin.(2*phiInt +dt*OmgInt) + dt*OmgInt*(C[2]-C[1]))
-        k_z_dvz::Array{Float64} =   ( 2(C[2]-C[1]) .+ (C[1]+C[2])*( -2*cos.(2*phiInt +dt*OmgInt) + dt*OmgInt.*sin.(2*phiInt +dt*OmgInt)))     #Možno da ima napako
-
-        k_ph_Om::Array{Float64}  =  (4*((2*duzInt+dt*dvzInt).*(C[2]*gamInt.*cos.(phiInt+dt*OmgInt)-C[1]*epsInt.*sin.(phiInt+dt/2*OmgInt))+(2 .+2*duxInt+dt*dvxInt).*(C[1]*epsInt.*cos.(phiInt+dt*OmgInt)+C[2]*gamInt.*sin.(phiInt+dt/2*OmgInt)))
-                                    +(C[1]+C[2])*(-2*(2*duzInt+dt*dvzInt).*(dt*OmgInt.*cos.(phi0.+ 2*phiInt +dt*OmgInt)+(1+dt)*sin.(-phi0.+2*phiInt+dt*OmgInt)) - 2*(2 .+2*duxInt+dt*dvxInt).*(dt*OmgInt.*sin.(phi0.+ 2*phiInt +dt*OmgInt)-(1+dt)*cos.(-phi0.+2*phiInt+dt*OmgInt)) + cos.(2*phiInt +dt*OmgInt).*(4*(duxInt + duxInt.^2 +duzInt.^2) + 2*dt*(3*dvxInt+4*duxInt.*dvxInt+4*duzInt.*dvzInt-4*OmgInt.*duzInt-8*OmgInt.*duxInt.*duzInt)+ dt^2 *(3*dvxInt.^2 + 3*dvzInt.^2-4*OmgInt.*duzInt.*dvxInt-2*dvzInt.*OmgInt-4*duxInt.*dvzInt.*OmgInt) -dt^3*dvxInt.*dvzInt.*OmgInt)+sin.(2*phiInt+dt*OmgInt).*(4*duzInt+dt*(-4*duzInt.*dvxInt+6*dvzInt+4*duxInt.*dvzInt-4*duxInt.*OmgInt) +dt^2*(-4*duxInt+4*duzInt-2*dvxInt-4*duxInt.*dvxInt+4*duzInt.*dvzInt).*OmgInt+dt^3*(dvzInt.^2-dvxInt.^2).*OmgInt))#             (6. .+4*duxInt).*dvzInt*dt + 4*dvzInt.^2 *dt.*OmgInt + dt^3 *dvzInt.^2 .*OmgInt - dt*(2*duxInt +dt*dvxInt).*(2. .+ 2*duxInt +dt*dvxInt).*OmgInt + duzInt.*(4. .- 4*dvxInt*dt +4*dt^2 *dvzInt.*OmgInt)))
-                                    +(C[2]-C[1])*(4*(duxInt+duxInt.^2+dvzInt.^2)+2*dt*(dvxInt+2*duxInt.*dvxInt-2*duzInt.*dvzInt)+dt^2 *(dvxInt.^2-dvzInt.^2)+2*(2. .+2*duxInt+dt*dvxInt)*cos(phi0) -2*(2*duzInt+dt*dvzInt)*sin(phi0)))/2
-        k_ph_dOm::Float64 =  -4*C[3]
-        k_ph_dvx::Array{Float64} =  (4*C[1]*epsInt.*sin.(phiInt + dt/2*OmgInt)-4*C[2]*gamInt.*cos.(phiInt+dt/2*OmgInt)
-                                    +(C[1]-C[2])*(dt*(sin(phi0).-OmgInt*cos(phi0)) + 2*(duzInt +dt*dvzInt) -dt*(1. .+2*duxInt+dt*dvxInt).*OmgInt)
-                                    +(C[1]+C[2])*((2*duzInt+dt*(1. .+ 2*duxInt+dt*dvxInt)).*cos.(2*phiInt +dt*OmgInt) + (2*(1. .+duxInt+dt*dvxInt) -dt*(2*duzInt +dt*dvzInt)).*sin.(2*phiInt+dt*OmgInt)+dt*(sin.(-phi0 .+2*phiInt +dt*OmgInt) +OmgInt.*cos.(phi0 .+2*phiInt +dt*OmgInt))))/2
-        k_ph_dvz::Array{Float64} =  (4*C[1]*epsInt.*cos.(phiInt + dt/2*OmgInt)+4*C[2]*gamInt.*sin.(phiInt+dt/2*OmgInt)
-                                    +(C[1]-C[2])*(2*(1. .+duxInt +dt*dvxInt) +dt*(cos(phi0) .- OmgInt*sin(phi0)))#   (-4 .-4*duxInt -2*dt*(dvxInt+dvzInt) +dt*OmgInt.*(2*duxInt-2*duzInt+dt*(dvxInt-dvzInt))+2*dt*(OmgInt*cos(phi0) .- sin(phi0)))
-                                    +(C[1]+C[2])*(-2*(1+dt)*cos.(2*phiInt+dt*OmgInt) +(2*duzInt +2*dvzInt +dt*OmgInt).*sin.(2*phiInt+dt*OmgInt) + dt*(cos.(-phi0 .+2*phiInt+dt*OmgInt)-sin.(phi0 .+2*phiInt+dt*OmgInt)) ))/2   #((-4 .-4*duxInt -2*dt*(dvxInt+dvzInt).*(1 .-dt/2*OmgInt)+2*dt*OmgInt.*(duxInt+duzInt)).*cos.(2*phiInt+dt*OmgInt) + (4*duzInt+2*dt*(dvxInt+dvzInt)+dt^2*OmgInt.*(dvxInt-dvzInt) + 2*dt*OmgInt.*(1 .+duxInt-duzInt)).*sin.(2*phiInt+dt*OmgInt) + 2*dt*(sin.(-phi0 .+2*phiInt+dt*OmgInt)+OmgInt.*cos.(phi0 .+2*phiInt+dt*OmgInt))))/2
-        
-        k = dt.*[k_x_Om, k_x_dvx, k_x_dvz, k_z_Om,k_z_dvx,k_z_dvz,k_ph_Om,k_ph_dOm,k_ph_dvx,k_ph_dvz]./8
-        
-        return k
-    end
-    function JacKoeff(C::SymMat,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},Omg::Array{Float64},phi0::Float64,xInt::Array{Float64},dt::Float64,P::Array{Float64},dP::Array{Float64})
-        k = JacKoeff(C.Cd::DiaMat,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},Omg::Array{Float64},phi0::Float64,xInt::Array{Float64},dt::Float64,P::Array{Float64},dP::Array{Float64})
-
-        g = 1
-
-        return k,g
-    end
-    function JacKoeff(C::AnyMat,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},Omg::Array{Float64},phi0::Float64,xInt::Array{Float64},dt::Float64,P::Array{Float64},dP::Array{Float64})
-        k,g = JacKoeff(C.Cs::SymMat,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},Omg::Array{Float64},phi0::Float64,xInt::Array{Float64},dt::Float64,P::Array{Float64},dP::Array{Float64})
-        #k = JacKoeff(C.Cs.Cd::DiaMat,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},Omg::Array{Float64},phi0::Float64,xInt::Array{Float64},dt::Float64,P::Array{Float64},dP::Array{Float64})
-
-        c=1
-
-        return k,g,c
-    end
-
-
-
-    #Funkcija za račun ravnotežnih enačb... Želimo: fxi = 0, fzi = 0, fpi = 0
-    function BalanceEq(C::Union{DiaMat,SymMat,AnyMat},M::Array{Float64},g::Float64,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},Omg::Array{Float64},phi0::Float64,xInt::Array{Float64},wInt::Array{Float64},dt::Float64,P::Vector{Array{Float64}},dP::Vector{Array{Float64}},px::Vector{Float64},pz::Vector{Float64},my::Vector{Float64})
-        if C isa DiaMat
-            C = C.Cd
-        elseif C isa SymMat
-            C = C.Cs + C.Cd.Cd
-        else
-            C = C.Ca + C.Cs.Cs + C.Cs.Cd.Cd
-        end
-        
-        #lahko bi vx, vz, Omg vnesel kot dva zaporedna stolpca in potem vzel za pospešek (vx[2]-vx[1])/dt ali nekaj podobnega.
-
-        xInt_ = vcat(-1,xInt,1)
-
-        #uxInt = Interpolated(xInt_,ux,P)
-        #uzInt = Interpolated(xInt_,uz,P)
-        Omg0=Omg[:,1]
-        Omg = Omg[:,2]
-        vx0 = vx[:,1]
-        vx = vx[:,2]
-        vz0 = vz[:,1]
-        vz = vz[:,2]
-
-        phiInt = Interpolated(xInt_,phi,P)
-
-        duxInt = Interpolated(xInt_,ux,dP)
-        duzInt = Interpolated(xInt_,uz,dP)
-        dphiInt = Interpolated(xInt_,phi,dP)
-
-        vxInt = Interpolated(xInt_,vx,P)
-        vzInt = Interpolated(xInt_,vz,P)
-        OmgInt = Interpolated(xInt_,Omg,P)
-        
-        dvxInt = Interpolated(xInt_,vx,dP)
-        dvzInt = Interpolated(xInt_,vz,dP)
-        dOmgInt = Interpolated(xInt_,Omg,dP)
-
-        epsInt = (cos(phi0) .+duxInt).*cos.(phiInt) + (sin(phi0) .+duzInt).*sin.(phiInt) .-1
-        gamInt = -(cos(phi0) .+duxInt).*sin.(phiInt) + (sin(phi0) .+duzInt).*cos.(phiInt)
-        #kapInt = dphiInt
-
-        tepsInt = sin.(phiInt+dt/2*OmgInt).*(sin.(phi0 .+ dvzInt - OmgInt.*(cos(phi0) .+ duxInt +dt/2*dvxInt))) + cos.(phiInt+dt/2*OmgInt).*(cos(phi0) .+ dvxInt + OmgInt.*(sin(phi0) .+ duzInt +dt/2*dvzInt))
-        tgamInt = cos.(phiInt+dt/2*OmgInt).*(sin.(phi0 .+ dvzInt - OmgInt.*(cos(phi0) .+ duxInt +dt/2*dvxInt))) - sin.(phiInt+dt/2*OmgInt).*(cos(phi0) .+ dvxInt + OmgInt.*(sin(phi0) .+ duzInt +dt/2*dvzInt))
-        #tkapInt = dOmgInt
-
-
-
-        Rx =    (C[1,1]*(epsInt +dt/2*tepsInt) +C[1,2]*(gamInt +dt/2*tgamInt)+C[1,3]*(dphiInt +dt/2*dOmgInt)).*cos.(phiInt + dt/2*OmgInt)
-                +(C[2,2]*(gamInt +dt/2*tgamInt)+C[2,1]*(epsInt +dt/2*tepsInt) + C[2,3]*(dphiInt +dt/2*dOmgInt)).*sin.(phiInt + dt/2*OmgInt)
-        Rz =    -(C[1,1]*(epsInt +dt/2*tepsInt)+C[1,2]*(gamInt +dt/2*tgamInt)+C[1,3]*(dphiInt +dt/2*dOmgInt)).*sin.(phiInt + dt/2*OmgInt)
-                +(C[2,2]*(gamInt +dt/2*tgamInt)+C[2,1]*(epsInt +dt/2*tepsInt) + C[2,3]*(dphiInt +dt/2*dOmgInt)).*cos.(phiInt + dt/2*OmgInt)
-        Mc =    C[3,3]*(dphiInt + dt/2*dOmgInt) + C[3,1]*(epsInt + dt/2*tepsInt) + C[3,2]*(gamInt + dt/2*tgamInt)
-
-
-        Rx0 = Rx[[1,end]]
-        Rz0 = Rz[[1,end]]
-        Mc0 = Mc[[1,end]]
-
-
-        Rx = Rx[2:end-1]
-        Rz = Rz[2:end-1]
-        Mc = Mc[2:end-1]
-
-        
-
-
-        #Popravi pospeške... Predznak, gravitacija,...
-        fxi = map( i -> wInt'*( -Rx.*Interpolated(xInt,1., dP[i]) +  ((px[1]+px[2] .+xInt*(px[2]-px[1]))/2 - (vxInt[2:end-1] -Interpolated(xInt,vx0,P))/dt*M[1])  .* Interpolated(xInt,1.,P[i]) )  + Rx0' *Interpolated([-1.,1.],1.,P[i])  , eachindex(P))
-        fzi = map( i -> wInt'*( -Rz.*Interpolated(xInt,1., dP[i]) +  ((pz[1]+pz[2] .+xInt*(pz[2]-pz[1]))/2 - ((vzInt[2:end-1]-Interpolated(xInt,vz0,P))/dt.-g)*M[1])  .*Interpolated(xInt,1.,P[i]) )  + Rz0' *Interpolated([-1.,1.],1.,P[i]) , eachindex(P))
-        fpi = map( i -> wInt'*( -Mc.*Interpolated(xInt,1., dP[i]) +  (Rx.*(duzInt[2:end-1]+dt/2*dvzInt[2:end-1]) -Rz.*(1 .+duxInt[2:end-1]+dt/2*dvzInt[2:end-1])+  (my[1]+my[2] .+xInt*(my[2]-my[1]))/2 -  M[2]*(OmgInt[2:end-1]-Interpolated(xInt,Omg0,P))/dt  ).*Interpolated(xInt,1.,P[i]) )  +Mc0' *Interpolated([-1.,1.],1.,P[i]) , eachindex(P))
-
-        #round.(fxi,digits = 14)
-        #round.(fzi,digits = 14)
-        #round.(fpi,digits = 14)
-
-        return fxi,fzi,fpi
     end
 
 end # module

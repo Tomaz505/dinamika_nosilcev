@@ -1,89 +1,10 @@
-#   V N O S   P O D A T K O V
-#       Vozlišča in elementi
-
-
-#=
-data = read("data.txt")
-data1 = eval(Meta.parse(remouve(data[1:findfirst("elementi",data)[1]-1],"\n" => "", "  "=>"")))
-=#
-
-
-begin
-    vozlisca::Array{Float64} = [
-        0 0;
-        0 -1
-    ]
-    #Koordinate vozlisc
-
-    elementi::Array{Int64} = [
-        1 2
-    ]
-    #Povezave vozlisc 
-
-
-    #Podatkovne strukture
-    n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
-end; 
-
-
-
-
-#=  V N O S   L A S T N O S T I   E L E M E N T O V
-        Podatke elementom pripisuješ v naslednji obliki:
-
-            @assignto :(ElementDataIn) [n₁,...,nᵢ] :("Lastnost") :("Oznaka Podatka")
-
-            Glede na "Oznaka podatka" je določen tip podatka v "Lastnost" in sicer
-            - "Oznaka podatka" -> "Lastnost"
-            - :(f)      -> :(x->[f₁(x),f₂(x)])
-            - :(div1)   -> :([x₁,...,xₙ])           Relativna delitev elementa na linijske elemente v točkah funkcije [f₁(x),f₂(x)] v danih vrednostih.
-            - :(div2)   -> :([m₁,...,mₙ₋₁])         Število interpolacijskih točk na podelementih danih z točkami iz div1
-            - :(nInt)   -> :([k₁,...,kₙ₋₁])         Število integracijskih točk na podelementih
-            - :(C)      -> :([Cᵢⱼ])                Matrika materialne togosti
-=#
-
-
-begin
-
-		#Materialne karakterisike; bi moral biti M 2xN za N elementov
-	@assignto :(ElementDataIn) [1] :( [0.; 0.] ) :(M)
-	@assignto :(ElementDataIn) [1] :( [10000. 0. 0.;0. 10000. 0.; 0. 0. 100000.] ) :(C)
-
-
-		#Podatki obtežbe po elementih
-			#pz matrika 2xN za N k.e. 
-				#predstavlja linearen potek obtežbe med krajiški k.e.
-			#px podobno
-			#my podobno
-	@assignto :(ElementDataIn) [1] :(t->[0. 0.;0. 0.]) :(pz)
-	@assignto :(ElementDataIn) [1] :(t->[0.001 0.001; 0. 0.]) :(px)
-	@assignto :(ElementDataIn) [1] :(t->[0. 0.; 0. 0.]) :(my)
-
-
-		#Podatki delitve na elemente
-			#div1 naj bo seznam relativnih koordinat med -1 in 1 za delitev na končne elemente.
-				#v osnovi je interpolacija linearna. če interpoliraš kolinearne točke potem 0. ni točno med robnima.
-			#div2 naj bo seznam naravnih števil.
-				#Te so enakomerno razporejene interpolacijske točke posameznega elementa
-			#nInt je število integracijskih točk za numerično integracijo po Gaussu
-	@assignto :(ElementDataIn) [1] :( [-1.; 0.; 1.] ) :(div1)
-	@assignto :(ElementDataIn) [1] :( [4;4] ) :(div2)
-	@assignto :(ElementDataIn) [1] :( [30;30] ) :(nInt) 
-
-		
-		#Podatki geometrije
-			#Ib_geom interpolacijska baza z interpolacijo med -1 in 1. 
-				#Indeks seznama v seznamu je stopnja odvoda-1 interpolacije
-			#Kb so koeficienti razvoja interpolacije.
-				#Naj bo v obliki [x1 y1; x2 y1; ...]
-	@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,0.,-1.]])) :(Ib_geom)
-	@assignto :(ElementDataIn) [1] :( [0.5 -0.5]) :(Kb) 
-	
-		#Podatki podpor
-			#Supp so sprostitve v lokalnem koordinatnem sistemu
-			#dir je rotacija globalnega ks za dan kot. 
-	@assignto :(VozDataIn) [1] :( Bool[0 0 0] ) :(Supp)
-	@assignto :(VozDataIn) [1] :( pi/3. ) :(dir)
+#   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
+include("NonLinBeamINIT.jl");
+data1,data2,data3 = readdata();
+eval(Meta.parse(data1));
+eval(Meta.parse(data2));
+n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca);
+eval.(Meta.parse.(data3));
 
 
 
@@ -91,38 +12,13 @@ begin
 
 
 
-    begin
-        #println.(ElementDataIn)
-        #println("\n")
-        #println.(VozDataIn)
-        #=
-        q=plot(;yticks = union(vozlisca[:,2]),xticks =  union(vozlisca[:,1]),legend = false, aspect_ratio= :equal)
-
-        for i = 1:n_elem
-            i=Int(i)
-            g = ElementDataIn[i].f.( ElementDataIn[i].div1)
-            z=im*(VozDataIn[ElementDataIn[i].v[2]].y-VozDataIn[ElementDataIn[i].v[1]].y) + (VozDataIn[ElementDataIn[i].v[2]].x-VozDataIn[ElementDataIn[i].v[1]].x)
-            a_voz = angle(z)
-            r_el =  abs(z)
-            z = (g[end][1]-g[1][1] + im*(g[end][2]-g[1][2]))
-            a_g = angle(z)
-            r_g =  abs(z)
 
 
-            g = g ./ r_g .* r_el
-            g = hcat(map(k-> R2(a_voz-a_g)*(g[k]-g[1]) +[VozDataIn[ElementDataIn[i].v[1]].x;VozDataIn[ElementDataIn[i].v[1]].y],1:length(g) )...)
 
-            q=plot!(g[1,:],g[2,:]; color = :black)
-            q=scatter!([(g[1,Int(floor((end+1)/2))]+g[1,Int(ceil((end+1)/2))])/2] ,[(g[2,Int(floor((end+1)/2))]+g[2,Int(ceil((end+1)/2))])/2] ; marker = (100,0,:white),series_annotations=[("E$i ", :right,12)])
-                   
-        end
-        for i =1:n_voz
-            q=scatter!([VozDataIn[i].x],[VozDataIn[i].y] ; markercolor = :red, series_annotations=[("V$i ", :right,12)])
-        end
-        display(q)
-        =#
-    end
-end;
+
+
+
+
 
 
 #=   P R I P R A V A   P O D A T K O V
