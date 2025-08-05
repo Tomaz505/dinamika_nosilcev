@@ -174,16 +174,20 @@ module NonLinBeam
 		Df_geom = diagm(1=>1:length(geom_koeff[:,1])-1)
 
 
-		#zacetna ukrivljenost v točkah za integracijo
-			#odvajaj 1x in 2x
-			#determinanta v integracijskih tockah iz vektorja
-			#norma na 3
-		Ki = 1
+		Ki = fill(Vector{Float64}([]),n_ke)
+		Pi = fill(Vector{Float64}([]),n_ke)
+		xg = fill(Vector{Float64}([]),n_ke)
+		wg = fill(Vector{Float64}([]),n_ke)
+		Li = fill(Float64(0.),n_ke)
 		#zacetni kot v točkah za integracijo
 			#odvajaj f_geom
 			#izvrednoti v integracijskih tockah
 			#izracunaj kot vektorja
-		Pi = 1
+		#zacetna ukrivljenost v točkah za integracijo
+			#odvajaj 1x in 2x
+			#determinanta v integracijskih tockah iz vektorja
+			#norma na 3
+
 		#dolžina krivulje k.e.
 			#odvajaj polinom za interpolacijo geom
 			#izvrednoti v integracijskih točkah
@@ -192,7 +196,25 @@ module NonLinBeam
 			#koreni
 			#množi z utežmi
 			#faktor transformacije koordinat (t1,t2)->(-1,1)
-		Li = 1
+
+		for i = 1:n_ke
+			xg[i],wg[i] = GaussInt(elem_dat.div2[i])
+
+			x_trans = xg[i]/2. *(elem_dat.div1[i+1]-elem_dat.div1[i]).+(elem_dat.div1[i+1]+elem_dat.div1[i])/2.
+
+			D1_vec = map(x->sum((Df_geom*f_geom).*(x.^(0:length(geom_koeff[:,1])-1)),dims = 1),x_trans)
+			D2_vec =  map(x->sum(((Df_geom^2)*f_geom).*(x.^(0:length(geom_koeff[:,1])-1)),dims = 1),x_trans) 
+			
+			Pi[i] = map(v-> atan(v[2],v[1]),D1_vec)
+			Ki[i] = map((v1,v2)-> abs(det([v1;v2]))/norm(v1)^3,D1_vec,D2_vec)
+			Li[i] = sum(norm.(D1_vec).*wg)*2. /(elem_dat.div1[i+1]-elem_dat.div1[i])
+
+		end
+	
+
+
+
+
 
 
 		
@@ -201,13 +223,8 @@ module NonLinBeam
 		Ib = map(i -> (elem_dat.Ci) ? re_gramschmid([collect(range(-1.,1.,length = div2[i]))]) : (1<i<n_ke ? re_gramschmid([collect(range(-1.,1.,length = div2[i])),[-1.,1.]]) : ( i==1 ? re_gramschmid([collect(range(-1.,1.,length = div2[i])),[-1.]]):re_gramschmid([collect(range(-1.,1.,length = div2[i])),[1.]]))),1:n_ke)
 
 
-		
-		#integracijske točke in uteži
-		xi = map(i-> GaussInt(nInt[i]),1:n_ke)
-
-		
 		#Li,Pi,Ki,Ib,xi,wi
-		elem_dat.Ib_geom[:,i]
+		
 	end
 
 
