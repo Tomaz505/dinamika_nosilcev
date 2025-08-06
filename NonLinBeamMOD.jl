@@ -337,12 +337,38 @@ module NonLinBeam
 	end
 
 
-
-
+	function InterpolValue(x::Float64,Kb::Vector{Float64},Ib::Matrix{Float64};n::Int64=0)::Float64
+		Df = diagm(1=>1. :length(Kb)-1.)^n
+		f = (Df*Ib*Kb)'*x.^(0:length(Kb)-1)
+		return f
+	end
 
 	# TOLE JE NASTY |
 	# 		ˇ
 
+
+	function VarsAtX(x::Float64,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},omg::Array{Float64},Ib::Matrix{Float64},p0::Float64,k0::Float64,C::Matrix{Float64})
+
+		U = map(qi -> InterpolaValue(x,qi,Ib),[ux,uz,phi])	
+		V = map(qi -> InterpolaValue(x,qi,Ib),[vx,vz,omg])
+		
+		dU = map(qi -> InterpolaValue(x,qi,Ib;n=1),[ux,uz,phi])	
+		dV = map(qi -> InterpolaValue(x,qi,Ib;n=1),[vx,vz,omg])
+		
+		D = U+[cos(p0); sin(p0); 0.0]
+		
+		dlD = Matrix(I,(3,3))
+
+		E = R(U[3])*D + [-1.0 ; 0.0; k0]
+		R = R(U[3])*C*E
+		
+		dlE = ( R(U[3];n=1)*D , R(U[3])*dlD )
+		dlR = ( R(U[3];n=1)*C*E + R(U[3])*C*R(U[3];n=1)*D, R(U[3])*dlD)
+
+		
+		
+		
+	end
 
 
     function evaluateKoefficient(ux,uz,phi,vx,vz,Omg,phi0,L,C,px,pz,my,g,xInt,wInt,dt,P,dP,A1,A2,A3,A4,A5,A6)
