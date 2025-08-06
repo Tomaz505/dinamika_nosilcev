@@ -1,9 +1,8 @@
 module NonLinBeam
     
-	export Beam,BeamDataIn,BeamDataProcess,
-	Motion, BeamMotion,datainit,readdata,
-	Node, NodeDataIn,
-	R2, GaussInt,InterpolKoeff,Interpolated,JacKoeff,BalanceEq,evaluateKoefficient,re_gramschmid
+	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
+		datainit, readdata, dataprocess,
+		R2, R, GaussInt, InterpolKoeff, Interpolated, JacKoeff, BalanceEq, evaluateKoefficient, re_gramschmid
 
 
     using LinearAlgebra
@@ -14,8 +13,10 @@ module NonLinBeam
 
     @kwdef mutable struct BeamDataIn <:Beam
         v::Vector{Int64} = [1;2] # Vozlišča - krajna
-        C::Matrix{Float64} = [1 0 0;0 1 0;0 0 1] #Materialna matrika
+        
+	C::Matrix{Float64} = [1 0 0;0 1 0;0 0 1] #Materialna matrika
         M::Vector{Float64} = [1; 1] #Vektor [ρA; ρI]
+
 	Ib_geom::Matrix{Float64} = [0.5 0.5; -0.5 0.5] #re_gramschmid(DataIn::Vector{Vector{Float64}})
 	Kb::Matrix{Float64} = Array{Float64,2}(undef,(0,2)) 
 	
@@ -33,30 +34,30 @@ module NonLinBeam
 	#Število integracijskih točk v posameznem div1. Smiselno je približno 3*div2. Ponovno Int za vsak element
 	
 
-	#Ci::Int64 = 0 ali Ci::Bool = false
+	Ci::Bool = false
 	#Ib::Array{Matrix{Float64}} = ... 
 	#Zveznost odvodov
-	#Bi shranil tudi baze?
+	#Bi shranil tudi baze
     end 
 
-
+	#Li,Pi,Ki,Ib,xi,wi
     struct BeamDataProcess <:Beam
-        C::Array{Float64} #
-        M::Array{Float64} #
-        L::Array{Float64} 
-        ϕ0::Array{Float64}
-	#kapa0::Array{Float64}
-        P::Array{Array{Array{Float64}}} #
-        dP::Array{Array{Array{Float64}}} #
-        A1::Array{Array{Array{Float64}}} #
-        A2::Array{Array{Array{Float64}}} #
-        A3::Array{Array{Array{Float64}}} #
-        A4::Array{Array{Array{Float64}}} #
-        A5::Array{Array{Array{Float64}}} #
-        A6::Array{Array{Array{Float64}}} #
-        xInt::Array{Array{Float64}}
-        wInt::Array{Array{Float64}} # Jih dejansko rabim s sabo če so v A1,...? Lahko jih poračunam samo lokalno.
-        v::Array{Array{Int64}} #
+       # C::Array{Float64} #
+       # M::Array{Float64} #
+        L::Vector{Float64} 
+	p0::Vector{Vector{Float64}}
+	k0::Vector{Vector{Float64}}
+        P::Vector{Matrix{Float64}} #
+       # dP::Array{Array{Array{Float64}}} #
+       # A1::Array{Array{Array{Float64}}} #
+       # A2::Array{Array{Array{Float64}}} #
+       # A3::Array{Array{Array{Float64}}} #
+       # A4::Array{Array{Array{Float64}}} #
+       # A5::Array{Array{Array{Float64}}} #
+       # A6::Array{Array{Array{Float64}}} #
+        xInt::Vector{Vector{Float64}}
+        wInt::Vector{Vector{Float64}} # Jih dejansko rabim s sabo če so v A1,...? Lahko jih poračunam samo lokalno.
+       # v::Array{Array{Int64}} #
     end
     
 
@@ -161,19 +162,31 @@ module NonLinBeam
 		return n_elem,n_voz,element_data,voz_data
 	end #datainit
 
-	function dataproces(elem_dat::BeamDataIn,node_dat::Array{NodeDataIn})
+	function dataprocess(elem_dat::BeamDataIn,node_dat::Array{NodeDataIn})::BeamDataProcess
 		node1 = [node_dat[1].x node_dat[1].y]
 		node2 = [node_dat[2].x node_dat[2].y]
 		n_ke = length(elem_dat.div1)-1
-		
+	
+
 		#koeficienti razoja geometrije
 		geom_koeff = vcat(node1,node2,elem_dat.Kb)
 		#vektor koeficientov polinoma za x in y
-		f_geom = sum(map( i -> elem_dat.Ib_geom[:,i].*geom_koeff[i,:],1:size(elem_dat.Ib_geom)[1]))
+
+
+
+		f_geom = sum(map( i -> elem_dat.Ib_geom[:,i].*geom_koeff[i,:]',1:size(elem_dat.Ib_geom)[1]))
 		#diff operator za geometrijo
+
+
+
+		
 		Df_geom = diagm(1=>1:length(geom_koeff[:,1])-1)
 
 
+
+		
+
+		#koeficienti razoja geometrije
 		Ki = fill(Vector{Float64}([]),n_ke)
 		Pi = fill(Vector{Float64}([]),n_ke)
 		xg = fill(Vector{Float64}([]),n_ke)
@@ -197,8 +210,13 @@ module NonLinBeam
 			#množi z utežmi
 			#faktor transformacije koordinat (t1,t2)->(-1,1)
 
+
+		
+
+		#koeficienti razoja geometrije
 		for i = 1:n_ke
-			xg[i],wg[i] = GaussInt(elem_dat.div2[i])
+
+			xg[i],wg[i] = GaussInt(elem_dat.nInt[i])
 
 			x_trans = xg[i]/2. *(elem_dat.div1[i+1]-elem_dat.div1[i]).+(elem_dat.div1[i+1]+elem_dat.div1[i])/2.
 
@@ -206,25 +224,22 @@ module NonLinBeam
 			D2_vec =  map(x->sum(((Df_geom^2)*f_geom).*(x.^(0:length(geom_koeff[:,1])-1)),dims = 1),x_trans) 
 			
 			Pi[i] = map(v-> atan(v[2],v[1]),D1_vec)
-			Ki[i] = map((v1,v2)-> abs(det([v1;v2]))/norm(v1)^3,D1_vec,D2_vec)
-			Li[i] = sum(norm.(D1_vec).*wg)*2. /(elem_dat.div1[i+1]-elem_dat.div1[i])
+			Ki[i] = map((v1,v2)-> abs(det([v1;v2]))/norm(v1)^3,D1_vec,D2_vec)		
+
+			Li[i] = sum(norm.(D1_vec).*wg[i])*(elem_dat.div1[i+1]-elem_dat.div1[i])/2.
 
 		end
 	
 
 
-
-
-
-
 		
 
+		#koeficienti razoja geometrije
 		# Interpolacijska baza za vsak končni element
-		Ib = map(i -> (elem_dat.Ci) ? re_gramschmid([collect(range(-1.,1.,length = div2[i]))]) : (1<i<n_ke ? re_gramschmid([collect(range(-1.,1.,length = div2[i])),[-1.,1.]]) : ( i==1 ? re_gramschmid([collect(range(-1.,1.,length = div2[i])),[-1.]]):re_gramschmid([collect(range(-1.,1.,length = div2[i])),[1.]]))),1:n_ke)
+		Ib = map(i -> (!elem_dat.Ci) ? re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i]))]) : (1<i<n_ke ? re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i])),[-1.,1.]]) : ( i==1 ? re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i])),[-1.]]) : re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i])),[1.]]))),1:n_ke)
 
 
-		#Li,Pi,Ki,Ib,xi,wi
-		
+		return BeamDataProcess(Li,Pi,Ki,Ib,xg,wg)	
 	end
 
 
@@ -237,7 +252,7 @@ module NonLinBeam
 			file = file*".txt"
 		end
 
-		data = readlines("data.txt")
+		data = readlines(file)
 		data = data[setdiff(1:length(data),findall(sizeof.(data).==0))]
 		data = data[findall(isempty.(findall.("#",replace.(data,"\t"=>""))))]
 		print(data)
@@ -256,32 +271,11 @@ module NonLinBeam
     #Funkcija za določitev koeficientov standardne baze za interpolacijo v danih točkah
     #
     #Tole zamenjaj za gramshchmita
-
-    function InterpolKoeff(IterpPoint::Union{Array,StepRangeLen,StepRange})
-        n = length(IterpPoint)-1
-        IterpPoint=reshape(collect(IterpPoint),(n+1,1))
-        Dp = diagm(1=>1:n)
-        DotP(a::Array)= (a' * (IterpPoint').^(0:n))'
-        DotP(a::Array,b::Array) = (DotP(a))'*DotP(b)
-    
-    
-        ei = map(k->Matrix(I,n+1,n+1)[k,(1:n+1)],1:n+1)
-        Edots = hcat(map.(k->DotP(ei[k],ei),1:n+1)...)
-        ei = map(k-> ei[k]./sqrt(Edots[k,k]),1:n+1)
-    
-        map!(k  ->  (ei[k] - (k==1 ? 0 .*ei[k] : sum( map(t->DotP(ei[k],ei[t]),1:k-1) .*ei[1:k-1]) )) / sqrt(DotP((ei[k] - (k==1 ? 0 .*ei[k] : sum( map(t->DotP(ei[k],ei[t]),1:k-1) .*ei[1:k-1]))) ,(ei[k] - (k==1 ? 0 .*ei[k] : sum( map(t->DotP(ei[k],ei[t]),1:k-1) .*ei[1:k-1]))) )) ,ei , 1:n+1)
-    
-        sp = length(DotP(ei[1]))
-        Iunit = Matrix(I,sp,sp)
-        UnitV = map(k->Iunit[k,(1:sp)],1:sp)
-    
-        Ib = map( t-> round.(sum( map(k->  ((DotP(ei[k]))'* UnitV[t]).*ei[k] ,  1:n+1)),digits=12) ,1:sp )
-        dIb = map(k->Dp*k,Ib)
-        return Ib,dIb
-    end
-
     #Funkcija za račun funkcijske vrednosti v x za interpolacijsko bazo Ib in koeficiente razvoja Kn
+
     #tole malo polepšaj
+    
+
     Interpolated(x::Float64,Kn::Array{Float64},Ib::Vector{Array{Float64}}) = ((Kn' *Ib)'*(x.^(0:(length(Ib)-1))) )
     Interpolated(x::Float64,Kn::Float64,Ib::Array{Float64}) = (Kn*Ib)' * (x.^(0:(length(Ib)-1))) 
     Interpolated(x::Array{Float64},Kn::Array{Float64},Ib::Vector{Array{Float64}}) = map(x->Interpolated(x::Float64,Kn::Array{Float64},Ib::Vector{Array{Float64}}),x)
@@ -338,8 +332,8 @@ module NonLinBeam
 
 	function re_gramschmid(DataIn::Vector{Vector{Float64}})
 		bi = gramschmid(DataIn)[4]
-		Ib,n,Dp,bi = gramschmid(DataIn;B0 = bi)
-		return Ib,n,Dp,bi
+		bi = gramschmid(DataIn;B0 = bi)[1]
+		return bi
 	end
 
 

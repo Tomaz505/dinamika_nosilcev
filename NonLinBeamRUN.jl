@@ -1,5 +1,5 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
-#include("NonLinBeamINIT.jl");
+
 data1,data2,data3 = readdata();
 eval(Meta.parse(data1));
 eval(Meta.parse(data2));
@@ -8,12 +8,17 @@ eval.(Meta.parse.(data3));
 
 
 
+#   P R E D P O C E S I R A N J E
+E = Array{BeamDataProcess}(undef,n_elem)
+for i = 1:n_elem
+	E[i] = dataprocess(ElementDataIn[i],VozDataIn[ElementDataIn[i].v])
+end
 
 
 
 
 
-
+#=
 
 
 
@@ -82,7 +87,14 @@ begin
     n_voz = Int(length(vozlisca)/2)
     n_v = maximum(E[end].v[end])
 end;
+=#
 
+
+
+
+
+
+#=
 
 #   P O D A T K I   I T R A C I J S K E G A   P O S T O P K A
 begin
@@ -187,4 +199,5 @@ begin
             #M.Omg[indxP,i+2] = M.Omg[indxX,i+1] 
         end #for i in t
     end
-end
+end=#
+
