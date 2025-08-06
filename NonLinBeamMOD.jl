@@ -338,14 +338,17 @@ module NonLinBeam
 
 
 	function InterpolValue(x::Float64,Kb::Vector{Float64},Ib::Matrix{Float64};n::Int64=0)::Float64
-		Df = diagm(1=>1. :length(Kb)-1.)^n
+		Df = diagm(1 => 1. :length(Kb)-1.)^n
 		f = (Df*Ib*Kb)'*x.^(0:length(Kb)-1)
 		return f
 	end
 
-	# TOLE JE NASTY |
-	# 		ˇ
-
+	function PolyValue(x::Float64,Ki::Vector{Float64};n::Int64=0)
+		m = length(Ki)
+		f = InterpolValue(x::Float64,Ki::Vector{Float64},Matrix(I,(m,m))::Matrix{Float64},n::Int64=n)
+		return f
+	end
+	
 
 	function VarsAtX(x::Float64,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},omg::Array{Float64},Ib::Matrix{Float64},p0::Float64,k0::Float64,C::Matrix{Float64})
 
@@ -360,14 +363,54 @@ module NonLinBeam
 		dlD = Matrix(I,(3,3))
 
 		E = R(U[3])*D + [-1.0 ; 0.0; k0]
-		R = R(U[3])*C*E
+		Re = R(U[3])*C*E
 		
+		# (dlPhi , dlD
 		dlE = ( R(U[3];n=1)*D , R(U[3])*dlD )
-		dlR = ( R(U[3];n=1)*C*E + R(U[3])*C*R(U[3];n=1)*D, R(U[3])*dlD)
+		dlRe = ( R(U[3];n=1)*C*E + R(U[3])*C*R(U[3];n=1)*D, R(U[3])*dlD)
+
+		return U,V,dU,dV,D,Re,dlRe
+		
+	end
+
+	# Na KE
+	function Tan_Res(...)
+		
+
+		for i1 = eachindex(xInt)
+			#Poračunaj količine v xg
+				#za čas tn in tn+1
+			U1,V1,dU1,dV1,D1,Re1,dlRe1 = VarsAtX(xInt[i1],ux1,uz1,phi1,vx1,vz1,omg1,Ib,p0[i1],k0[i1],C)
+			U2,V2,dU2,dV2,D2,Re2,dlRe2 = VarsAtX(xInt[i1],ux2,uz2,phi2,vx2,vz2,omg2,Ib,p0[i1],k0[i1],C)
+			
+			#Količine v času tn+1/2
+			Re = (Re1 + Re2)/2.
+			dlRe = (dlRe1 .+ dlRe2)./2.
+			V = (V1 + V2)/2.
+			U = U1 + V*dt/2.
+			dU = dU1 + dV*dt/2.
+			D = D1 + dV*dt/2.
+
+			F .+= map(i2 -> Re*PolyValue(xInt[i1],Ib[:,i2];n=1) +  ( [0.0;0.0;dot(Re,[U[2];-(1.0 +U[1]);0.0])] )*PolyValue(xInt[i1],Ib[:,i2])  ,1:length(Ib[:,1])) * wInt[i1]
+		end
 
 		
-		
-		
+
+		for x = [-1.,1.]
+			#Poračunaj količine v x
+				#za čas tn in tn+1
+			#Treba je zračunat kot in ukrivljenost v robnih točkah		
+			U1,V1,dU1,dV1,D1,Re1,dlRe1 = VarsAtX(x,ux1,uz1,phi1,vx1,vz1,omg1,Ib,p0[i1],k0[i1],C)
+			U2,V2,dU2,dV2,D2,Re2,dlRe2 = VarsAtX(x,ux2,uz2,phi2,vx2,vz2,omg2,Ib,p0[i1],k0[i1],C)
+	
+			#Količine v času tn+1/2
+			Re = (Re1 + Re2)/2.
+
+			F .+= map(i2 -> Re*PolyValue(x,Ib[:,i2]) ,1:length(Ib[:,1])) 
+		end
+
+		F .*= L/2.
+
 	end
 
 
