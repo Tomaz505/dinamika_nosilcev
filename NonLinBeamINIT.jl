@@ -2,8 +2,7 @@
 #   Moduli
 
 include("NonLinBeamMOD.jl");
-using .NonLinBeam#, SparseArray,LinearAlgebra, 
-
+using .NonLinBeam, SparseArrays,LinearAlgebra
 # TILE NISO NUJNI ||
 	#using BenchmarkTools, Plots, GraphRecipes,Graphs
 
@@ -26,7 +25,3 @@ end;
 datainit([1 2],[0. 0.;0. -1.]);
 re_gramschmid([[-1.,1.]]);
 GaussInt(2);
-
-#InterpolKoeff([0,1]);
-
-

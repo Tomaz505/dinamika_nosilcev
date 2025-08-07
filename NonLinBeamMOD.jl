@@ -2,7 +2,7 @@ module NonLinBeam
     
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
 		datainit, readdata, dataprocess,
-		R2, R, GaussInt, InterpolKoeff, Interpolated, JacKoeff, BalanceEq, evaluateKoefficient, re_gramschmid
+		R2, R, GaussInt, re_gramschmid, Tan_Res, VarsAtX
 
 
     using LinearAlgebra
@@ -28,7 +28,7 @@ module NonLinBeam
 	#Naj bo vedno med -1 in 1
 
         div2::Array{Int64} = [4]
-	#Število vozlišč v sekundarni delitvi. Dve sta robni. Int za vsak element.
+	#Številow vozlišč v sekundarni delitvi. Dve sta robni. Int za vsak element.
 
         nInt::Array{Int64} = [20]
 	#Število integracijskih točk v posameznem div1. Smiselno je približno 3*div2. Ponovno Int za vsak element
@@ -48,7 +48,9 @@ module NonLinBeam
 	p0::Vector{Vector{Float64}}
 	k0::Vector{Vector{Float64}}
         P::Vector{Matrix{Float64}} #
-       # dP::Array{Array{Array{Float64}}} #
+	pb::Vector{Vector{Float64}}
+	kb::Vector{Vector{Float64}}
+	# dP::Array{Array{Array{Float64}}} #
        # A1::Array{Array{Array{Float64}}} #
        # A2::Array{Array{Array{Float64}}} #
        # A3::Array{Array{Array{Float64}}} #
@@ -58,6 +60,7 @@ module NonLinBeam
         xInt::Vector{Vector{Float64}}
         wInt::Vector{Vector{Float64}} # Jih dejansko rabim s sabo če so v A1,...? Lahko jih poračunam samo lokalno.
        # v::Array{Array{Int64}} #
+	indx::Vector{Vector{Int64}}
     end
     
 
@@ -162,11 +165,50 @@ module NonLinBeam
 		return n_elem,n_voz,element_data,voz_data
 	end #datainit
 
-	function dataprocess(elem_dat::BeamDataIn,node_dat::Array{NodeDataIn})::BeamDataProcess
+	function dataprocess(elem_dat::BeamDataIn,node_dat::Array{NodeDataIn},n_nodes::Int64)::Tuple{BeamDataProcess,Int64}
 		node1 = [node_dat[1].x node_dat[1].y]
 		node2 = [node_dat[2].x node_dat[2].y]
 		n_ke = length(elem_dat.div1)-1
-	
+		indx = fill(Vector{Int64}([]),n_ke)
+		if n_ke ==1
+			indx[1] = vcat([elem_dat.v[1]],collect(n_nodes+1:n_nodes-2+elem_dat.div2[1]),[elem_dat.v[2]])
+			n_nodes = maximum(indx[1][end])
+		elseif n_ke == 2
+			indx[1] = vcat([elem_dat.v[1]],(n_nodes+1):(n_nodes+elem_dat.div2[1]-1+Int(elem_dat.Ci)))
+			n_nodes = indx[1][end]
+			if elem_dat.Ci
+				indx[2] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes-2+elem_dat.div2[2]),[elem_dat.v[2]],[indx[1][end]])		
+				n_nodes = maximum(indx[2])
+			else 
+				indx[2] = vcat(collect(n_nodes:n_nodes+elem_dat.div2[2]-2),[elem_dat.v[2]])
+				n_nodes = maximum(indx[2])
+			end
+		else
+
+			indx[1] = vcat([elem_dat.v[1]],(n_nodes+1):(n_nodes-1+elem_dat.div2[1]+Int(elem_dat.Ci)))
+			n_nodes = maximum(indx[1]) 
+			if elem_dat.Ci
+				for i = 2:n_ke-1
+					indx[i] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div[i]-1),[n_nodes;n_nodes+elem_dat.div2[i]])
+					n_nodes = maximum(indx[i])
+				end
+				indx[n_ke] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div2[n_ke]-2),elem_dat.v[2],[n_nodes;n_nodes+elem_dat.div[n_ke]-1])
+				n_nodes = maximum(indx[n_ke])
+
+			else
+				for i = 2:n_ke-1
+					indx[i] = collect(n_nodes+1:n_nodes+elem_dat.div2[i]+2*Int(elem_dat.Ci))
+					n_nodes+= elem_dat.div2[i] + 2*Int(elem_dat.Ci) 
+				end
+				indx[n_ke] = vcat(collect(n_nodes+1:n_nodes-1+elem_dat.div2[n_ke]+Int(elem_dat.Ci)),[elem_dat.v[n_ke]])		
+				n_nodes += elem_dat.div2[n_ke]+Int(elem_dat.Ci)-1
+			end
+		end
+			
+
+			
+		
+		
 
 		#koeficienti razoja geometrije
 		geom_koeff = vcat(node1,node2,elem_dat.Kb)
@@ -192,6 +234,9 @@ module NonLinBeam
 		xg = fill(Vector{Float64}([]),n_ke)
 		wg = fill(Vector{Float64}([]),n_ke)
 		Li = fill(Float64(0.),n_ke)
+		Kb = fill(Vector{Float64}([]),n_ke)
+		Pb = fill(Vector{Float64}([]),n_ke)
+	
 		#zacetni kot v točkah za integracijo
 			#odvajaj f_geom
 			#izvrednoti v integracijskih tockah
@@ -218,15 +263,20 @@ module NonLinBeam
 
 			xg[i],wg[i] = GaussInt(elem_dat.nInt[i])
 
-			x_trans = xg[i]/2. *(elem_dat.div1[i+1]-elem_dat.div1[i]).+(elem_dat.div1[i+1]+elem_dat.div1[i])/2.
+			x_trans = vcat([elem_dat.div1[i] ; elem_dat.div1[i+1]],xg[i]/2. *(elem_dat.div1[i+1]-elem_dat.div1[i]).+(elem_dat.div1[i+1]+elem_dat.div1[i])/2.)
 
 			D1_vec = map(x->sum((Df_geom*f_geom).*(x.^(0:length(geom_koeff[:,1])-1)),dims = 1),x_trans)
 			D2_vec =  map(x->sum(((Df_geom^2)*f_geom).*(x.^(0:length(geom_koeff[:,1])-1)),dims = 1),x_trans) 
 			
 			Pi[i] = map(v-> atan(v[2],v[1]),D1_vec)
 			Ki[i] = map((v1,v2)-> abs(det([v1;v2]))/norm(v1)^3,D1_vec,D2_vec)		
+			
+			Kb[i]= Ki[i][1:2]
+			Pb[i] = Pi[i][1:2]
 
-			Li[i] = sum(norm.(D1_vec).*wg[i])*(elem_dat.div1[i+1]-elem_dat.div1[i])/2.
+			Ki[i] = Ki[i][3:end]
+			Pi[i] = Pi[i][3:end]
+			Li[i] = (sum(norm.(D1_vec[3:end]).*wg[i])*(elem_dat.div1[i+1]-elem_dat.div1[i])/2.)
 
 		end
 	
@@ -239,13 +289,13 @@ module NonLinBeam
 		Ib = map(i -> (!elem_dat.Ci) ? re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i]))]) : (1<i<n_ke ? re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i])),[-1.,1.]]) : ( i==1 ? re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i])),[-1.]]) : re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i])),[1.]]))),1:n_ke)
 
 
-		return BeamDataProcess(Li,Pi,Ki,Ib,xg,wg)	
+		return BeamDataProcess(Li,Pi,Ki,Ib,Pb,Kb,xg,wg,indx), n_nodes	
 	end
 
 
 
 	function readdata()::Tuple{String,String,Array{String}}
-		print("Pot do datoteke z podatki:")
+		print("Pot do datoteke z podatki: ")
 		file = readline()
 		
 		if isempty(findall(".txt",file))
@@ -255,7 +305,7 @@ module NonLinBeam
 		data = readlines(file)
 		data = data[setdiff(1:length(data),findall(sizeof.(data).==0))]
 		data = data[findall(isempty.(findall.("#",replace.(data,"\t"=>""))))]
-		print(data)
+
 
 		data1 = data[1:findfirst(isempty.(findall.("elementi::Array",data)).==0) - 1]
 		data2 = data[(length(data1)+1):findfirst(isempty.(findall.("@assignto",data)).==0)-1]
@@ -274,13 +324,6 @@ module NonLinBeam
     #Funkcija za račun funkcijske vrednosti v x za interpolacijsko bazo Ib in koeficiente razvoja Kn
 
     #tole malo polepšaj
-    
-
-    Interpolated(x::Float64,Kn::Array{Float64},Ib::Vector{Array{Float64}}) = ((Kn' *Ib)'*(x.^(0:(length(Ib)-1))) )
-    Interpolated(x::Float64,Kn::Float64,Ib::Array{Float64}) = (Kn*Ib)' * (x.^(0:(length(Ib)-1))) 
-    Interpolated(x::Array{Float64},Kn::Array{Float64},Ib::Vector{Array{Float64}}) = map(x->Interpolated(x::Float64,Kn::Array{Float64},Ib::Vector{Array{Float64}}),x)
-    Interpolated(x::Array{Float64},Kn::Float64,Ib::Array{Float64}) = map(x->Interpolated(x::Float64,Kn::Float64,Ib::Array{Float64}),x)
-
 
 
 
@@ -343,20 +386,21 @@ module NonLinBeam
 		return f
 	end
 
-	function PolyValue(x::Float64,Ki::Vector{Float64};n::Int64=0)
+	function PolyValue(x::Float64,Ki::Vector{Float64};n::Int64 = 0)
 		m = length(Ki)
-		f = InterpolValue(x::Float64,Ki::Vector{Float64},Matrix(I,(m,m))::Matrix{Float64},n::Int64=n)
+		a = n
+		f = InterpolValue(x,Ki,Matrix{Float64}(I,(m,m)); n = a)
 		return f
 	end
 	
 
 	function VarsAtX(x::Float64,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},omg::Array{Float64},Ib::Matrix{Float64},p0::Float64,k0::Float64,C::Matrix{Float64})
 
-		U = map(qi -> InterpolaValue(x,qi,Ib),[ux,uz,phi])	
-		V = map(qi -> InterpolaValue(x,qi,Ib),[vx,vz,omg])
+		U = map(qi -> InterpolValue(x,qi,Ib),[ux,uz,phi])	
+		V = map(qi -> InterpolValue(x,qi,Ib),[vx,vz,omg])
 		
-		dU = map(qi -> InterpolaValue(x,qi,Ib;n=1),[ux,uz,phi])	
-		dV = map(qi -> InterpolaValue(x,qi,Ib;n=1),[vx,vz,omg])
+		dU = map(qi -> InterpolValue(x,qi,Ib;n=1),[ux,uz,phi])	
+		dV = map(qi -> InterpolValue(x,qi,Ib;n=1),[vx,vz,omg])
 		
 		D = U+[cos(p0); sin(p0); 0.0]
 		
@@ -374,8 +418,13 @@ module NonLinBeam
 	end
 
 	# Na KE
-	function Tan_Res(...)
+	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64},Fmy::Vector{Float64},dt::Float64,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Float64)
+
+		ux1 = ux[:,1]; uz1 = uz[:,1]; phi1 = phi[:,1]; ux2 = ux[:,2]; uz2 = uz[:,2]; phi2 = phi[:,2]
+		vx1 = vx[:,1]; vz1 = vz[:,1]; omg1 = omg[:,1]; vx2 = vx[:,2]; vz2 = vz[:,2]; omg2 = omg[:,2]
+		#ux,uz,... so vrednosti v interpolacijskih točkah
 		
+		F = fill(Vector{Float64}([0.0;0.0;0.0]),length(ux1))
 
 		for i1 = eachindex(xInt)
 			#Poračunaj količine v xg
@@ -387,33 +436,40 @@ module NonLinBeam
 			Re = (Re1 + Re2)/2.
 			dlRe = (dlRe1 .+ dlRe2)./2.
 			V = (V1 + V2)/2.
+			dV = (dV1+dV2)/2.
 			U = U1 + V*dt/2.
 			dU = dU1 + dV*dt/2.
 			D = D1 + dV*dt/2.
+			p = map(pj -> PolyValue(xInt[i1],[0.5 0.5;-0.5 0.5]*reshape(pj,(2))),[Fpx,Fpz,Fmy])
 
-			F .+= map(i2 -> Re*PolyValue(xInt[i1],Ib[:,i2];n=1) +  ( [0.0;0.0;dot(Re,[U[2];-(1.0 +U[1]);0.0])] )*PolyValue(xInt[i1],Ib[:,i2])  ,1:length(Ib[:,1])) * wInt[i1]
+			# Rabim še vektor hitrosti v xInt
+			tv = map((vi2,vi1) -> InterpolValue(xInt[i1],vi2,Ib)-InterpolValue(xInt[i1],vi1,Ib) , [vx2,vz2,omg2],[vx1,vz1,omg1])./dt + [0.0,g,0.0]
+			
+
+			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(Re,[dU[2];-(1.0 +dU[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1]
 		end
 
 		
-
-		for x = [-1.,1.]
+		xb = [-1.,1.]
+		for i in 1:2 
 			#Poračunaj količine v x
 				#za čas tn in tn+1
 			#Treba je zračunat kot in ukrivljenost v robnih točkah		
-			U1,V1,dU1,dV1,D1,Re1,dlRe1 = VarsAtX(x,ux1,uz1,phi1,vx1,vz1,omg1,Ib,p0[i1],k0[i1],C)
-			U2,V2,dU2,dV2,D2,Re2,dlRe2 = VarsAtX(x,ux2,uz2,phi2,vx2,vz2,omg2,Ib,p0[i1],k0[i1],C)
+			U1,V1,dU1,dV1,D1,Re1,dlRe1 = VarsAtX(xb[i],ux1,uz1,phi1,vx1,vz1,omg1,Ib,pb[i],kb[i],C)
+			U2,V2,dU2,dV2,D2,Re2,dlRe2 = VarsAtX(xb[i],ux2,uz2,phi2,vx2,vz2,omg2,Ib,pb[i],kb[i],C)
 	
 			#Količine v času tn+1/2
 			Re = (Re1 + Re2)/2.
 
-			F .+= map(i2 -> Re*PolyValue(x,Ib[:,i2]) ,1:length(Ib[:,1])) 
+			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2]) ,1:length(Ib[:,1])) 
 		end
-
 		F .*= L/2.
+
+		return F
 
 	end
 
-
+#=
     function evaluateKoefficient(ux,uz,phi,vx,vz,Omg,phi0,L,C,px,pz,my,g,xInt,wInt,dt,P,dP,A1,A2,A3,A4,A5,A6)
         #=  Popravi
             ‖_ Hitrosti so povprečene pred klicom funkcije
@@ -577,5 +633,5 @@ module NonLinBeam
             return hcat(J,F)
         =#
     end
-
+=#
 end # module
