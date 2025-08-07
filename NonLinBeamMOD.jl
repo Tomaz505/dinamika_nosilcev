@@ -175,9 +175,9 @@ module NonLinBeam
 			n_nodes = maximum(indx[1][end])
 		elseif n_ke == 2
 			indx[1] = vcat([elem_dat.v[1]],(n_nodes+1):(n_nodes+elem_dat.div2[1]-1+Int(elem_dat.Ci)))
-			n_nodes = indx[1][end]
+			n_nodes = maximum(indx[1][end])
 			if elem_dat.Ci
-				indx[2] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes-2+elem_dat.div2[2]),[elem_dat.v[2]],[indx[1][end]])		
+				indx[2] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes-2+elem_dat.div2[2]),[elem_dat.v[2]],[n_nodes])		
 				n_nodes = maximum(indx[2])
 			else 
 				indx[2] = vcat(collect(n_nodes:n_nodes+elem_dat.div2[2]-2),[elem_dat.v[2]])
@@ -192,16 +192,16 @@ module NonLinBeam
 					indx[i] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div[i]-1),[n_nodes;n_nodes+elem_dat.div2[i]])
 					n_nodes = maximum(indx[i])
 				end
-				indx[n_ke] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div2[n_ke]-2),elem_dat.v[2],[n_nodes;n_nodes+elem_dat.div[n_ke]-1])
+				indx[n_ke] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div2[n_ke]-2),[elem_dat.v[2]],[n_nodes])
 				n_nodes = maximum(indx[n_ke])
 
 			else
 				for i = 2:n_ke-1
-					indx[i] = collect(n_nodes+1:n_nodes+elem_dat.div2[i]+2*Int(elem_dat.Ci))
-					n_nodes+= elem_dat.div2[i] + 2*Int(elem_dat.Ci) 
+					indx[i] = collect(n_nodes:n_nodes+elem_dat.div2[i]-1)
+					n_nodes = maximum(indx[i])
 				end
-				indx[n_ke] = vcat(collect(n_nodes+1:n_nodes-1+elem_dat.div2[n_ke]+Int(elem_dat.Ci)),[elem_dat.v[n_ke]])		
-				n_nodes += elem_dat.div2[n_ke]+Int(elem_dat.Ci)-1
+				indx[n_ke] = vcat(collect(n_nodes:n_nodes-2+elem_dat.div2[n_ke]),[elem_dat.v[2]])		
+				n_nodes = maximum(indx[n_ke])
 			end
 		end
 			
@@ -312,7 +312,6 @@ module NonLinBeam
 		data1 = prod(data1)
 		data2 = prod(data2)
 		data3 = data[setdiff(1:length(data),findall(isempty.(findall.("@assignto",data))))]
-
 		return data1,data2,data3
     	end #readdata
 
