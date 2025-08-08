@@ -10,8 +10,8 @@ elementi::Array{Int64} = [
 
 
 	#Materialne karakterisike; bi moral biti M 2xN za N elementov
-@assignto :(ElementDataIn) [1] :( [0.; 0.] ) :(M)
-@assignto :(ElementDataIn) [1] :( [10000. 0. 0.;0. 10000. 0.; 0. 0. 100000.] ) :(C)
+@assignto :(ElementDataIn) [1] :( [0. 0.] ) :(M)
+@assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 21000. 0.; 0. 0. 0.175] ) :(C)
 
 
 	#Podatki obtežbe po elementih
@@ -19,9 +19,9 @@ elementi::Array{Int64} = [
 			#predstavlja linearen potek obtežbe med krajiški k.e.
 		#px podobno
 		#my podobno
-@assignto :(ElementDataIn) [1] :(t->[0. 0.;0. 0.]) :(pz)
-@assignto :(ElementDataIn) [1] :(t->[0.001 0.001; 0. 0.]) :(px)
-@assignto :(ElementDataIn) [1] :(t->[0. 0.; 0. 0.]) :(my)
+@assignto :(ElementDataIn) [1] :(t->sin(t/pi)*[0.01 0.01]) :(pz)
+@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(px)
+@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(my)
 
 
 	#Podatki delitve na elemente
@@ -30,9 +30,9 @@ elementi::Array{Int64} = [
 		#div2 naj bo seznam naravnih števil.
 			#Te so enakomerno razporejene interpolacijske točke posameznega elementa
 		#nInt je število integracijskih točk za numerično integracijo po Gaussu
-@assignto :(ElementDataIn) [1] :( [-1.; 0.; 1.] ) :(div1)
-@assignto :(ElementDataIn) [1] :( [4;4] ) :(div2)
-@assignto :(ElementDataIn) [1] :( [30;30] ) :(nInt) 
+@assignto :(ElementDataIn) [1] :( [-1.; 1.] ) :(div1)
+@assignto :(ElementDataIn) [1] :( [2] ) :(div2)
+@assignto :(ElementDataIn) [1] :( [10] ) :(nInt) 
 
 
 	#Podatki geometrije
@@ -44,13 +44,13 @@ elementi::Array{Int64} = [
 			#Točke za -1 in 1 bosta privzeti iz podatkov vozlišč
 #@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,1.,0.]])) :(Ib_geom)
 #@assignto :(ElementDataIn) [1] :( [0.5 -0.5] ) :(Kb) 
-@assignto :(ElementDataIn) [1] :( true ) :(Ci) 
+#@assignto :(ElementDataIn) [1] :( true ) :(Ci) 
 
 	#Podatki podpor
 		#Supp so sprostitve v lokalnem koordinatnem sistemu. Defoult vrednost je [1,1,1].
 		#dir je rotacija globalnega ks za dan kot. 
 @assignto :(VozDataIn) [1] :( Bool[0, 0, 0] ) :(Supp)
-@assignto :(VozDataIn) [1] :( pi/3. ) :(dir)
+#@assignto :(VozDataIn) [1] :( pi/3. ) :(dir)
 
 
 

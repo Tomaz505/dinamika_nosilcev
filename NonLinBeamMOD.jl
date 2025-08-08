@@ -14,8 +14,8 @@ module NonLinBeam
     @kwdef mutable struct BeamDataIn <:Beam
         v::Vector{Int64} = [1;2] # Vozlišča - krajna
         
-	C::Matrix{Float64} = [1 0 0;0 1 0;0 0 1] #Materialna matrika
-        M::Vector{Float64} = [1; 1] #Vektor [ρA; ρI]
+	C::Matrix{Float64} = [1. 0. 0.;0. 1. 0.;0. 0. 1.] #Materialna matrika
+        M::Matrix{Float64} = [1.0 1.0] #Vektor [ρA; ρI]
 
 	Ib_geom::Matrix{Float64} = [0.5 0.5; -0.5 0.5] #re_gramschmid(DataIn::Vector{Vector{Float64}})
 	Kb::Matrix{Float64} = Array{Float64,2}(undef,(0,2)) 
@@ -145,7 +145,7 @@ module NonLinBeam
 
 
 	#Pripravi osnovne podatke
-	function datainit(elem::Matrix{Int64},voz::Matrix{Float64})
+	function datainit(elem::Matrix{Int64},voz::Matrix{Float64})::Tuple{Int64,Int64,Array{BeamDataIn},Array{NodeDataIn}}
 		n_elem::Int64 = length(elem[:,1])
 		n_voz::Int64 = length(voz[:,1])
 
@@ -172,10 +172,10 @@ module NonLinBeam
 		indx = fill(Vector{Int64}([]),n_ke)
 		if n_ke ==1
 			indx[1] = vcat([elem_dat.v[1]],collect(n_nodes+1:n_nodes-2+elem_dat.div2[1]),[elem_dat.v[2]])
-			n_nodes = maximum(indx[1][end])
+			n_nodes = maximum(indx[1])
 		elseif n_ke == 2
 			indx[1] = vcat([elem_dat.v[1]],(n_nodes+1):(n_nodes+elem_dat.div2[1]-1+Int(elem_dat.Ci)))
-			n_nodes = maximum(indx[1][end])
+			n_nodes = maximum(indx[1])
 			if elem_dat.Ci
 				indx[2] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes-2+elem_dat.div2[2]),[elem_dat.v[2]],[n_nodes])		
 				n_nodes = maximum(indx[2])
@@ -293,7 +293,7 @@ module NonLinBeam
 	end
 
 
-
+	# Funkcija za branje datoteka z podatki
 	function readdata()::Tuple{String,String,Array{String}}
 		print("Pot do datoteke z podatki: ")
 		file = readline()
@@ -314,16 +314,6 @@ module NonLinBeam
 		data3 = data[setdiff(1:length(data),findall(isempty.(findall.("@assignto",data))))]
 		return data1,data2,data3
     	end #readdata
-
-
-
-    #Funkcija za določitev koeficientov standardne baze za interpolacijo v danih točkah
-    #
-    #Tole zamenjaj za gramshchmita
-    #Funkcija za račun funkcijske vrednosti v x za interpolacijsko bazo Ib in koeficiente razvoja Kn
-
-    #tole malo polepšaj
-
 
 
 
@@ -371,7 +361,6 @@ module NonLinBeam
 
 		return Ib,n,Dp,bi
 	end
-
 	function re_gramschmid(DataIn::Vector{Vector{Float64}})
 		bi = gramschmid(DataIn)[4]
 		bi = gramschmid(DataIn;B0 = bi)[1]
@@ -379,12 +368,16 @@ module NonLinBeam
 	end
 
 
+
+
+
+
+	#Funkcije za izvrednotenje linearne kombinacije ali polinom sam
 	function InterpolValue(x::Float64,Kb::Vector{Float64},Ib::Matrix{Float64};n::Int64=0)::Float64
 		Df = diagm(1 => 1. :length(Kb)-1.)^n
 		f = (Df*Ib*Kb)'*x.^(0:length(Kb)-1)
 		return f
 	end
-
 	function PolyValue(x::Float64,Ki::Vector{Float64};n::Int64 = 0)
 		m = length(Ki)
 		a = n
@@ -393,6 +386,10 @@ module NonLinBeam
 	end
 	
 
+
+
+
+	#Funkcija za račun količin v integracijskih točkah nosilca
 	function VarsAtX(x::Float64,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},omg::Array{Float64},Ib::Matrix{Float64},p0::Float64,k0::Float64,C::Matrix{Float64})
 
 		U = map(qi -> InterpolValue(x,qi,Ib),[ux,uz,phi])	
@@ -401,20 +398,18 @@ module NonLinBeam
 		dU = map(qi -> InterpolValue(x,qi,Ib;n=1),[ux,uz,phi])	
 		dV = map(qi -> InterpolValue(x,qi,Ib;n=1),[vx,vz,omg])
 		
-		D = U+[cos(p0); sin(p0); 0.0]
-		
-		dlD = Matrix(I,(3,3))
+		D = dU+[cos(p0); sin(p0); 0.0]
 
 		E = R(U[3])*D + [-1.0 ; 0.0; k0]
 		Re = R(U[3])*C*E
 		
-		# (dlPhi , dlD
-		dlE = ( R(U[3];n=1)*D , R(U[3])*dlD )
-		dlRe = ( R(U[3];n=1)*C*E + R(U[3])*C*R(U[3];n=1)*D, R(U[3])*dlD)
+		# (dlPhi , dlD)
+		dlRe = ( R(U[3];n=1)*C*E + R(U[3])*C*R(U[3];n=1)*D, R(U[3])*C*R(U[3]) )
 
 		return U,V,dU,dV,D,Re,dlRe
 		
 	end
+
 
 	# Na KE
 	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64},Fmy::Vector{Float64},dt::Float64,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Float64)
@@ -424,7 +419,7 @@ module NonLinBeam
 		#ux,uz,... so vrednosti v interpolacijskih točkah
 		
 		F = fill(Vector{Float64}([0.0;0.0;0.0]),length(ux1))
-
+		dlF = fill(zeros(Float64,(3,3)),(length(ux1),length(ux1)))
 		for i1 = eachindex(xInt)
 			#Poračunaj količine v xg
 				#za čas tn in tn+1
@@ -436,16 +431,19 @@ module NonLinBeam
 			dlRe = (dlRe1 .+ dlRe2)./2.
 			V = (V1 + V2)/2.
 			dV = (dV1+dV2)/2.
+			
 			U = U1 + V*dt/2.
 			dU = dU1 + dV*dt/2.
 			D = D1 + dV*dt/2.
+			
+			# Obtežba v xInt
 			p = map(pj -> PolyValue(xInt[i1],[0.5 0.5;-0.5 0.5]*reshape(pj,(2))),[Fpx,Fpz,Fmy])
-
-			# Rabim še vektor hitrosti v xInt
+			# Rabim se vektor pospeskov v xInt
 			tv = map((vi2,vi1) -> InterpolValue(xInt[i1],vi2,Ib)-InterpolValue(xInt[i1],vi1,Ib) , [vx2,vz2,omg2],[vx1,vz1,omg1])./dt + [0.0,g,0.0]
 			
 
 			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(Re,[dU[2];-(1.0 +dU[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1]
+			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) + dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1))  +  PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 dot(dlRe[1],[dU[2];-(1+dU[3]);0.0])]]*PolyValue(xInt[i1],Ib[:,ij[2]])+[[0.0 0.0 0.0; 0.0 0.0 0.0];[dU[2] -(1. +dU[1]) 0.0]*dlRe[2]]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1))  +  PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]])*[0.0 0.0 0.0;0.0 0.0 0.0;-Re[2] Re[1] 0.0] ,CartesianIndex.((1:length(Ib[:,1]))',1:length(Ib[:,1])))*wInt[i1]*dt/2.
 		end
 
 		
@@ -462,175 +460,11 @@ module NonLinBeam
 
 			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2]) ,1:length(Ib[:,1])) 
 		end
-		F .*= L/2.
-
-		return F
+		F .*= L/2
+		dlF.*= L/2.
+		return dlF,F
 
 	end
 
-#=
-    function evaluateKoefficient(ux,uz,phi,vx,vz,Omg,phi0,L,C,px,pz,my,g,xInt,wInt,dt,P,dP,A1,A2,A3,A4,A5,A6)
-        #=  Popravi
-            ‖_ Hitrosti so povprečene pred klicom funkcije
-            ‖_ Preveri kaj lahko narediš z matričnim računom in rotacijo R(ϕ) 
-            ‖_ 
-        =#
 
-
-        x_Int = vcat(-1.,xInt,1.)
-        
-        #pomiki v zečetnem času
-        uxₙ₁ = Interpolated(x_Int,ux,P)
-        uzₙ₁ = Interpolated(x_Int,uz,P)
-        ϕₙ₁ = Interpolated(x_Int,phi,P)
-        duxₙ₁ = Interpolated(x_Int,ux,dP)
-        duzₙ₁ = Interpolated(x_Int,uz,dP)
-        dϕₙ₁ = Interpolated(x_Int,phi,dP)
-
-
-        #povprečne hitrosti
-        v̄x = Interpolated(x_Int,vx,P)
-        v̄z = Interpolated(x_Int,vz,P)
-        Ω = Interpolated(x_Int,Omg,P)
-        dv̄x = Interpolated(x_Int,vx,dP)
-        dv̄z = Interpolated(x_Int,vz,dP)
-        dΩ = Interpolated(x_Int,Omg,dP)
-        
-
-        #defomacije v fiksni bazi 
-        Dxₙ₁ = cos(phi0) .+ duxₙ₁
-        Dzₙ₁ = sin(phi0) .+ duzₙ₁
-        Dxₙ₂ = Dxₙ₁ + dt/2*dv̄x
-        Dzₙ₂ = Dzₙ₁ + dt/2*dv̄z
-        Dxₙ₃ = Dxₙ₁ + dt*dv̄x
-        Dzₙ₃ = Dzₙ₁ + dt*dv̄z
-
-
-        
-        Einit = [-1.;0.;0.]
-        # Začetni časp 
-        Rot0 = R.(ϕₙ₁)
-        dRot0 = dR.(ϕₙ₁)
-        D0 = map( k -> [Dxₙ₁[k]; Dzₙ₁[k];dϕₙ₁[k]], eachindex(x_Int))
-        
-        # Vmesni čas
-        RotM = R.(ϕₙ₁ + dt/2*Ω)
-        dRotM = dR.(ϕₙ₁ + dt/2*Ω)
-        DM = map( k -> [Dxₙ₂[k]; Dzₙ₂[k];dϕₙ₁[k]+dt/2*dΩ[k]], eachindex(x_Int))
-        
-        # Končni čas
-        Rot1 = R.(ϕₙ₁ + dt*Ω)
-        dRot1 = dR.(ϕₙ₁ + dt*Ω)
-        D1 = map( k -> [Dxₙ₃[k]; Dzₙ₃[k];dϕₙ₁[k]+dt*dΩ[k]], eachindex(x_Int))
-
-        #Vstaviko količine iz vmesenga časa
-        #[ δΩ ; δvx' ; δvz' ; δΩ']
-
-        EM = RotM.*DM .+ [Einit]
-        RiM = RotM .* map(k->C*k,EM)
-        NiM = map(k-> C*k ,EM)
-        δEM = map(k-> k*[dt/2. 0. 0. 0.] ,dRotM .*DM ) + map(k->k*[[0. dt/2 0. 0.];[0. 0. dt/2 0.];[0. 0. 0. dt/2]],RotM)
-        δRiM =  map(j -> j*[dt/2. 0. 0. 0.] , dRotM.*map(i-> C*i,RotM.*DM ) + RotM.*map(i-> C*i,dRotM.*DM ) + map(i->i*C*Einit,dRotM))  + map(k->k*[[0. dt/2 0. 0.];[0. 0. dt/2 0.];[0. 0. 0. dt/2]],RotM.*map(i-> C*i,RotM ))
-            
-        #= Print
-            println("δRiM[1] = ")  
-            display(δRiM[1])
-            println("RiM[1] = ")  
-            display(RiM[1])
-            println("NiM[1] = ")  
-            display(NiM[1])
-            println("δEM[1] = ")  
-            display(δEM[1])
-            println("EM[1] = ")  
-            display(EM[1])
-        =#
-
-        RxM = vcat(map(i->-RiM[i][1],eachindex(x_Int))...)
-        RzM = vcat(map(i->-RiM[i][2],eachindex(x_Int))...)
-        MyM = vcat(map(i->-RiM[i][3],eachindex(x_Int))...)
-
-
-        # Ni še inercijskih sil
-        fxi = map(j->RxM[2:end-1]'*A6[j] ,eachindex(A6)) + map(j-> ((px[1]+px[2] .+xInt*(px[2]-px[1]))/2)'*A5[j] ,eachindex(A5)) + map(i-> RxM[[1,end]]' *Interpolated([-1.,1.],1.,P[i])  , eachindex(P))
-        fzi = map(j->RzM[2:end-1]'*A6[j] ,eachindex(A6)) + map(j-> ((pz[1]+pz[2] .+xInt*(pz[2]-pz[1]))/2)'*A5[j] ,eachindex(A5)) + map(i-> RzM[[1,end]]' *Interpolated([-1.,1.],1.,P[i])  , eachindex(P))
-        fmi = map(j->MyM[2:end-1]'*A6[j] ,eachindex(A6)) + map(j-> (RxM[2:end-1].*(duzₙ₁+dt/2*̄dv̄z) - (1. .+duxₙ₁+dt/2*dv̄x).*RzM[2:end-1] + ((my[1]+my[2] .+xInt*(my[2]-my[1]))/2))'*A6[j] ,eachindex(A6)) + map(i-> MyM[[1,end]]' *Interpolated([-1.,1.],1.,P[i])  , eachindex(P))
-
-        
-        δfxi = map(j->RxM[2:end-1]'*A6[j] ,eachindex(A6)) 
-        δfzi = map(j->RzM[2:end-1]'*A6[j] ,eachindex(A6)) 
-        δfmi = map(j->MyM[2:end-1]'*A6[j] ,eachindex(A6)) 
-
-
-        #=
-            #deformacije ob vmesnem času
-            ϵₙ₂ =  Dxₙ₂.*cos.(ϕₙ₁ + dt/2*Ω) + Dzₙ₂.*sin.(ϕₙ₁ + dt/2*Ω) .-1
-            γₙ₂ = -Dxₙ₂.*sin.(ϕₙ₁ + dt/2*Ω) + Dzₙ₂.*cos.(ϕₙ₁ + dt/2*Ω)
-            κₙ₂ =  dϕₙ₁ + dt/2*dΩ
-
-
-            #rezultante napetosti
-            Rxₙ₂ = cos.(ϕₙ₁ + dt/2*Ω).*(C[1,1]*ϵₙ₂ + C[1,2]*γₙ₂ + C[1,3]*κₙ₂) + sin.(ϕₙ₁ + dt/2*Ω).*(C[2,1]*ϵₙ₂ + C[2,2]*γₙ₂ + C[2,3]*κₙ₂)   
-            Rzₙ₂ = -sin.(ϕₙ₁ + dt/2*Ω).*(C[1,1]*ϵₙ₂ + C[1,2]*γₙ₂ + C[1,3]*κₙ₂) + cos.(ϕₙ₁ + dt/2*Ω).*(C[2,1]*ϵₙ₂ + C[2,2]*γₙ₂ + C[2,3]*κₙ₂)   
-            Mcₙ₂ = C[3,1]*ϵₙ₂ + C[3,2]*γₙ₂ + C[3,3]*κₙ₂
-
-
-            
-
-            δRxₙ₂ = [[dt/2*cos.(ϕₙ₁ + dt/2*Ω).*(C[1,1]*cos.(ϕₙ₁ + dt/2*Ω)-C[1,2]*sin.(ϕₙ₁ + dt/2*Ω)) + sin.(ϕₙ₁ + dt/2*Ω).*(C[2,1]*cos.(ϕₙ₁ + dt/2*Ω)-C[2,2]*sin.(ϕₙ₁ + dt/2*Ω))];
-                    [dt/2*cos.(ϕₙ₁ + dt/2*Ω).*(C[1,1]*sin.(ϕₙ₁ + dt/2*Ω)+C[1,2]*cos.(ϕₙ₁ + dt/2*Ω)) + sin.(ϕₙ₁ + dt/2*Ω).*(C[2,1]*sin.(ϕₙ₁ + dt/2*Ω)+C[2,2]*cos.(ϕₙ₁ + dt/2*Ω))];
-                    [dt/2*((C[1,1]*(cos.(ϕₙ₁ + dt/2*Ω).*(sin(phi0) .+ duzₙ₁ + dt/2*dv̄z) - sin.(ϕₙ₁ + dt/2*Ω).*(cos(phi0).+duxₙ₁+dt/2*dv̄x)) + C[1,2]*(-sin.(ϕₙ₁ + dt/2*Ω).*(sin(phi0) .+ duzₙ₁ + dt/2*dv̄z) + cos.(ϕₙ₁ + dt/2*Ω).*(cos(phi0).+duxₙ₁+dt/2*dv̄x) )).*cos.(ϕₙ₁ + dt/2*Ω) + (C[2,1]*(cos.(ϕₙ₁ + dt/2*Ω).*(sin(phi0) .+ duzₙ₁ + dt/2*dv̄z) - sin.(ϕₙ₁ + dt/2*Ω).*(cos(phi0).+duxₙ₁+dt/2*dv̄x)) + C[2,2]*(-sin.(ϕₙ₁ + dt/2*Ω).*(sin(phi0) .+ duzₙ₁ + dt/2*dv̄z) + cos.(ϕₙ₁ + dt/2*Ω).*(cos(phi0).+duxₙ₁+dt/2*dv̄x) )).*sin.(ϕₙ₁ + dt/2*Ω))];
-                    [dt/2*(C[1,3]*cos.(ϕₙ₁ + dt/2*Ω)+C[2,3]*sin.(ϕₙ₁ + dt/2*Ω))]
-            ]
-            
-            δRzₙ₂ = [[dt/2*(-sin.(ϕₙ₁ + dt/2*Ω).*(C[1,1]*cos.(ϕₙ₁ + dt/2*Ω)-C[1,2]*sin.(ϕₙ₁ + dt/2*Ω)) + cos.(ϕₙ₁ + dt/2*Ω).*(C[2,1]*cos.(ϕₙ₁ + dt/2*Ω)-C[2,2]*sin.(ϕₙ₁ + dt/2*Ω)))];
-                    [dt/2*(-sin.(ϕₙ₁ + dt/2*Ω).*(C[1,1]*sin.(ϕₙ₁ + dt/2*Ω)+C[1,2]*cos.(ϕₙ₁ + dt/2*Ω)) + cos.(ϕₙ₁ + dt/2*Ω).*(C[2,1]*sin.(ϕₙ₁ + dt/2*Ω)+C[2,2]*cos.(ϕₙ₁ + dt/2*Ω)))];
-                    [-dt/2*((C[1,1]*(cos.(ϕₙ₁ + dt/2*Ω).*(sin(phi0) .+ duzₙ₁ + dt/2*dv̄z) - sin.(ϕₙ₁ + dt/2*Ω).*(cos(phi0).+duxₙ₁+dt/2*dv̄x)) + C[1,2]*(-sin.(ϕₙ₁ + dt/2*Ω).*(sin(phi0) .+ duzₙ₁ + dt/2*dv̄z) + cos.(ϕₙ₁ + dt/2*Ω).*(cos(phi0).+duxₙ₁+dt/2*dv̄x) )).*sin.(ϕₙ₁ + dt/2*Ω) + (C[2,1]*(cos.(ϕₙ₁ + dt/2*Ω).*(sin(phi0) .+ duzₙ₁ + dt/2*dv̄z) - sin.(ϕₙ₁ + dt/2*Ω).*(cos(phi0).+duxₙ₁+dt/2*dv̄x)) + C[2,2]*(-sin.(ϕₙ₁ + dt/2*Ω).*(sin(phi0) .+ duzₙ₁ + dt/2*dv̄z) + cos.(ϕₙ₁ + dt/2*Ω).*(cos(phi0).+duxₙ₁+dt/2*dv̄x) )).*cos.(ϕₙ₁ + dt/2*Ω))];
-                    [dt/2*(-C[1,3]*sin.(ϕₙ₁ + dt/2*Ω)+C[2,3]*cos.(ϕₙ₁ + dt/2*Ω))]
-            ]
-
-            δMcₙ₂ = [[dt/2*(C[3,1]*cos.(ϕₙ₁ + dt/2*Ω) - C[3,2]*sin.(ϕₙ₁ + dt/2*Ω))] ;
-                    [dt/2*(C[3,1]*sin.(ϕₙ₁ + dt/2*Ω) + C[3,2]*cos.(ϕₙ₁ + dt/2*Ω))];
-                    [dt/2*((C[3,1]*(cos.(ϕₙ₁ + dt/2*Ω).*(sin(phi0) .+ duzₙ₁ + dt/2*dv̄z) - sin.(ϕₙ₁ + dt/2*Ω).*(cos(phi0).+duxₙ₁+dt/2*dv̄x)) + C[3,2]*(-sin.(ϕₙ₁ + dt/2*Ω).*(sin(phi0) .+ duzₙ₁ + dt/2*dv̄z) + cos.(ϕₙ₁ + dt/2*Ω).*(cos(phi0).+duxₙ₁+dt/2*dv̄x) )))];
-                    dt/2*C[3,3]
-            ]
-
-
-            
-            #variacije rezultant
-            
-            #println(A3)
-
-            Jxx = map(a -> -δRxₙ₂[1][2:end-1]'* A3[a],   CartesianIndex.(1:length(P),(1:length(P))'))
-            Jxz = map(a -> -δRxₙ₂[2][2:end-1]'* A3[a],   CartesianIndex.(1:length(P),(1:length(P))'))
-            JxO = map(a -> -δRxₙ₂[3][2:end-1]'* A1[a] - δRxₙ₂[4][2:end-1]'* A3[a],   CartesianIndex.(1:length(P),(1:length(P))'))
-            
-            Jzx = map(a -> -δRzₙ₂[1][2:end-1]'* A3[a],   CartesianIndex.(1:length(P),(1:length(P))'))
-            Jzz = map(a -> -δRzₙ₂[2][2:end-1]'* A3[a],   CartesianIndex.(1:length(P),(1:length(P))'))
-            JzO = map(a -> -δRzₙ₂[3][2:end-1]'* A1[a] - δRxₙ₂[4][2:end-1]'* A3[a],   CartesianIndex.(1:length(P),(1:length(P))'))
-
-            #println(-δMcₙ₂)
-            JOx = map(a -> -δMcₙ₂[1][2:end-1]'* A3[a] .+ (δRxₙ₂[1].*(duzₙ₁ + dt/2*dv̄z)-δRzₙ₂[1].*(1. .+duxₙ₁+dt/2*dv̄x)-Rzₙ₂)[2:end-1]'* A2[a] ,   CartesianIndex.(1:length(P),(1:length(P))'))
-            #println(JOx)
-            JOz = map(a -> -δMcₙ₂[2][2:end-1]'* A3[a] +(δRxₙ₂[2].*(duzₙ₁ + dt/2*dv̄z)-δRzₙ₂[2].*(1. .+duxₙ₁+dt/2*dv̄x)+Rxₙ₂)[2:end-1]'* A2[a] ,   CartesianIndex.(1:length(P),(1:length(P))'))
-            JOO = map(a -> -δMcₙ₂[3][2:end-1]'* A1[a] - sum(δMcₙ₂[4]* A3[a]) + (δRxₙ₂[3].*(duzₙ₁+dt/2*dv̄z)-δRzₙ₂[3].*(1. .+duxₙ₁+dt/2*dv̄x))[2:end-1]'* A2[a] + (δRxₙ₂[4].*(duzₙ₁+dt/2*dv̄z)-δRzₙ₂[4].*(1. .+duxₙ₁+dt/2*dv̄x))[2:end-1]'* A4[a],   CartesianIndex.(1:length(P),(1:length(P))'))
-            
-            J= [Jxx Jxz JxO; Jzx Jzz JzO; JOx JOz JOO]
-            
-
-            #fxi = map( i -> wInt'*( -Rxₙ₂.*Interpolated(xInt,1., dP[i]) +  ((px[1]+px[2] .+xInt*(px[2]-px[1]))/2 - (vxInt[2:end-1] -Interpolated(xInt,vx0,P))/dt*M[1])  .* Interpolated(xInt,1.,P[i]) )  + Rx0' *Interpolated([-1.,1.],1.,P[i])  , eachindex(P))
-            #fzi = map( i -> wInt'*( -Rzₙ₂.*Interpolated(xInt,1., dP[i]) +  ((pz[1]+pz[2] .+xInt*(pz[2]-pz[1]))/2 - ((vzInt[2:end-1]-Interpolated(xInt,vz0,P))/dt.-g)*M[1])  .*Interpolated(xInt,1.,P[i]) )  + Rz0' *Interpolated([-1.,1.],1.,P[i]) , eachindex(P))
-            #fpi = map( i -> wInt'*( -Mcₙ₂.*Interpolated(xInt,1., dP[i]) +  (Rx.*(duzInt[2:end-1]+dt/2*dvzInt[2:end-1]) -Rz.*(1 .+duxInt[2:end-1]+dt/2*dvzInt[2:end-1])+  (my[1]+my[2] .+xInt*(my[2]-my[1]))/2 -  M[2]*(OmgInt[2:end-1]-Interpolated(xInt,Omg0,P))/dt  ).*Interpolated(xInt,1.,P[i]) )  +Mc0' *Interpolated([-1.,1.],1.,P[i]) , eachindex(P))
-
-            #Mankajo še čelni obtežbe in pospeškov
-            Fx = map(a -> -Rxₙ₂[2:end-1]' * A6[a] + ((px[1]+px[2] .+xInt*(px[2]-px[1]))/2)[2:end-1]'*A5[a] + Rxₙ₂[[1,end]]'*Interpolated([-1.,1.],1.,P[a]),   1:length(P))*L/2
-            Fz = map(a -> -Rzₙ₂[2:end-1]' * A6[a] + ((pz[1]+pz[2] .+xInt*(pz[2]-pz[1]))/2 .- g)[2:end-1]'*A5[a] + Rzₙ₂[[1,end]]'*Interpolated([-1.,1.],1.,P[a]),   1:length(P))*L/2
-            FO = map(a -> -Mcₙ₂[2:end-1]' * A6[a] + (Rxₙ₂.*(duzₙ₁+dt/2*dv̄z) - Rzₙ₂[1].*(1. .+duxₙ₁+dt/2*dv̄x) + (my[1]+my[2] .+xInt*(my[2]-my[1]))/2)[2:end-1]'*A5[a] + Mcₙ₂[[1,end]]'*Interpolated([-1.,1.],1.,P[a]),  1:length(P))*L/2
-
-            F=[Fx;Fz;FO]
-            
-        
-            return hcat(J,F)
-        =#
-    end
-=#
 end # module
