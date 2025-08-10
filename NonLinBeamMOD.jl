@@ -102,12 +102,12 @@ module NonLinBeam
     
     #Funkcija za rotacijo 2-terice za kot
     function R2(a)::Matrix{Float64} 
-	    return [cos(a) -sin(a); sin(a) cos(a)]
+	    return [cos(a) sin(a); -sin(a) cos(a)]
     end
     #Funkcija za rotacijo 3-terice za kot a okrov e3
     function R(a;n = 0)::Matrix{Float64}
 	    # n je stopnja odvoda
-	    return [0. -1. 0.;1. 0. 0.; 0. 0. 0.]^n * [cos(a) -sin(a) 0. ; sin(a) cos(a) 0. ; 0. 0. 1.]
+	    return [0. 1. 0.;-1. 0. 0.; 0. 0. 0.]^n * [cos(a) sin(a) 0. ; -sin(a) cos(a) 0. ; 0. 0. 1.]
     end
 
 
@@ -398,18 +398,17 @@ module NonLinBeam
 		dU = map(qi -> InterpolValue(x,qi,Ib;n=1),[ux,uz,phi])	
 		dV = map(qi -> InterpolValue(x,qi,Ib;n=1),[vx,vz,omg])
 		
-		D = dU+[cos(p0); sin(p0); 0.0]
 
-		E = R(U[3])*D + [-1.0 ; 0.0; k0]
-		Re = R(U[3])*C*E
+		D = dU+[cos(p0); sin(p0); 0.0]
+		E = R(U[3]+p0)*D+[-1.0;0.0;-k0]
+		Re = R(U[3]+p0)* C* E
 		
 		# (dlPhi , dlD)
-		dlRe = ( R(U[3];n=1)*C*E + R(U[3])*C*R(U[3];n=1)*D, R(U[3])*C*R(U[3]) )
-
+		dlRe = ( R(U[3]+p0;n=1)*C*E + R(U[3]+p0)*C*R(U[3]+p0;n=1)*D, R(U[3]+p0)*C*R(U[3]+p0) )
 		return U,V,dU,dV,D,Re,dlRe
 		
 	end
-
+	
 
 	# Na KE
 	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64},Fmy::Vector{Float64},dt::Float64,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Float64)
@@ -420,21 +419,33 @@ module NonLinBeam
 		
 		F = fill(Vector{Float64}([0.0;0.0;0.0]),length(ux1))
 		dlF = fill(zeros(Float64,(3,3)),(length(ux1),length(ux1)))
+
+		indx2 = CartesianIndex.((1:length(Ib[:,1]))',1:length(Ib[:,1]))
 		for i1 = eachindex(xInt)
 			#Poračunaj količine v xg
 				#za čas tn in tn+1
 			U1,V1,dU1,dV1,D1,Re1,dlRe1 = VarsAtX(xInt[i1],ux1,uz1,phi1,vx1,vz1,omg1,Ib,p0[i1],k0[i1],C)
-			U2,V2,dU2,dV2,D2,Re2,dlRe2 = VarsAtX(xInt[i1],ux2,uz2,phi2,vx2,vz2,omg2,Ib,p0[i1],k0[i1],C)
+			   V2,    dV2,   Re2,dlRe2 = VarsAtX(xInt[i1],ux2,uz2,phi2,vx2,vz2,omg2,Ib,p0[i1],k0[i1],C)[[2,4,6,7]]
 			
 			#Količine v času tn+1/2
-			Re = (Re1 + Re2)/2.
-			dlRe = (dlRe1 .+ dlRe2)./2.
 			V = (V1 + V2)/2.
 			dV = (dV1+dV2)/2.
 			
 			U = U1 + V*dt/2.
 			dU = dU1 + dV*dt/2.
 			D = D1 + dV*dt/2.
+
+
+			Re = (Re1 + Re2)/2.
+			dlRe = (dlRe1 .+ dlRe2)./2.
+			
+			E = R(U[3]+p0[i1])*D+[-1.0;0.0;-k0[i1]]
+			N = C*E
+			dlE = ( R(U[3]+p0[i1];n=1)*D, R(U[3]+p0[i1]) )
+			dlN = (C*dlE[1], C*dlE[2])
+
+
+
 			
 			# Obtežba v xInt
 			p = map(pj -> PolyValue(xInt[i1],[0.5 0.5;-0.5 0.5]*reshape(pj,(2))),[Fpx,Fpz,Fmy])
@@ -442,8 +453,14 @@ module NonLinBeam
 			tv = map((vi2,vi1) -> InterpolValue(xInt[i1],vi2,Ib)-InterpolValue(xInt[i1],vi1,Ib) , [vx2,vz2,omg2],[vx1,vz1,omg1])./dt + [0.0,g,0.0]
 			
 
-			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(Re,[dU[2];-(1.0 +dU[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1]
-			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) + dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1))  +  PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 dot(dlRe[1],[dU[2];-(1+dU[3]);0.0])]]*PolyValue(xInt[i1],Ib[:,ij[2]])+[[0.0 0.0 0.0; 0.0 0.0 0.0];[dU[2] -(1. +dU[1]) 0.0]*dlRe[2]]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1))  +  PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]])*[0.0 0.0 0.0;0.0 0.0 0.0;-Re[2] Re[1] 0.0] ,CartesianIndex.((1:length(Ib[:,1]))',1:length(Ib[:,1])))*wInt[i1]*dt/2.
+			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(N,[E[2];-(1.0 +E[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1]	
+	
+			# dlRe
+			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) + dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)) ,indx2) * wInt[i1]*dt/2.
+			# dlN[1] dlE[1]
+			dlF .+= map( ij ->  PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 (E[2]*dlN[1][1] - (1+E[1])*dlN[1][2] + N[1]*dlE[1][2] - N[2]*dlE[2][1])]])*PolyValue(xInt[i1],Ib[:,ij[2]]), indx2 )*wInt[i1]*dt/2.
+			# dlN[2] dlE[2]
+			dlF .+= map( ij ->  PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)*[[0.0 0.0 0.0; 0.0 0.0 0.0]; (E[2]*dlN[2][1,:] - (1+E[1])*dlN[2][2,:] - N[2]*dlE[2][1,:] + N[1]*dlE[2][2,:])'] ,indx2)*wInt[i1]*dt/2.
 		end
 
 		
@@ -460,7 +477,8 @@ module NonLinBeam
 
 			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2]) ,1:length(Ib[:,1])) 
 		end
-		F .*= L/2
+
+		F.*=L/2.
 		dlF.*= L/2.
 		return dlF,F
 

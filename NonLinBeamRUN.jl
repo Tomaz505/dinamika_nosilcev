@@ -22,8 +22,8 @@ println("[  Ok  ]  Procesiranje podatkov")
 #   P O D A T K I   I T R A C I J S K E G A   P O S T O P K A
 # Tole spravi v data.txt
 ti = 0.
-tf = 1.
-dt = 10.0^-4
+tf = 7.
+dt = 10.0^-2
 g = 0.0
 
 
@@ -47,9 +47,9 @@ indx_solve = sort(vcat(3*indxX.-2,3*indxZ.-1,3*indxP))
 println("[  Ok  ]  Priprava na račun")
 
 
-for i_time in 2:10#n_time
+for i_time in 2:3#n_time
 	Dv = [1.;1.]
-	while norm(Dv) > 10.0^-4
+	while norm(Dv) > 10.0^-6
 		# Tangentna in rezidual v eni matriki
 		Ja = spzeros(Float64,3*n_nodes,3*n_nodes)
 		Re = zeros(Float64,3*n_nodes,1)
@@ -80,11 +80,13 @@ for i_time in 2:10#n_time
 		M.ux[indxX,i_time] = M.ux[indxX,i_time-1] + dt*(M.vx[indxX,i_time]+M.vx[indxX,i_time-1])/2
 		M.uz[indxZ,i_time] = M.uz[indxZ,i_time-1] + dt*(M.vz[indxZ,i_time]+M.vz[indxZ,i_time-1])/2
 		M.phi[indxP,i_time] = M.phi[indxP,i_time-1] + dt*(M.Omg[indxP,i_time]+M.Omg[indxP,i_time-1])/2
-	
+		
+		print(norm(Dv),"\t")
        	end # while norm(Dv) > x
 	M.vx[indxX,i_time+1] = 2.0*M.vx[indxX,i_time] - M.vx[indxX,i_time-1]
 	M.vz[indxZ,i_time+1] = 2.0*M.vz[indxZ,i_time] - M.vz[indxZ,i_time-1]
 	M.Omg[indxP,i_time+1] = 2.0*M.Omg[indxP,i_time] - M.Omg[indxP,i_time-1]
+	println(i_time)
 end # i_time
 
 println("[  Ok  ]  Račun")

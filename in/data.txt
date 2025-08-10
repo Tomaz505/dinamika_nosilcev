@@ -10,8 +10,8 @@ elementi::Array{Int64} = [
 
 
 	#Materialne karakterisike; bi moral biti M 2xN za N elementov
-@assignto :(ElementDataIn) [1] :( [0. 0.] ) :(M)
-@assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 21000. 0.; 0. 0. 0.175] ) :(C)
+@assignto :(ElementDataIn) [1] :( [0.0 0.0] ) :(M)
+@assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 5.0/6.0*21000. 0.; 0. 0. 0.175] ) :(C)
 
 
 	#Podatki obtežbe po elementih
@@ -19,7 +19,7 @@ elementi::Array{Int64} = [
 			#predstavlja linearen potek obtežbe med krajiški k.e.
 		#px podobno
 		#my podobno
-@assignto :(ElementDataIn) [1] :(t->sin(t/pi)*[0.01 0.01]) :(pz)
+@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(pz)
 @assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(px)
 @assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(my)
 
@@ -31,7 +31,7 @@ elementi::Array{Int64} = [
 			#Te so enakomerno razporejene interpolacijske točke posameznega elementa
 		#nInt je število integracijskih točk za numerično integracijo po Gaussu
 @assignto :(ElementDataIn) [1] :( [-1.; 1.] ) :(div1)
-@assignto :(ElementDataIn) [1] :( [2] ) :(div2)
+@assignto :(ElementDataIn) [1] :( [4] ) :(div2)
 @assignto :(ElementDataIn) [1] :( [10] ) :(nInt) 
 
 
