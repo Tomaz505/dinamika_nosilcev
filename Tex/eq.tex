@@ -1,0 +1,63 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{mathrsfs}
+
+
+\begin{document}
+$$U = 
+\begin{bmatrix}
+	u_x\\
+	u_z\\
+	\varphi
+\end{bmatrix} \qquad V = 
+\begin{bmatrix}
+	v_x\\
+	v_z\\
+	\Omega
+\end{bmatrix} \qquad E_0=
+\begin{bmatrix}
+	-1\\
+	0\\
+	-\kappa_0
+\end{bmatrix} \qquad D = 
+\begin{bmatrix}
+	u_x' + \cos\varphi_0\\
+	u_z' + \sin\varphi_0\\
+	\varphi'
+\end{bmatrix}
+$$
+
+
+$$R(\varphi) =
+\begin{bmatrix}
+	\cos\varphi & \sin \varphi & 0\\
+	-\sin\varphi & \cos\varphi & 0\\
+	0 & 0 & 1
+\end{bmatrix} \qquad R^{(n)}(\varphi) = 
+\begin{bmatrix}
+	0 & 1 & 0\\
+	-1 & 0 & 0\\
+	0 & 0 & 0
+\end{bmatrix}^n R(\varphi)
+$$
+
+
+$$E = R(\varphi)D+E_0$$
+$$\mathcal{R} = R(\varphi)CE$$
+$$\mathcal{N} = CE$$
+$$\delta E = \delta\varphi\;R^{(1)}(\varphi)D + R(\varphi)\;\delta D$$
+$$\delta \mathcal{R} = \delta\varphi\;(R^{(1)}(\varphi)CE+R(\varphi)CR{(1)}(\varphi)D) +  R(\varphi)CR(\varphi)\;\delta D$$
+$$\delta \mathcal{N} = \delta\varphi\;CR^{(1)}(\varphi)D +  CR(\varphi)\;\delta D$$
+
+
+$$\mathcal{F} = \int_0^l\mathcal{R}\mathcal{P}_i + (p-\rho \dot{V} + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ \mathcal{N}_1E_2 - (1+E_1) \mathcal{N}_2 \end{bmatrix}}) \mathcal{P}_i \; dx + \mathcal{R}\mathcal{P}_i\Bigl |_0^l$$
+	$$\delta \mathcal{F} = \int_0^l \delta \mathcal{RP}_i' + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ E_2\delta\mathcal{N}_1+\delta E_2 \mathcal{N}_1-(1+E_1)\delta \mathcal{N}_2 - \delta E_1 \mathcal{N}_2 \end{bmatrix}}\mathcal{P}_i\; dx$$
+
+
+
+
+
+\end{document}

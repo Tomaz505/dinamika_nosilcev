@@ -2,7 +2,7 @@ module NonLinBeam
     
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
 		datainit, readdata, dataprocess,
-		R2, R, GaussInt, re_gramschmid, Tan_Res, VarsAtX
+		R, GaussInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValue
 
 
     using LinearAlgebra
@@ -71,7 +71,7 @@ module NonLinBeam
     @kwdef mutable struct NodeDataIn <:Node
         # te poračuna algoritem
 	x::Float64 = 0.
-        y::Float64 = 0.
+        z::Float64 = 0.
         i::Int64 = 1
 
 	# prilagodi tako, da lahko nastavis drsno pod kotom.
@@ -99,11 +99,7 @@ module NonLinBeam
 
 
 
-    
-    #Funkcija za rotacijo 2-terice za kot
-    function R2(a)::Matrix{Float64} 
-	    return [cos(a) sin(a); -sin(a) cos(a)]
-    end
+
     #Funkcija za rotacijo 3-terice za kot a okrov e3
     function R(a;n = 0)::Matrix{Float64}
 	    # n je stopnja odvoda
@@ -159,15 +155,15 @@ module NonLinBeam
 		end
 
 		for i =1:n_voz
-		    voz_data[i] = NodeDataIn(x=voz[i,1],y=voz[i,2],i=i)
+		    voz_data[i] = NodeDataIn(x=voz[i,1],z=voz[i,2],i=i)
 		end
 
 		return n_elem,n_voz,element_data,voz_data
 	end #datainit
 
 	function dataprocess(elem_dat::BeamDataIn,node_dat::Array{NodeDataIn},n_nodes::Int64)::Tuple{BeamDataProcess,Int64}
-		node1 = [node_dat[1].x node_dat[1].y]
-		node2 = [node_dat[2].x node_dat[2].y]
+		node1 = [node_dat[1].x node_dat[1].z]
+		node2 = [node_dat[2].x node_dat[2].z]
 		n_ke = length(elem_dat.div1)-1
 		indx = fill(Vector{Int64}([]),n_ke)
 		if n_ke ==1
@@ -268,7 +264,7 @@ module NonLinBeam
 			D1_vec = map(x->sum((Df_geom*f_geom).*(x.^(0:length(geom_koeff[:,1])-1)),dims = 1),x_trans)
 			D2_vec =  map(x->sum(((Df_geom^2)*f_geom).*(x.^(0:length(geom_koeff[:,1])-1)),dims = 1),x_trans) 
 			
-			Pi[i] = map(v-> atan(v[2],v[1]),D1_vec)
+			Pi[i] = -map(v-> atan(v[2],v[1]),D1_vec)
 			Ki[i] = map((v1,v2)-> abs(det([v1;v2]))/norm(v1)^3,D1_vec,D2_vec)		
 			
 			Kb[i]= Ki[i][1:2]
@@ -364,6 +360,9 @@ module NonLinBeam
 	function re_gramschmid(DataIn::Vector{Vector{Float64}})
 		bi = gramschmid(DataIn)[4]
 		bi = gramschmid(DataIn;B0 = bi)[1]
+		if all(bi[end,:].<10^(-13))
+			error("Interpolacijska baza ne obstaja")
+		end
 		return bi
 	end
 
@@ -401,17 +400,17 @@ module NonLinBeam
 
 		D = dU+[cos(p0); sin(p0); 0.0]
 		E = R(U[3]+p0)*D+[-1.0;0.0;-k0]
-		Re = R(U[3]+p0)* C* E
+		Re = R(U[3]+p0)'* C* E
 		
 		# (dlPhi , dlD)
-		dlRe = ( R(U[3]+p0;n=1)*C*E + R(U[3]+p0)*C*R(U[3]+p0;n=1)*D, R(U[3]+p0)*C*R(U[3]+p0) )
+		dlRe = ( R(U[3]+p0;n=1)'*C*E + R(U[3]+p0)'*C*R(U[3]+p0;n=1)*D, R(U[3]+p0)'*C*R(U[3]+p0) )
 		return U,V,dU,dV,D,Re,dlRe
 		
 	end
 	
 
 	# Na KE
-	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64},Fmy::Vector{Float64},dt::Float64,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Float64)
+	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64} ,Fmy::Vector{Float64},dt::Float64,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Float64)
 
 		ux1 = ux[:,1]; uz1 = uz[:,1]; phi1 = phi[:,1]; ux2 = ux[:,2]; uz2 = uz[:,2]; phi2 = phi[:,2]
 		vx1 = vx[:,1]; vz1 = vz[:,1]; omg1 = omg[:,1]; vx2 = vx[:,2]; vz2 = vz[:,2]; omg2 = omg[:,2]
@@ -450,7 +449,7 @@ module NonLinBeam
 			# Obtežba v xInt
 			p = map(pj -> PolyValue(xInt[i1],[0.5 0.5;-0.5 0.5]*reshape(pj,(2))),[Fpx,Fpz,Fmy])
 			# Rabim se vektor pospeskov v xInt
-			tv = map((vi2,vi1) -> InterpolValue(xInt[i1],vi2,Ib)-InterpolValue(xInt[i1],vi1,Ib) , [vx2,vz2,omg2],[vx1,vz1,omg1])./dt + [0.0,g,0.0]
+			tv =(V2-V1)/dt+ [0.0;g;0.0]
 			
 
 			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(N,[E[2];-(1.0 +E[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1]	

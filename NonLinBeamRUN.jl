@@ -22,8 +22,8 @@ println("[  Ok  ]  Procesiranje podatkov")
 #   P O D A T K I   I T R A C I J S K E G A   P O S T O P K A
 # Tole spravi v data.txt
 ti = 0.
-tf = 7.
-dt = 10.0^-2
+tf = 10.
+dt = 0.1
 g = 0.0
 
 
@@ -45,8 +45,13 @@ indxP = indx[findall(2*n_nodes+1 .<=indx.<= 3*n_nodes)].-2*n_nodes
 
 indx_solve = sort(vcat(3*indxX.-2,3*indxZ.-1,3*indxP))
 println("[  Ok  ]  Priprava na račun")
+#=
+i_time = 2
+i_el=1
+i_ke=1
 
-
+dlF,F = Tan_Res(E[i_el].xInt[i_ke],E[i_el].wInt[i_ke],M.ux[E[i_el].indx[i_ke],[i_time-1,i_time]],M.uz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.phi[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vx[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.Omg[E[i_el].indx[i_ke],[i_time-1,i_time]],E[i_el].P[i_ke],E[i_el].p0[i_ke],E[i_el].k0[i_ke],ElementDataIn[i_el].C,reshape(ElementDataIn[i_el].M[i_ke,:],2),ElementDataIn[i_el].px(t[i_time])[i_ke,:],ElementDataIn[i_el].pz(t[i_time])[i_ke,:],ElementDataIn[i_el].my(t[i_time])[i_ke,:],dt,E[i_el].pb[i_ke],E[i_el].kb[i_ke],E[i_el].L[i_ke],g)
+=#
 for i_time in 2:3#n_time
 	Dv = [1.;1.]
 	while norm(Dv) > 10.0^-6
@@ -73,15 +78,15 @@ for i_time in 2:3#n_time
 		Dv = Ja[indx_solve,indx_solve]\Re[indx_solve]
 
 		# *2 je zaradi povprečenja za vmesno ??? je to ok ???
-		M.vx[indxX,i_time] -= Dv[1:3:end]
-		M.vz[indxZ,i_time] -= Dv[2:3:end]
-		M.Omg[indxP,i_time] -= Dv[3:3:end]
+		M.vx[indxX,i_time] -= Dv[1:3:end]*2.
+		M.vz[indxZ,i_time] -= Dv[2:3:end]*2.
+		M.Omg[indxP,i_time] -= Dv[3:3:end]*2.
 		
 		M.ux[indxX,i_time] = M.ux[indxX,i_time-1] + dt*(M.vx[indxX,i_time]+M.vx[indxX,i_time-1])/2
 		M.uz[indxZ,i_time] = M.uz[indxZ,i_time-1] + dt*(M.vz[indxZ,i_time]+M.vz[indxZ,i_time-1])/2
 		M.phi[indxP,i_time] = M.phi[indxP,i_time-1] + dt*(M.Omg[indxP,i_time]+M.Omg[indxP,i_time-1])/2
 		
-		print(norm(Dv),"\t")
+		println(M.vz[indxZ,i_time],"\t")
        	end # while norm(Dv) > x
 	M.vx[indxX,i_time+1] = 2.0*M.vx[indxX,i_time] - M.vx[indxX,i_time-1]
 	M.vz[indxZ,i_time+1] = 2.0*M.vz[indxZ,i_time] - M.vz[indxZ,i_time-1]
