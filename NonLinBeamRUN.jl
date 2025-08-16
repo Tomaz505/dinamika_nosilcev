@@ -82,16 +82,19 @@ for i_time in 2:3#n_time
 		M.vz[indxZ,i_time] -= Dv[2:3:end]*2.
 		M.Omg[indxP,i_time] -= Dv[3:3:end]*2.
 		
-		M.ux[indxX,i_time] = M.ux[indxX,i_time-1] + dt*(M.vx[indxX,i_time]+M.vx[indxX,i_time-1])/2
-		M.uz[indxZ,i_time] = M.uz[indxZ,i_time-1] + dt*(M.vz[indxZ,i_time]+M.vz[indxZ,i_time-1])/2
-		M.phi[indxP,i_time] = M.phi[indxP,i_time-1] + dt*(M.Omg[indxP,i_time]+M.Omg[indxP,i_time-1])/2
-		
-		println(M.vz[indxZ,i_time],"\t")
+		println(norm(Dv))	
+	
        	end # while norm(Dv) > x
-	M.vx[indxX,i_time+1] = 2.0*M.vx[indxX,i_time] - M.vx[indxX,i_time-1]
-	M.vz[indxZ,i_time+1] = 2.0*M.vz[indxZ,i_time] - M.vz[indxZ,i_time-1]
-	M.Omg[indxP,i_time+1] = 2.0*M.Omg[indxP,i_time] - M.Omg[indxP,i_time-1]
-	println(i_time)
+	M.vx[indxX,i_time+1] = M.vx[indxX,i_time]
+	M.vz[indxZ,i_time+1] = M.vz[indxZ,i_time]
+	M.Omg[indxP,i_time+1] = M.Omg[indxP,i_time]
+
+	M.ux[indxX,i_time] = M.ux[indxX,i_time-1] + dt*(M.vx[indxX,i_time]+M.vx[indxX,i_time-1])/2.
+	M.uz[indxZ,i_time] = M.uz[indxZ,i_time-1] + dt*(M.vz[indxZ,i_time]+M.vz[indxZ,i_time-1])/2.
+	M.phi[indxP,i_time] = M.phi[indxP,i_time-1] + dt*(M.Omg[indxP,i_time]+M.Omg[indxP,i_time-1])/2.
+		
+
+
 end # i_time
 
 println("[  Ok  ]  Račun")

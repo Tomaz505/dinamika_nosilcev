@@ -1,63 +1,134 @@
 \documentclass{article}
 
+
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{mathtools}
 \usepackage{mathrsfs}
-
+\newcommand{\dep}[1]{{\scriptstyle(#1)}}
 
 \begin{document}
-$$U = 
+
+
+\section{Osnovne enačbe}
+$$\mathbf{u} = 
 \begin{bmatrix}
 	u_x\\
 	u_z\\
 	\varphi
-\end{bmatrix} \qquad V = 
+\end{bmatrix} \qquad \mathbf{v} = 
 \begin{bmatrix}
 	v_x\\
 	v_z\\
 	\Omega
-\end{bmatrix} \qquad E_0=
+\end{bmatrix} \qquad \mathbf{e}_0=
 \begin{bmatrix}
 	-1\\
 	0\\
 	-\kappa_0
-\end{bmatrix} \qquad D = 
+\end{bmatrix} \qquad \mathbf{d} = 
 \begin{bmatrix}
 	u_x' + \cos\varphi_0\\
 	u_z' + \sin\varphi_0\\
 	\varphi'
+\end{bmatrix} \qquad \mathbf{p} = 
+\begin{bmatrix}
+	p_x\\
+	p_z\\
+	m_y
 \end{bmatrix}
 $$
 
 
-$$R(\varphi) =
+$$\mathbf{R}\dep{\varphi} =
 \begin{bmatrix}
 	\cos\varphi & \sin \varphi & 0\\
 	-\sin\varphi & \cos\varphi & 0\\
 	0 & 0 & 1
-\end{bmatrix} \qquad R^{(n)}(\varphi) = 
+\end{bmatrix} \qquad \mathbf{R}^{(n)}\dep{\varphi} = 
 \begin{bmatrix}
 	0 & 1 & 0\\
 	-1 & 0 & 0\\
 	0 & 0 & 0
-\end{bmatrix}^n R(\varphi)
+\end{bmatrix}^n \mathbf{R}\dep{\varphi}
 $$
 
 
-$$E = R(\varphi)D+E_0$$
-$$\mathcal{R} = R(\varphi)CE$$
-$$\mathcal{N} = CE$$
-$$\delta E = \delta\varphi\;R^{(1)}(\varphi)D + R(\varphi)\;\delta D$$
-$$\delta \mathcal{R} = \delta\varphi\;(R^{(1)}(\varphi)CE+R(\varphi)CR{(1)}(\varphi)D) +  R(\varphi)CR(\varphi)\;\delta D$$
-$$\delta \mathcal{N} = \delta\varphi\;CR^{(1)}(\varphi)D +  CR(\varphi)\;\delta D$$
+$$\mathbf{e} = \mathbf{R}\dep{\varphi}\mathbf{d}+\mathbf{e}_0 \qquad \mathcal{R} = \mathbf{R}^T\dep{\varphi}\mathbf{Ce} \qquad \mathcal{N} = \mathbf{Ce}$$
 
 
-$$\mathcal{F} = \int_0^l\mathcal{R}\mathcal{P}_i + (p-\rho \dot{V} + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ \mathcal{N}_1E_2 - (1+E_1) \mathcal{N}_2 \end{bmatrix}}) \mathcal{P}_i \; dx + \mathcal{R}\mathcal{P}_i\Bigl |_0^l$$
-	$$\delta \mathcal{F} = \int_0^l \delta \mathcal{RP}_i' + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ E_2\delta\mathcal{N}_1+\delta E_2 \mathcal{N}_1-(1+E_1)\delta \mathcal{N}_2 - \delta E_1 \mathcal{N}_2 \end{bmatrix}}\mathcal{P}_i\; dx$$
+$$\delta \mathbf{e} = \delta\varphi\;\mathbf{R}^{(1)}\dep{\varphi}\mathbf{d} + \mathbf{R}\dep{\varphi}\;\delta \mathbf{d}$$
+$$\delta \mathcal{R} = \delta\varphi\;((\mathbf{R}^{(1)})^T\dep{\varphi}\mathbf{Ce}+\mathbf{R}^T\dep{\varphi}\mathbf{CR}^{(1)}\dep{\varphi}\mathbf{d}) +  \mathbf{R}^T\dep{\varphi}\mathbf{CR}\dep{\varphi}\;\delta \mathbf{d}$$
+$$\delta \mathcal{N} = \delta\varphi\;\mathbf{CR}^{(1)}\dep{\varphi}\mathbf{d} +  \mathbf{CR}\dep{\varphi}\;\delta \mathbf{d}$$
+
+
+$$\mathcal{F} = \int_0^l-\mathcal{R}\mathcal{P}_i' + (\mathbf{p}-\rho_A \dot{\mathbf{v}} + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ \mathcal{N}_1E_2 - (1+E_1) \mathcal{N}_2 \end{bmatrix}}) \mathcal{P}_i \; dx + \mathcal{R}\mathcal{P}_i\Bigl |_0^l$$
+$$\delta \mathcal{F} = \int_0^l- \delta \mathcal{RP}_i' + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ E_2\delta\mathcal{N}_1+\delta E_2 \mathcal{N}_1-(1+E_1)\delta \mathcal{N}_2 - \delta E_1 \mathcal{N}_2 \end{bmatrix}}\mathcal{P}_i\; dx$$
+
+
+Bi moral v $\delta\mathcal{F}_3$ (enačba 3) namesto $\delta\mathcal{R}_3$ uporabit $\delta\mathcal{N}_3$? Sta različna?\\
+{\it Če ja, potem sta najvrjetneje zaradi člena $\delta\varphi$. Mislim, da sta enaka. Člen pri $\delta\varphi$ odpade zaradi ničelne $3$. vrstice v $\mathbf{R}^{(1)}$, člen z $\delta\mathbf{d}$ pa ima v $\mathbf{R}$ vrstico indentitete.}
+
+
+Zdelo bi se smiselno, da bi bile nekatere izmed matrik $\mathbf{R}$ transponirane.\\
+{\it $\mathbf{d}$ slikamo v lokalno bazo, množimo z $\mathbf{C}$, da dobimo sile v lokalnih oseh in nato transformiramo z $\mathbf{R}^T$ nazaj v izvorne koordinate. Lahko je tudi obratni vrstni red transponirane in ne transponirane.}
 
 
 
 
+
+
+
+\newpage
+\section{Numerični račun}
+Poznamo količine v času $t_n$. Za $t_{n+1}$ predpostavimo hitrosti $\mathbf{v}_{n+1}$.
+
+$$\bar{\mathbf{v}} = (\mathbf{v}_{n+1} + \mathbf{v}_{n})/2 \qquad \bar{\mathbf{u}} = \mathbf{u}_{n} + \frac{h}{2}\bar{\mathbf{v}} \qquad \bar{\mathbf{d}} = \mathbf{d}_n + \frac{h}{2}\bar{\mathbf{v}}' $$
+$$\mathbf{u}_{n+1} = \mathbf{u}_n+h\bar{\mathbf{v}} \qquad \mathbf{d}_{n+1} = \mathbf{d}_n+h\bar{\mathbf{v}}'$$ 
+$$ \delta\bar{\mathbf{u}} = \frac{h}{2}\delta\bar{\mathbf{v}} \qquad  \delta\bar{\mathbf{d}} = \frac{h}{2}\delta\bar{\mathbf{v}}'$$ 
+
+$$\bar{\mathcal{R}} = \mathbf{R}^T\dep{\bar{\varphi}}\mathbf{C}\bar{\mathbf{e}}  \qquad \bar{\mathbf{e}} = \mathbf{R}\dep{\bar{\varphi}}\bar{\mathbf{d}}-\mathbf{e}_0 \qquad \bar{\mathcal{N}} = \mathbf{C}\bar{\mathbf{e}}  $$
+
+$$\delta \bar{\mathcal{R}} = \frac{h}{2} (\delta\bar{\Omega}((\mathbf{R}^{(1)})^T\dep{\bar{\varphi}}\mathbf{C}\bar{\mathbf{e}} + \mathbf{R}^T\dep{\bar{\varphi}}\mathbf{CR}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}}) + \mathbf{R}^T\dep{\bar{\varphi}} \mathbf{CR}\dep{\bar{\varphi}}\delta\bar{\mathbf{v}}' )$$
+$$\delta\bar{\mathbf{e}} = \frac{h}{2}(\delta\bar{\Omega}\mathbf{R}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} + \mathbf{R}\dep{\bar{\varphi}}\delta\bar{\mathbf{v}}')$$
+$$\delta\bar{\mathcal{N}} = \frac{h}{2} (\delta\bar{\Omega}\mathbf{CR}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} + \mathbf{CR}\dep{\bar{\varphi}}\delta\bar{\mathbf{v}}')$$
+
+
+V programu je napaka ker ne računam količin v $t_{n+1}$ z pravimi $u_{n+1}$.\\
+{\it Najprej bi moral poračunati hitrosti za $n+1$ in $n$ in od tod hitrosti za $n+\frac{1}{2}$. Z temi izračunam $\mathbf{u}_{n+1}$ in $\mathbf{d}_{n+1}$ in od tod $\mathcal{R}_{n+1}$. Nadaljni postopek bi moral biti pravilen.}
+
+Kaj bi moral narediti z energijama?\\
+{\it Če prav razumem sta hitrosti ob časih $n+1$ in $n$ neki funkciji. Zato ker jih ne znamo izvrednostit moramo uporabiti ravnotežne enačbe $\bar{\mathcal{F}}$ in iz njih izraziti diferenco hitrosti (pospešek), kar se pojavi tudi v enačbi energije. Po drugi strani pa je funkcija vmesne hitrosti linearna kombinacija robnih.}
+
+Kakšen bi bil pravilen postopek za račun $\delta\bar{\mathcal{R}}$, če za $\bar{\mathcal{R}}$ vzamem povprečnega?\\
+{\it Ker je $\delta\mathcal{R}_n$ neodvisna od $\bar{\mathbf{v}}$ je variacija enaka $0$. Razlika med povprečnim in analitično formulo je ta, da so v vseh členih nevariirane količine tiste ob drugem oziroma vmesnem času. Najprej bi raje poiskusil doseči smiselne rezultate z izvorno formulo za $\mathcal{R}$.}
+
+
+
+
+
+\newpage
+\section{Implementacija v program}
+$$\delta\bar{\mathbf{e}} = \frac{h}{2}\mathcal{P}_j
+\begin{bmatrix}
+0 & 0 & | \\
+	0 & 0 & \mathbf{R}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} \\
+0 & 0 & |
+\end{bmatrix} + \frac{h}{2}\mathcal{P}_j' \mathbf{R}\dep{\bar{\varphi}}$$
+
+
+$$\delta\bar{\mathcal{N}} = \frac{h}{2}\mathcal{P}_j
+\begin{bmatrix}
+0 & 0 & | \\
+0 & 0 & \mathbf{CR}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} \\
+0 & 0 & |
+\end{bmatrix} + \frac{h}{2}\mathcal{P}_j' \mathbf{CR}\dep{\bar{\varphi}}$$
+
+$$\delta\bar{\mathcal{R}} = \frac{h}{2}\mathcal{P}_j
+\begin{bmatrix}
+0 & 0 & | \\
+0 & 0 & (\mathbf{R}^{(1)})^T\dep{\bar{\varphi}}\mathbf{C}\bar{\mathbf{e}} + \mathbf{R}^T\dep{\bar{\varphi}}\mathbf{CR}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} \\
+0 & 0 & |
+\end{bmatrix} + \frac{h}{2}\mathcal{P}_j' \mathbf{R}^T\dep{\bar{\varphi}} \mathbf{CR}\dep{\bar{\varphi}}$$
 
 \end{document}

@@ -12,7 +12,7 @@ elementi::Array{Int64} = [
 # n = st. ke.
 # m = st. tock geometrije
 #	v	- Vector{Int64}		(2)
-#	C 	- Matrix{Float64} 	(3x3)
+#	C 	- Matrix{Float64} 	(3x3)	println(i_time)
 #	M 	- Matrix{Float64} 	(nx2)
 #	div1	- Vector{Float64} 	(n+1)
 #	div2	- Vector{Float64} 	(n)
@@ -42,8 +42,8 @@ elementi::Array{Int64} = [
 			#predstavlja linearen potek obtežbe med krajiški k.e.
 		#px podobno
 		#my podobno
-@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(pz)
-@assignto :(ElementDataIn) [1] :(t->0.01*t*[1. 1.]) :(px)
+@assignto :(ElementDataIn) [1] :(t->[0.1 0.1]*t) :(pz)
+@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(px)
 @assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(my)
 
 
@@ -54,9 +54,9 @@ elementi::Array{Int64} = [
 			#Te so enakomerno razporejene interpolacijske točke posameznega elementa
 		#nInt je število integracijskih točk za numerično integracijo po Gaussu
 @assignto :(ElementDataIn) [1] :( [-1.; 1.] ) :(div1)
-@assignto :(ElementDataIn) [1] :( [2] ) :(div2)
+@assignto :(ElementDataIn) [1] :( [4] ) :(div2)
 @assignto :(ElementDataIn) [1] :( [20] ) :(nInt) 
-#@assignto :(ElementDataIn) [1] :( true ) :(Ci)
+#@assignto :(ElementDataIn) [1] :( false ) :(Ci)
 
 
 	#Podatki geometrije
@@ -73,7 +73,7 @@ elementi::Array{Int64} = [
 	#Podatki podpor
 		#Supp so sprostitve v lokalnem koordinatnem sistemu. Defoult vrednost je [1,1,1].
 		#dir je rotacija globalnega ks za dan kot. 
-@assignto :(VozDataIn) [1] :( Bool[0, 0, 0] ) :(Supp)
+@assignto :(VozDataIn) [2] :( Bool[0, 0, 0] ) :(Supp)
 #@assignto :(VozDataIn) [1] :( pi/3. ) :(dir)
 
 
