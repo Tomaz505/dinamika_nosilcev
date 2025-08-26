@@ -546,6 +546,9 @@ module NonLinBeam
 
 		F.*=L/2.
 		dlF.*= L/2.
+
+		#display(dlF[1])
+		#display(F[1])
 		return dlF,F
 
 	end

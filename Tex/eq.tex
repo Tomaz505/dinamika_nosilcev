@@ -62,8 +62,8 @@ $$\delta \mathcal{R} = \delta\varphi\;((\mathbf{R}^{(1)})^T\dep{\varphi}\mathbf{
 $$\delta \mathcal{N} = \delta\varphi\;\mathbf{CR}^{(1)}\dep{\varphi}\mathbf{d} +  \mathbf{CR}\dep{\varphi}\;\delta \mathbf{d}$$
 
 
-$$\mathcal{F} = \int_0^l-\mathcal{R}\mathcal{P}_i' + (\mathbf{p}-\rho_A \dot{\mathbf{v}} + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ \mathcal{N}_1E_2 - (1+E_1) \mathcal{N}_2 \end{bmatrix}}) \mathcal{P}_i \; dx + \mathcal{R}\mathcal{P}_i\Bigl |_0^l$$
-$$\delta \mathcal{F} = \int_0^l- \delta \mathcal{RP}_i' + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ E_2\delta\mathcal{N}_1+\delta E_2 \mathcal{N}_1-(1+E_1)\delta \mathcal{N}_2 - \delta E_1 \mathcal{N}_2 \end{bmatrix}}\mathcal{P}_i\; dx$$
+$$\mathcal{F} = \int_0^l-\mathcal{R}\mathcal{P}_i' + (\mathbf{p}-\rho_A \dot{\mathbf{v}} + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ \mathcal{N}_1\mathbf{e}_2 - (1+\mathbf{e}_1) \mathcal{N}_2 \end{bmatrix}}) \mathcal{P}_i \; dx + \mathcal{R}\mathcal{P}_i\Bigl |_0^l$$
+	$$\delta \mathcal{F} = \int_0^l- \delta \mathcal{RP}_i' + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ \mathbf{e}_2\delta\mathcal{N}_1+\delta \mathbf{e}_2 \mathcal{N}_1-(1+\mathbf{e}_1)\delta \mathcal{N}_2 - \delta \mathbf{e}_1 \mathcal{N}_2 \end{bmatrix}}\mathcal{P}_i\; dx$$
 
 
 Bi moral v $\delta\mathcal{F}_3$ (enačba 3) namesto $\delta\mathcal{R}_3$ uporabit $\delta\mathcal{N}_3$? Sta različna?\\
@@ -93,6 +93,7 @@ $$\delta \bar{\mathcal{R}} = \frac{h}{2} (\delta\bar{\Omega}((\mathbf{R}^{(1)})^
 $$\delta\bar{\mathbf{e}} = \frac{h}{2}(\delta\bar{\Omega}\mathbf{R}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} + \mathbf{R}\dep{\bar{\varphi}}\delta\bar{\mathbf{v}}')$$
 $$\delta\bar{\mathcal{N}} = \frac{h}{2} (\delta\bar{\Omega}\mathbf{CR}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} + \mathbf{CR}\dep{\bar{\varphi}}\delta\bar{\mathbf{v}}')$$
 
+%$$\rho_A( \mathbf{v}_{n+1}-\mathbf{v}_n) = h(\bar{\mathcal{R}}'+\bar{p}+\begin{bmatrix} 0\\ 0\\ \bar{\mathcal{N}}_1\bar\mathbf$$
 
 V programu je napaka ker ne računam količin v $t_{n+1}$ z pravimi $u_{n+1}$.\\
 {\it Najprej bi moral poračunati hitrosti za $n+1$ in $n$ in od tod hitrosti za $n+\frac{1}{2}$. Z temi izračunam $\mathbf{u}_{n+1}$ in $\mathbf{d}_{n+1}$ in od tod $\mathcal{R}_{n+1}$. Nadaljni postopek bi moral biti pravilen.}
@@ -130,5 +131,7 @@ $$\delta\bar{\mathcal{R}} = \frac{h}{2}\mathcal{P}_j
 0 & 0 & (\mathbf{R}^{(1)})^T\dep{\bar{\varphi}}\mathbf{C}\bar{\mathbf{e}} + \mathbf{R}^T\dep{\bar{\varphi}}\mathbf{CR}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} \\
 0 & 0 & |
 \end{bmatrix} + \frac{h}{2}\mathcal{P}_j' \mathbf{R}^T\dep{\bar{\varphi}} \mathbf{CR}\dep{\bar{\varphi}}$$
+
+Za enostaven primer konzole se komponente zadnjega stoplca in vrstice hitro povečujejo. Preveri eačbe ki prispevajo k temu delu.
 
 \end{document}
