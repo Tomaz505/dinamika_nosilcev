@@ -19,6 +19,27 @@ println("[  Ok  ]  Procesiranje podatkov")
 
 
 
+
+
+plotbeams(E,ElementDataIn,VozDataIn)
+println("[  Ok  ]  Risnaje Konstrikcije")
+println("\nNadlajujem? (0-NE):")
+
+canc = readline()
+if canc == "0"
+	error("Preklic")
+end
+println("\n")
+
+
+
+
+
+
+
+
+
+
 #   P O D A T K I   I T R A C I J S K E G A   P O S T O P K A
 # Tole spravi v data.txt
 ti = 0.
@@ -55,6 +76,7 @@ dlF,F = Tan_Res(E[i_el].xInt[i_ke],E[i_el].wInt[i_ke],M.ux[E[i_el].indx[i_ke],[i
 for i_time in 2:3#n_time
 	Dv = [1.;1.]
 	while norm(Dv) > 10.0^-6
+		sleep(1)
 		# Tangentna in rezidual v eni matriki
 		Ja = spzeros(Float64,3*n_nodes,3*n_nodes)
 		Re = zeros(Float64,3*n_nodes,1)
@@ -83,7 +105,7 @@ for i_time in 2:3#n_time
 		M.vx[indxX,i_time] -= Dv[1:3:end]*2.
 		M.vz[indxZ,i_time] -= Dv[2:3:end]*2.
 		M.Omg[indxP,i_time] -= Dv[3:3:end]*2.
-		
+		display.([M.vx[:,i_time],M.vz[:,i_time],M.Omg[:,i_time]])		
 		println(norm(Dv))	
 	
        	end # while norm(Dv) > x

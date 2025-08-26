@@ -3,6 +3,7 @@
 
 include("NonLinBeamMOD.jl");
 using .NonLinBeam, SparseArrays,LinearAlgebra
+using Plots
 # TILE NISO NUJNI ||
 	#using BenchmarkTools, Plots, GraphRecipes,Graphs
 

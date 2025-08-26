@@ -2,10 +2,11 @@ module NonLinBeam
     
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
 		datainit, readdata, dataprocess,
-		R, GaussInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValue
+		R, GaussInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValuei,
+		plotbeams
 
 
-    using LinearAlgebra
+    using LinearAlgebra, Plots
 
 
     # Struktura podatkov za nosilec
@@ -42,25 +43,15 @@ module NonLinBeam
 
 	#Li,Pi,Ki,Ib,xi,wi
     struct BeamDataProcess <:Beam
-       # C::Array{Float64} #
-       # M::Array{Float64} #
         L::Vector{Float64} 
 	p0::Vector{Vector{Float64}}
 	k0::Vector{Vector{Float64}}
         P::Vector{Matrix{Float64}} #
 	pb::Vector{Vector{Float64}}
 	kb::Vector{Vector{Float64}}
-	# dP::Array{Array{Array{Float64}}} #
-       # A1::Array{Array{Array{Float64}}} #
-       # A2::Array{Array{Array{Float64}}} #
-       # A3::Array{Array{Array{Float64}}} #
-       # A4::Array{Array{Array{Float64}}} #
-       # A5::Array{Array{Array{Float64}}} #
-       # A6::Array{Array{Array{Float64}}} #
         xInt::Vector{Vector{Float64}}
         wInt::Vector{Vector{Float64}} # Jih dejansko rabim s sabo če so v A1,...? Lahko jih poračunam samo lokalno.
-       # v::Array{Array{Int64}} #
-	indx::Vector{Vector{Int64}}
+ 	indx::Vector{Vector{Int64}}
     end
     
 
@@ -81,7 +72,8 @@ module NonLinBeam
 	dir::Float64 = 0.
 	# lahko nastaviš številko za rotacijo globalnih koordinat v kateri je ta sprostitev jasna in je potem supp podan za ta rotiran koordinatni sistem. smiselno je le za 0-pi/2
 	# dokler ne urediš vsega naj bo vedno 0.
-    end
+	#mot::Function t-> [0.; 0.; 0.] #Prisiljeno gibanje vozlišča    
+end
 
 
 
@@ -289,6 +281,51 @@ module NonLinBeam
 	end
 
 
+	function plotbeams(EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn})
+		ne = length(EP)
+		nv = length(VD)
+		nke = map(i-> length(ED[i].div2),1:ne)
+
+		img = plot(;title = "Konstrukcija",aspect_ratio = :equal, xticks = [], yticks = [],yflip = true,xlabel = "x",ylabel = "z")
+
+		for i1 = 1:ne
+			node1 = [VD[ED[i1].v[1]].x VD[ED[i1].v[1]].z]
+			node2 = [VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z]
+			geom_koeff = vcat(node1,node2,ED[i1].Kb)
+			
+
+			plot!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0); linecolor = :black,labels = :none)
+			
+
+			annotate!(InterpolValue(0.0,geom_koeff[:,1],ED[i1].Ib_geom),InterpolValue(0.0,geom_koeff[:,2],ED[i1].Ib_geom),("  "*string(i1),8,:black,:left))
+	
+		for i2 = 1:nke[i1]
+			xs = range( ED[i1].div1[i2],ED[i1].div1[i2+1],length = ED[i1].div2[i2])
+			scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom),xs),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), xs); m = :circle, markercolor = :cyan,markersize = 4,labels = :none)
+		
+		end
+
+		
+			
+			scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), ED[i1].div1[2:end-1]),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), ED[i1].div1[2:end-1]); m = :circle, markercolor = :limegreen,markersize = 6,labels = :none)
+
+		end
+
+		
+		for i1 = 1:nv
+			scatter!([VD[i1].x],[VD[i1].z]; m = :circle, markercolor = :red,markersize = 6,labels = :none,series_annotations = [("  "*string(i1),8,:red,:left)])
+		
+		end
+		
+		scatter!(; xticks = map(i->VD[i].x,1:nv),yticks = map(i->VD[i].z,1:nv))
+
+		display(img)
+		return 
+	end
+
+
+
+
 	# Funkcija za branje datoteka z podatki
 	function readdata()::Tuple{String,String,Array{String}}
 		print("Pot do datoteke z podatki: ")
@@ -422,67 +459,55 @@ module NonLinBeam
 		indx2 = CartesianIndex.((1:length(Ib[:,1]))',1:length(Ib[:,1]))
 		for i1 = eachindex(xInt)
 			#Poračunaj količine v xg
-				#za čas tn in tn+1
+			#za čas tn in tn+1
 			
+			
+			#   H I T R O S T I
 			V1 = map(vi->InterpolValue(xInt[i1],vi,Ib),[vx1,vz1,omg1])
 			V2 = map(vi->InterpolValue(xInt[i1],vi,Ib),[vx2,vz2,omg2])
 			dV1 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx1,vz1,omg1])
 			dV2 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx2,vz2,omg2])
-
 			V = (V1+V2)/2
 			dV = (dV1+dV2)/2
 
 
+			#   P O M I K I
 			U1 = map(ui->InterpolValue(xInt[i1],ui,Ib),[ux1,uz1,phi1])
 			dU1 = map(ui->InterpolValue(xInt[i1],ui,Ib;n=1), [ux1,uz1,phi1])
-
 			U = U1+V*dt/2
 			U2 = U1+V*dt
 			
+
+			#   D E F O R M A C I J E   F I K S N E
 			D1 = dU1+[cos(p0[i1]);sin(p0[i1]);0.0]
 			D = D1+dt/2*dV
 			D2 = D1+dt*dV
 
 
-			E = R(U[3]+p0[i1])*D + [-1.0; 0.0; -k0[i1]]
 
-			#E1 = R(U1[3])*D1 + [-1.0;0.0;-k0[i1]]
-			#E2 = R(U2[3])*D2 + [-1.0;0.0;-k0[i1]] 
+			#   D E F O R M A C I J E   L O K A L N E
+			E1 = R(U1[3]+p0[i1])*D1 + [-1.0;0.0;-k0[i1]]
+			E2 = R(U2[3]+p0[i1])*D2 + [-1.0;0.0;-k0[i1]] 
+			E = R(U[3]+p0[i1])*D + [-1.0; 0.0; -k0[i1]]
+			#E = R(dt/2*V[3])*(E1 - [-1.0;0.0;-k0[i1]]) + [-1.0;0.0;-k0[i1]] + dt*R(U[3]+p0[i1])*dV
 			
-			Re = R(U[3]+p0[i1])'*C*E
-			#Re1 = R(U1[3])*C*E1
-			#Re2 = R(U2[3])*C*E2
+
+			#   R E Z U L T A N T E   G L O B A L N E
+			Re = R(U[3]+p0[i1])'*C*(E1+E2)/2
+			#Re = R(U1[3])*C*E
 			#Re = (Re1+Re2)/2
 		
-			N = C*E
+
+			#   R E Z U L T A N T E   L O K A L N E
+			N = R(U[3]+p0[i1])*Re
+
+
 			
 			dlE = (R(U[3]+p0[1i1];n=1)*D , R(U[3]+p0[i1]))
 			dlRe =(R(U[3]+p0[i1];n=1)'*C*E + R(U[3]+p0[i1])'*C*R(U[3]+p0[i1];n=1)*D , R(U[3]+p0[i1])'*C*R(U[3]+p0[i1]))
 			dlN = (C*R(U[3]+p0[i1];n=1)*E , C*R(U[3]+p0[i1]))
 			
 
-			#=
-			U1,V1,dU1,dV1,D1,Re1,dlRe1 = VarsAtX(xInt[i1],ux1,uz1,phi1,vx1,vz1,omg1,Ib,p0[i1],k0[i1],C)
-			   V2,    dV2		   = VarsAtX(xInt[i1],ux2,uz2,phi2,vx2,vz2,omg2,Ib,p0[i1],k0[i1],C)[[2,4]]
-			
-
-			#Količine v času tn+1/2
-			V = (V1 + V2)/2.
-			dV = (dV1+dV2)/2.
-			
-			U = U1 + V*dt/2.
-			dU = dU1 + dV*dt/2.
-			D = D1 + dV*dt/2.
-
-
-			Re = (Re1 + Re2)/2.
-			dlRe = (dlRe1 .+ dlRe2)./2.
-			
-			E = R(U[3]+p0[i1])*D+[-1.0;0.0;-k0[i1]]
-			N = C*E
-			dlE = ( R(U[3]+p0[i1];n=1)*D, R(U[3]+p0[i1]) )
-			dlN = (C*dlE[1], C*dlE[2])
-			=#
 			
 			# Obtežba v xInt za vmesni čas
 			p = map(pj -> PolyValue(xInt[i1],[0.5 0.5;-0.5 0.5]*reshape(pj,(2))),[Fpx,Fpz,Fmy])
@@ -527,13 +552,19 @@ module NonLinBeam
 			D = D1+dt/2*dV
 			D2 = D1+dt*dV
 
-
+			#   D E F O R M A C I J E   L O K A L N E
+			E1 = R(U1[3]+pb[i])*D1 + [-1.0;0.0;-kb[i]]
+			E2 = R(U2[3]+pb[i])*D2 + [-1.0;0.0;-kb[i]] 
 			E = R(U[3]+pb[i])*D + [-1.0; 0.0; -kb[i]]
+			#E = R(dt/2*V[3])*(E1 - [-1.0;0.0;-k0[i1]]) + [-1.0;0.0;-k0[i1]] + dt*R(U[3]+p0[i1])*dV
+	
 
-			#E1 = R(U1[3])*D1 + [-1.0;0.0;-k0[i1]]
-			#E2 = R(U2[3])*D2 + [-1.0;0.0;-k0[i1]] 
-			
-			Re = R(U[3]+pb[i])'*C*E		
+			#   R E Z U L T A N T E   G L O B A L N E
+			Re = R(U[3]+pb[i])'*C*(E1+E2)/2
+			#Re = R(U1[3])*C*E
+			#Re = (Re1+Re2)/2
+		
+		
 			#=
 			U1,V1,dU1,dV1,D1,Re1,dlRe1 = VarsAtX(xb[i],ux1,uz1,phi1,vx1,vz1,omg1,Ib,pb[i],kb[i],C)
 			U2,V2,dU2,dV2,D2,Re2,dlRe2 = VarsAtX(xb[i],ux2,uz2,phi2,vx2,vz2,omg2,Ib,pb[i],kb[i],C)
