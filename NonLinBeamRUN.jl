@@ -1,5 +1,15 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
-data1,data2,data3 = readdata();
+file = ""
+calc = "1"
+#@label newdata
+
+if file ==""
+	println("Pot do datoteke z podatki")
+	file = readline()
+end
+
+
+data1,data2,data3 = readdata(file);
 eval(Meta.parse(data1));
 eval(Meta.parse(data2));
 n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca);
@@ -23,13 +33,19 @@ println("[  Ok  ]  Procesiranje podatkov")
 
 plotbeams(E,ElementDataIn,VozDataIn)
 println("[  Ok  ]  Risnaje Konstrikcije")
-println("\nNadlajujem? (0-NE):")
+
+
+
+println("\n Kako nadaljujem?")
+#println("1 -> znova preberi datoteko z podatki")
+println("0 -> preklici postopek")
+println("\"Any\" -> nadaljuj račun")
+
 
 canc = readline()
 if canc == "0"
 	error("Preklic")
 end
-println("\n")
 
 
 
@@ -92,21 +108,23 @@ for i_time in 2:3#n_time
 
 				Ja[indx_dof,indx_dof] += round.(hvcat(length(F),dlF...),digits = 13)
 				Re[indx_dof] += round.(vcat(F...),digits = 13)
-				display(Ja)
-				display(Re)
 			end # i_ke
               	end # i_el
 
 		
+		
 
 		Dv = Ja[indx_solve,indx_solve]\Re[indx_solve]
+
+		display(Ja[indx_solve,indx_solve])
+		display(Re[indx_solve])
+		display(Dv)
+
 
 		# *2 je zaradi povprečenja za vmesno ??? je to ok ???
 		M.vx[indxX,i_time] -= Dv[1:3:end]*2.
 		M.vz[indxZ,i_time] -= Dv[2:3:end]*2.
-		M.Omg[indxP,i_time] -= Dv[3:3:end]*2.
-		display.([M.vx[:,i_time],M.vz[:,i_time],M.Omg[:,i_time]])		
-		println(norm(Dv))	
+		M.Omg[indxP,i_time] -= Dv[3:3:end]*2.	
 	
        	end # while norm(Dv) > x
 	M.vx[indxX,i_time+1] = M.vx[indxX,i_time]

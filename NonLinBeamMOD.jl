@@ -327,9 +327,7 @@ end
 
 
 	# Funkcija za branje datoteka z podatki
-	function readdata()::Tuple{String,String,Array{String}}
-		print("Pot do datoteke z podatki: ")
-		file = readline()
+	function readdata(file::String)::Tuple{String,String,Array{String}}
 		
 		if isempty(findall(".txt",file))
 			file = file*".txt"
@@ -488,8 +486,8 @@ end
 			#   D E F O R M A C I J E   L O K A L N E
 			E1 = R(U1[3]+p0[i1])*D1 + [-1.0;0.0;-k0[i1]]
 			E2 = R(U2[3]+p0[i1])*D2 + [-1.0;0.0;-k0[i1]] 
-			E = R(U[3]+p0[i1])*D + [-1.0; 0.0; -k0[i1]]
-			#E = R(dt/2*V[3])*(E1 - [-1.0;0.0;-k0[i1]]) + [-1.0;0.0;-k0[i1]] + dt*R(U[3]+p0[i1])*dV
+			#E = R(U[3]+p0[i1])*D + [-1.0; 0.0; -k0[i1]]
+			E = R(dt/2*V[3])*(E1 - [-1.0;0.0;-k0[i1]]) + [-1.0;0.0;-k0[i1]] + dt*R(U[3]+p0[i1])*dV
 			
 
 			#   R E Z U L T A N T E   G L O B A L N E
@@ -503,27 +501,34 @@ end
 
 
 			
-			dlE = (R(U[3]+p0[1i1];n=1)*D , R(U[3]+p0[i1]))
+			dlE = (R(U[3]+p0[i1];n=1)*D , R(U[3]+p0[i1]))
 			dlRe =(R(U[3]+p0[i1];n=1)'*C*E + R(U[3]+p0[i1])'*C*R(U[3]+p0[i1];n=1)*D , R(U[3]+p0[i1])'*C*R(U[3]+p0[i1]))
 			dlN = (C*R(U[3]+p0[i1];n=1)*E , C*R(U[3]+p0[i1]))
 			
 
-			
-			# Obtežba v xInt za vmesni čas
+			#   O B T E Ž B A
 			p = map(pj -> PolyValue(xInt[i1],[0.5 0.5;-0.5 0.5]*reshape(pj,(2))),[Fpx,Fpz,Fmy])
-			# Rabim se vektor pospeskov v xInt
-			tv =(V2-V1)/dt+ [0.0; g; 0.0]
 			
 
-			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(N,[E[2];-(1.0 +E[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1]	
+			#   D I F E R E N C A   H I T R O S T I
+			tv =(V2-V1)/dt + [0.0; g; 0.0]
+			
+
+			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(N,[E[2];-(1.0 +E[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1] * L / 2.	
 	
 			# dlRe
-			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) + dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)) ,indx2) * wInt[i1]*dt/2.
-			# dlN[1] dlE[1]
-			dlF .+= map( ij ->  PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 (E[2]*dlN[1][1] - (1+E[1])*dlN[1][2] + N[1]*dlE[1][2] - N[2]*dlE[2][1])]])*PolyValue(xInt[i1],Ib[:,ij[2]]), indx2 )*wInt[i1]*dt/2.
-			# dlN[2] dlE[2]
-			dlF .+= map( ij ->  PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)*[[0.0 0.0 0.0; 0.0 0.0 0.0]; (E[2]*dlN[2][1,:] - (1+E[1])*dlN[2][2,:] - N[2]*dlE[2][1,:] + N[1]*dlE[2][2,:])'] ,indx2)*wInt[i1]*dt/2.
+			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) + dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)) ,indx2) * wInt[i1] * dt / 2.
+			
+
+			# dlN[1] dlE[1]   clen z delta omega
+			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 (E[2]*dlN[1][1] - (1+E[1])*dlN[1][2] + N[1]*dlE[1][2] - N[2]*dlE[2][1])]])*PolyValue(xInt[i1],Ib[:,ij[2]]), indx2 ) * wInt[i1] * dt / 2.
+	
+
+			# dlN[2] dlE[2]   clen z delta d
+			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)*[[0.0 0.0 0.0; 0.0 0.0 0.0]; (E[2]*dlN[2][1,:] - (1+E[1])*dlN[2][2,:] - N[2]*dlE[2][1,:] + N[1]*dlE[2][2,:])'] ,indx2) * wInt[i1] * dt / 2.
+		
 		end
+
 
 		
 		xb = [-1.,1.]
@@ -555,8 +560,8 @@ end
 			#   D E F O R M A C I J E   L O K A L N E
 			E1 = R(U1[3]+pb[i])*D1 + [-1.0;0.0;-kb[i]]
 			E2 = R(U2[3]+pb[i])*D2 + [-1.0;0.0;-kb[i]] 
-			E = R(U[3]+pb[i])*D + [-1.0; 0.0; -kb[i]]
-			#E = R(dt/2*V[3])*(E1 - [-1.0;0.0;-k0[i1]]) + [-1.0;0.0;-k0[i1]] + dt*R(U[3]+p0[i1])*dV
+			#E = R(U[3]+pb[i])*D + [-1.0; 0.0; -kb[i]]
+			E = R(dt/2*V[3])*(E1 - [-1.0;0.0;-kb[i]]) + [-1.0;0.0;-kb[i]] + dt*R(U[3]+pb[i])*dV
 	
 
 			#   R E Z U L T A N T E   G L O B A L N E
@@ -575,7 +580,6 @@ end
 			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2]) ,1:length(Ib[:,1])) 
 		end
 
-		F.*=L/2.
 		dlF.*= L/2.
 
 		#display(dlF[1])

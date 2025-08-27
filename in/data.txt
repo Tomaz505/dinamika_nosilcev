@@ -18,7 +18,9 @@ elementi::Array{Int64} = [
 # ElementDataIn
 # n = st. ke. na nosilcui
 # m = st. tock geometrije
+#
 #	param	tip			oblika		default
+#
 #	v	- Vector{Int64}		(2)		...
 #	C 	- Matrix{Float64} 	(3x3)		
 #	M 	- Matrix{Float64} 	(nx2)		
@@ -33,6 +35,7 @@ elementi::Array{Int64} = [
 #	Kb	- Matrix{Float64}	(m-2x2)		[]
 
 # VozDataIn
+#
 #	x	- Float64		()		...
 #	z	- Float64		()		...
 #	i	- Int64			()		...
