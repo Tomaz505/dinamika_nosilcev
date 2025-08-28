@@ -9,17 +9,18 @@ using Symbolics
 
 # ╔═╡ 4e9a733b-3102-4f82-b4a1-213e38ba37b8
 begin
-	@variables t, h, x, ϵ, t0, tm, t1, φ₀(x), κ₀(x), Pi(x)
+	@variables t, h, x, ϵ, t0, tm, t1, φ₀(x), κ₀(x), Pi(x), m, I,px,pz,my
 	@variables ux(t,x), vx(t,x), uz(x,t), vz(t,x), φ(t,x), Ω(t,x)
 	
 	dt = Differential(t)
 	dx = Differential(x)
 	dϵ = Differential(ϵ)
-	δ(F) = (Symbolics.jacobian(F,[vx,vz,Ω]),Symbolics.jacobian(F,dx.([vx,vz,Ω])))
+	δ(F) = (simplify.(Symbolics.jacobian(F,[vx,vz,Ω])),simplify.(Symbolics.jacobian(F,dx.([vx,vz,Ω]))))
 
 	e0 = [1,0,κ₀]
 	C = Symbolics.variables(:C,1:3,1:3)
-
+	ρAI = [m 0 0; 0 m 0 ; 0 0 I]
+	p = [px,pz,my]
 	
 	u = [ux, uz, φ]
 	v = [vx, vz, Ω]
@@ -40,25 +41,36 @@ begin
 	Rm = [cos(um[3]) -sin(um[3]) 0; sin(um[3]) cos(um[3]) 0; 0 0 1]
 	R1 = [cos(u1[3]) -sin(u1[3]) 0; sin(u1[3]) cos(u1[3]) 0; 0 0 1]
 
-	em = Rm*dm+e0
-	
+	Γ0 = R0*d0+e0
+	Γm = Rm*dm+e0
+	Γ1 = R1*d1+e0
+		
+	Nm = C*Γm
+	Re = Rm'*Nm
+	Mpm = [0;0;Nm[1]*Γm[2]-(1+Γm[1])*Nm[2]]
 
-	
-	N = C*em
-	Re = Rm'*N
+
+	F = -Re + Mpm + ρAI*(substitute.(v,t=>t1)-substitute.(v,t=>t0))+p
+
 end;
 
 # ╔═╡ f75c57a3-b30f-4f09-9cd2-c857267bf34e
 δd = δ(dm)
 
 # ╔═╡ c1a23fed-b6c2-4a61-9ac0-6987ab167078
-δe = δ(em)
+δe = δ(Γm)
 
 # ╔═╡ c3af04ed-1232-4c4f-9935-d069b4186571
-δN = δ(N)
+δN = δ(Nm)
 
 # ╔═╡ d7ab7ca4-11ef-4168-a1dc-daafc421fcf3
 δR = δ(Re)
+
+# ╔═╡ e7358167-86f4-45f8-8149-ee7d9d33a893
+δMpm = δ(Mpm)
+
+# ╔═╡ 2ed39363-19c6-4e06-887e-37429ae2c904
+δF = δ(F)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -962,5 +974,7 @@ version = "5.11.0+0"
 # ╠═c1a23fed-b6c2-4a61-9ac0-6987ab167078
 # ╠═c3af04ed-1232-4c4f-9935-d069b4186571
 # ╠═d7ab7ca4-11ef-4168-a1dc-daafc421fcf3
+# ╠═e7358167-86f4-45f8-8149-ee7d9d33a893
+# ╠═2ed39363-19c6-4e06-887e-37429ae2c904
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
