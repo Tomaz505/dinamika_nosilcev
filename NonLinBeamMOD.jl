@@ -95,7 +95,7 @@ end
     #Funkcija za rotacijo 3-terice za kot a okrov e3
     function R(a;n = 0)::Matrix{Float64}
 	    # n je stopnja odvoda
-	    return [0. 1. 0.;-1. 0. 0.; 0. 0. 0.]^n * [cos(a) sin(a) 0. ; -sin(a) cos(a) 0. ; 0. 0. 1.]
+	    return [0. -1. 0.;1. 0. 0.; 0. 0. 0.]^n * [cos(a) -sin(a) 0. ; sin(a) cos(a) 0. ; 0. 0. 1.]
     end
 
 
@@ -451,6 +451,8 @@ end
 		vx1 = vx[:,1]; vz1 = vz[:,1]; omg1 = omg[:,1]; vx2 = vx[:,2]; vz2 = vz[:,2]; omg2 = omg[:,2]
 		#ux,uz,... so vrednosti v interpolacijskih točkah
 		
+		
+
 		F = fill(Vector{Float64}([0.0;0.0;0.0]),length(ux1))
 		dlF = fill(zeros(Float64,(3,3)),(length(ux1),length(ux1)))
 
@@ -459,7 +461,8 @@ end
 			#Poračunaj količine v xg
 			#za čas tn in tn+1
 			
-			
+			e0 = [-1.; 0.; -k0[i1]]
+
 			#   H I T R O S T I
 			V1 = map(vi->InterpolValue(xInt[i1],vi,Ib),[vx1,vz1,omg1])
 			V2 = map(vi->InterpolValue(xInt[i1],vi,Ib),[vx2,vz2,omg2])
@@ -484,16 +487,16 @@ end
 
 
 			#   D E F O R M A C I J E   L O K A L N E
-			E1 = R(U1[3]+p0[i1])*D1 + [-1.0;0.0;-k0[i1]]
-			E2 = R(U2[3]+p0[i1])*D2 + [-1.0;0.0;-k0[i1]] 
-			#E = R(U[3]+p0[i1])*D + [-1.0; 0.0; -k0[i1]]
-			E = R(dt/2*V[3])*(E1 - [-1.0;0.0;-k0[i1]]) + [-1.0;0.0;-k0[i1]] + dt*R(U[3]+p0[i1])*dV
+			E1 = R(U1[3]+p0[i1])*D1 + e0
+			E2 = R(U2[3]+p0[i1])*D2 + e0 
+			E = R(U[3]+p0[i1])*D + e0
+			#E = R(dt/2*V[3])*(E1 - e0) + e0 + dt*R(U[3]+p0[i1])*dV
 			
 
 			#   R E Z U L T A N T E   G L O B A L N E
-			Re = R(U[3]+p0[i1])'*C*(E1+E2)/2
-			#Re = R(U1[3])*C*E
-			#Re = (Re1+Re2)/2
+			#Re = R(U[3]+p0[i1])'*C*E
+			#Re = R(U[3]+p0[i1])'*C*E
+			Re1 = R(U1[3]+p0[i1])'*C*E1; Re2 = R(U2[3]+p0[i1])'*C*E2; Re = (Re1+Re2)/2
 		
 
 			#   R E Z U L T A N T E   L O K A L N E
@@ -503,8 +506,8 @@ end
 			
 			dlE = (R(U[3]+p0[i1];n=1)*D , R(U[3]+p0[i1]))
 			dlRe =(R(U[3]+p0[i1];n=1)'*C*E + R(U[3]+p0[i1])'*C*R(U[3]+p0[i1];n=1)*D , R(U[3]+p0[i1])'*C*R(U[3]+p0[i1]))
-			dlN = (C*R(U[3]+p0[i1];n=1)*E , C*R(U[3]+p0[i1]))
-			
+			dlN = (C*R(U[3]+p0[i1];n=1)*D , C*R(U[3]+p0[i1]))
+			# Tu je bla napaka 
 
 			#   O B T E Ž B A
 			p = map(pj -> PolyValue(xInt[i1],[0.5 0.5;-0.5 0.5]*reshape(pj,(2))),[Fpx,Fpz,Fmy])
@@ -517,7 +520,7 @@ end
 			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(N,[E[2];-(1.0 +E[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1] * L / 2.	
 	
 			# dlRe
-			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) + dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)) ,indx2) * wInt[i1] * dt / 2.
+			dlF .+= map( ij -> -PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) - dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)) ,indx2) * wInt[i1] * dt / 2.
 			
 
 			# dlN[1] dlE[1]   clen z delta omega
@@ -536,7 +539,7 @@ end
 			#Poračunaj količine v x
 				#za čas tn in tn+1
 			#Treba je zračunat kot in ukrivljenost v robnih točkah		
-	
+			e0 = [-1.;0.; -kb[i]]	
 			
 			V1 = map(vi->InterpolValue(xb[i],vi,Ib),[vx1,vz1,omg1])
 			V2 = map(vi->InterpolValue(xb[i],vi,Ib),[vx2,vz2,omg2])
@@ -557,19 +560,19 @@ end
 			D = D1+dt/2*dV
 			D2 = D1+dt*dV
 
+
 			#   D E F O R M A C I J E   L O K A L N E
-			E1 = R(U1[3]+pb[i])*D1 + [-1.0;0.0;-kb[i]]
-			E2 = R(U2[3]+pb[i])*D2 + [-1.0;0.0;-kb[i]] 
-			#E = R(U[3]+pb[i])*D + [-1.0; 0.0; -kb[i]]
-			E = R(dt/2*V[3])*(E1 - [-1.0;0.0;-kb[i]]) + [-1.0;0.0;-kb[i]] + dt*R(U[3]+pb[i])*dV
-	
+			E1 = R(U1[3]+pb[i])*D1 + e0
+			E2 = R(U2[3]+pb[i])*D2 + e0 
+			E = R(U[3]+pb[i])*D + e0
+			#E = R(dt/2*V[3])*(E1 - e0) + e0 + dt*R(U[3]+p0[i1])*dV
+			
 
 			#   R E Z U L T A N T E   G L O B A L N E
-			Re = R(U[3]+pb[i])'*C*(E1+E2)/2
-			#Re = R(U1[3])*C*E
-			#Re = (Re1+Re2)/2
-		
-		
+			#Re = R(U[3]+p0[i1])'*C*E
+			#Re = R(U[3]+p0[i1])'*C*E
+			Re1 = R(U1[3]+pb[i])'*C*E1; Re2 = R(U2[3]+pb[i])'*C*E2; Re = (Re1+Re2)/2
+			
 			#=
 			U1,V1,dU1,dV1,D1,Re1,dlRe1 = VarsAtX(xb[i],ux1,uz1,phi1,vx1,vz1,omg1,Ib,pb[i],kb[i],C)
 			U2,V2,dU2,dV2,D2,Re2,dlRe2 = VarsAtX(xb[i],ux2,uz2,phi2,vx2,vz2,omg2,Ib,pb[i],kb[i],C)

@@ -5,6 +5,9 @@
 \usepackage{amssymb}
 \usepackage{mathtools}
 \usepackage{mathrsfs}
+
+\setlength{\parindent}{0pt}
+
 \newcommand{\dep}[1]{{\scriptstyle(#1)}}
 
 \begin{document}
@@ -65,15 +68,11 @@ $$\delta \mathcal{N} = \delta\varphi\;\mathbf{CR}^{(1)}\dep{\varphi}\mathbf{d} +
 $$\mathcal{F} = \int_0^l-\mathcal{R}\mathcal{P}_i' + (\mathbf{p}-\rho_A \dot{\mathbf{v}} + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ \mathcal{N}_1\mathbf{e}_2 - (1+\mathbf{e}_1) \mathcal{N}_2 \end{bmatrix}}) \mathcal{P}_i \; dx + \mathcal{R}\mathcal{P}_i\Bigl |_0^l$$
 	$$\delta \mathcal{F} = \int_0^l- \delta \mathcal{RP}_i' + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ \mathbf{e}_2\delta\mathcal{N}_1+\delta \mathbf{e}_2 \mathcal{N}_1-(1+\mathbf{e}_1)\delta \mathcal{N}_2 - \delta \mathbf{e}_1 \mathcal{N}_2 \end{bmatrix}}\mathcal{P}_i\; dx$$
 
+Če vzamem $\mathbf{e} = [C,0,0]$, kejr je $C>0$ dobim po formuli $\mathbf{d} = [0,C+1,0]$.
 
-Bi moral v $\delta\mathcal{F}_3$ (enačba 3) namesto $\delta\mathcal{R}_3$ uporabit $\delta\mathcal{N}_3$? Sta različna?\\
-{\it Če ja, potem sta najvrjetneje zaradi člena $\delta\varphi$. Mislim, da sta enaka. Člen pri $\delta\varphi$ odpade zaradi ničelne $3$. vrstice v $\mathbf{R}^{(1)}$, člen z $\delta\mathbf{d}$ pa ima v $\mathbf{R}$ vrstico indentitete.}
+Recimo, da je element vertikalen, in spodaj podprt. Potem je $u_z$ linearna funkcija, ki pada z koordinato $x$ na elementu. Tako je $\mathbf{d} = [0,A+1,0]$, kjer je $A<0$ kar je v protislovju.
 
-
-Zdelo bi se smiselno, da bi bile nekatere izmed matrik $\mathbf{R}$ transponirane.\\
-{\it $\mathbf{d}$ slikamo v lokalno bazo, množimo z $\mathbf{C}$, da dobimo sile v lokalnih oseh in nato transformiramo z $\mathbf{R}^T$ nazaj v izvorne koordinate. Lahko je tudi obratni vrstni red transponirane in ne transponirane.}
-
-
+Rezultata se uskaldita za $\mathbf{e} = \mathbf{R}^T\mathbf{d}+\mathbf{e}_0$.
 
 
 

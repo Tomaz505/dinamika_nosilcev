@@ -91,6 +91,10 @@ dlF,F = Tan_Res(E[i_el].xInt[i_ke],E[i_el].wInt[i_ke],M.ux[E[i_el].indx[i_ke],[i
 =#
 for i_time in 2:3#n_time
 	Dv = [1.;1.]
+
+
+
+
 	while norm(Dv) > 10.0^-6
 		sleep(1)
 		# Tangentna in rezidual v eni matriki
@@ -106,8 +110,8 @@ for i_time in 2:3#n_time
  
 				indx_dof = sort(vcat(E[i_el].indx[i_ke]*3 .-2,E[i_el].indx[i_ke]*3 .-1, E[i_el].indx[i_ke]*3))
 
-				Ja[indx_dof,indx_dof] += round.(hvcat(length(F),dlF...),digits = 13)
-				Re[indx_dof] += round.(vcat(F...),digits = 13)
+				Ja[indx_dof,indx_dof] += round.(hvcat(length(F),dlF...),digits = 11)
+				Re[indx_dof] += round.(vcat(F...),digits = 11)
 			end # i_ke
               	end # i_el
 
@@ -122,11 +126,24 @@ for i_time in 2:3#n_time
 
 
 		# *2 je zaradi povprečenja za vmesno ??? je to ok ???
-		M.vx[indxX,i_time] -= Dv[1:3:end]*2.
-		M.vz[indxZ,i_time] -= Dv[2:3:end]*2.
-		M.Omg[indxP,i_time] -= Dv[3:3:end]*2.	
+		M.vx[indxX,i_time] -= Dv[1:3:end]
+		M.vz[indxZ,i_time] -= Dv[2:3:end]
+		M.Omg[indxP,i_time] -= Dv[3:3:end]	
 	
        	end # while norm(Dv) > x
+
+
+
+
+
+
+
+
+
+
+
+
+
 	M.vx[indxX,i_time+1] = M.vx[indxX,i_time]
 	M.vz[indxZ,i_time+1] = M.vz[indxZ,i_time]
 	M.Omg[indxP,i_time+1] = M.Omg[indxP,i_time]
