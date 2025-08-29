@@ -39,7 +39,7 @@ println("[  Ok  ]  Risnaje Konstrikcije")
 println("\n Kako nadaljujem?")
 #println("1 -> znova preberi datoteko z podatki")
 println("0 -> preklici postopek")
-println("\"Any\" -> nadaljuj račun")
+println("<-| -> nadaljuj račun")
 
 
 canc = readline()
@@ -60,7 +60,7 @@ end
 # Tole spravi v data.txt
 ti = 0.
 tf = 10.
-dt = 0.1
+dt = 0.001
 g = 0.0
 
 
@@ -80,7 +80,7 @@ indxX = indx[findall(indx.<= n_nodes)]
 indxZ = indx[findall(n_nodes+1 .<= indx .<= 2*n_nodes)].-n_nodes
 indxP = indx[findall(2*n_nodes+1 .<=indx.<= 3*n_nodes)].-2*n_nodes
 
-indx_solve = sort(vcat(3*indxX.-2,3*indxZ.-1,3*indxP))
+indx_solve = vcat(3*indxX.-2,3*indxZ.-1,3*indxP)
 println("[  Ok  ]  Priprava na račun")
 #=
 i_time = 2
@@ -102,27 +102,27 @@ for i_time in 2:3#n_time
 		Re = zeros(Float64,3*n_nodes,1)
 
 
-      		for i_el in eachindex(E)
-               		for i_ke in eachindex(E[i_el].P)
+			for i_el in eachindex(E)
+				for i_ke in eachindex(E[i_el].P)
 
-				dlF,F = Tan_Res(E[i_el].xInt[i_ke],E[i_el].wInt[i_ke],M.ux[E[i_el].indx[i_ke],[i_time-1,i_time]],M.uz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.phi[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vx[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.Omg[E[i_el].indx[i_ke],[i_time-1,i_time]],E[i_el].P[i_ke],E[i_el].p0[i_ke],E[i_el].k0[i_ke],ElementDataIn[i_el].C,reshape(ElementDataIn[i_el].M[i_ke,:],2),ElementDataIn[i_el].px(t[i_time])[i_ke,:],ElementDataIn[i_el].pz(t[i_time])[i_ke,:],ElementDataIn[i_el].my(t[i_time])[i_ke,:],dt,E[i_el].pb[i_ke],E[i_el].kb[i_ke],E[i_el].L[i_ke],g)
+					dlF,F = Tan_Res(E[i_el].xInt[i_ke],E[i_el].wInt[i_ke],M.ux[E[i_el].indx[i_ke],[i_time-1,i_time]],M.uz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.phi[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vx[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.Omg[E[i_el].indx[i_ke],[i_time-1,i_time]],E[i_el].P[i_ke],E[i_el].p0[i_ke],E[i_el].k0[i_ke],ElementDataIn[i_el].C,reshape(ElementDataIn[i_el].M[i_ke,:],2),ElementDataIn[i_el].px(t[i_time])[i_ke,:],ElementDataIn[i_el].pz(t[i_time])[i_ke,:],ElementDataIn[i_el].my(t[i_time])[i_ke,:],dt,E[i_el].pb[i_ke],E[i_el].kb[i_ke],E[i_el].L[i_ke],g)
 
  
-				indx_dof = sort(vcat(E[i_el].indx[i_ke]*3 .-2,E[i_el].indx[i_ke]*3 .-1, E[i_el].indx[i_ke]*3))
+					indx_dof = reshape(vcat(E[i_el].indx[i_ke]*3 .-2,E[i_el].indx[i_ke]*3 .-1, E[i_el].indx[i_ke]*3)',(3*length(E[i_el].indx[i_ke])))
+					#indx_dof = sort(vcat(E[i_el].indx[i_ke]*3 .-2,E[i_el].indx[i_ke]*3 .-1, E[i_el].indx[i_ke]*3))
 
-				Ja[indx_dof,indx_dof] += round.(hvcat(length(F),dlF...),digits = 11)
-				Re[indx_dof] += round.(vcat(F...),digits = 11)
-			end # i_ke
-              	end # i_el
 
-		
-		
-
+					Ja[indx_dof,indx_dof] += round.(hvcat(length(F),dlF...),digits = 11)
+					Re[indx_dof] += round.(vcat(F...),digits = 11)
+				end # i_ke
+			end # i_el
+		# inverzni indeksi
+		# c = vcat(map(i->findall(sort(arr) .== i), arr)...)
+		# inv_arr_indx = invpermute(arr,c)
 		Dv = Ja[indx_solve,indx_solve]\Re[indx_solve]
 
-		display(Ja[indx_solve,indx_solve])
-		display(Re[indx_solve])
-		display(Dv)
+		display(Ja)
+		display(Re)
 
 
 		# *2 je zaradi povprečenja za vmesno ??? je to ok ???
@@ -152,7 +152,6 @@ for i_time in 2:3#n_time
 	M.uz[indxZ,i_time] = M.uz[indxZ,i_time-1] + dt*(M.vz[indxZ,i_time]+M.vz[indxZ,i_time-1])/2.
 	M.phi[indxP,i_time] = M.phi[indxP,i_time-1] + dt*(M.Omg[indxP,i_time]+M.Omg[indxP,i_time-1])/2.
 		
-
 
 end # i_time
 

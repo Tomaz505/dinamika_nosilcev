@@ -15,14 +15,14 @@ module NonLinBeam
     @kwdef mutable struct BeamDataIn <:Beam
         v::Vector{Int64} = [1;2] # Vozlišča - krajna
         
-	C::Matrix{Float64} = [1. 0. 0.;0. 1. 0.;0. 0. 1.] #Materialna matrika
+		C::Matrix{Float64} = [1. 0. 0.;0. 1. 0.;0. 0. 1.] #Materialna matrika
         M::Matrix{Float64} = [1.0 1.0] #Vektor [ρA; ρI]
 
-	Ib_geom::Matrix{Float64} = [0.5 0.5; -0.5 0.5] #re_gramschmid(DataIn::Vector{Vector{Float64}})
-	Kb::Matrix{Float64} = Array{Float64,2}(undef,(0,2)) 
+		Ib_geom::Matrix{Float64} = [0.5 0.5; -0.5 0.5] #re_gramschmid(DataIn::Vector{Vector{Float64}})
+		Kb::Matrix{Float64} = Array{Float64,2}(undef,(0,2))
 	
         px::Function = t->[0. 0.] 
-	pz::Function = t->[0. 0.]
+		pz::Function = t->[0. 0.]
         my::Function = t->[0. 0.]
 
         div1::Array{Float64} = [-1.,1.]
@@ -35,7 +35,7 @@ module NonLinBeam
 	#Število integracijskih točk v posameznem div1. Smiselno je približno 3*div2. Ponovno Int za vsak element
 	
 
-	Ci::Bool = false
+		Ci::Bool = false
 	#Ib::Array{Matrix{Float64}} = ... 
 	#Zveznost odvodov
 	#Bi shranil tudi baze
@@ -44,14 +44,14 @@ module NonLinBeam
 	#Li,Pi,Ki,Ib,xi,wi
     struct BeamDataProcess <:Beam
         L::Vector{Float64} 
-	p0::Vector{Vector{Float64}}
-	k0::Vector{Vector{Float64}}
+		p0::Vector{Vector{Float64}}
+		k0::Vector{Vector{Float64}}
         P::Vector{Matrix{Float64}} #
-	pb::Vector{Vector{Float64}}
-	kb::Vector{Vector{Float64}}
+		pb::Vector{Vector{Float64}}
+		kb::Vector{Vector{Float64}}
         xInt::Vector{Vector{Float64}}
         wInt::Vector{Vector{Float64}} # Jih dejansko rabim s sabo če so v A1,...? Lahko jih poračunam samo lokalno.
- 	indx::Vector{Vector{Int64}}
+		indx::Vector{Vector{Int64}}
     end
     
 
@@ -61,19 +61,19 @@ module NonLinBeam
 
     @kwdef mutable struct NodeDataIn <:Node
         # te poračuna algoritem
-	x::Float64 = 0.
-        z::Float64 = 0.
-        i::Int64 = 1
+		x::Float64 = 0.
+		z::Float64 = 0.
+		i::Int64 = 1
 
 	# prilagodi tako, da lahko nastavis drsno pod kotom.
 	# sprostitev v smeri vektorja [x,y] pomeni vezno enačbo
 	# y*ux-x*uy = 0 [ux,uy] je pravokoten na [y,-x]
-        Supp::Array{Bool} = [1, 1, 1]
-	dir::Float64 = 0.
+		Supp::Array{Bool} = [1, 1, 1]
+		dir::Float64 = 0.
 	# lahko nastaviš številko za rotacijo globalnih koordinat v kateri je ta sprostitev jasna in je potem supp podan za ta rotiran koordinatni sistem. smiselno je le za 0-pi/2
 	# dokler ne urediš vsega naj bo vedno 0.
 	#mot::Function t-> [0.; 0.; 0.] #Prisiljeno gibanje vozlišča    
-end
+	end
 
 
 
@@ -130,6 +130,9 @@ end
 
         return xg,wg
     end
+
+
+
 
 
 	#Pripravi osnovne podatke
@@ -280,55 +283,9 @@ end
 		return BeamDataProcess(Li,Pi,Ki,Ib,Pb,Kb,xg,wg,indx), n_nodes	
 	end
 
-
-	function plotbeams(EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn})
-		ne = length(EP)
-		nv = length(VD)
-		nke = map(i-> length(ED[i].div2),1:ne)
-
-		img = plot(;title = "Konstrukcija",aspect_ratio = :equal, xticks = [], yticks = [],yflip = true,xlabel = "x",ylabel = "z")
-
-		for i1 = 1:ne
-			node1 = [VD[ED[i1].v[1]].x VD[ED[i1].v[1]].z]
-			node2 = [VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z]
-			geom_koeff = vcat(node1,node2,ED[i1].Kb)
-			
-
-			plot!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0); linecolor = :black,labels = :none)
-			
-
-			annotate!(InterpolValue(0.0,geom_koeff[:,1],ED[i1].Ib_geom),InterpolValue(0.0,geom_koeff[:,2],ED[i1].Ib_geom),("  "*string(i1),8,:black,:left))
-	
-		for i2 = 1:nke[i1]
-			xs = range( ED[i1].div1[i2],ED[i1].div1[i2+1],length = ED[i1].div2[i2])
-			scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom),xs),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), xs); m = :circle, markercolor = :cyan,markersize = 4,labels = :none)
-		
-		end
-
-		
-			
-			scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), ED[i1].div1[2:end-1]),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), ED[i1].div1[2:end-1]); m = :circle, markercolor = :limegreen,markersize = 6,labels = :none)
-
-		end
-
-		
-		for i1 = 1:nv
-			scatter!([VD[i1].x],[VD[i1].z]; m = :circle, markercolor = :red,markersize = 6,labels = :none,series_annotations = [("  "*string(i1),8,:red,:left)])
-		
-		end
-		
-		scatter!(; xticks = map(i->VD[i].x,1:nv),yticks = map(i->VD[i].z,1:nv))
-
-		display(img)
-		return 
-	end
-
-
-
-
 	# Funkcija za branje datoteka z podatki
 	function readdata(file::String)::Tuple{String,String,Array{String}}
-		
+
 		if isempty(findall(".txt",file))
 			file = file*".txt"
 		end
@@ -344,12 +301,61 @@ end
 		data2 = prod(data2)
 		data3 = data[setdiff(1:length(data),findall(isempty.(findall.("@assignto",data))))]
 		return data1,data2,data3
-    	end #readdata
+    end #readdata
+
+
+
+
+    # Funkcija za skico
+	function plotbeams(EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn})
+    	ne = length(EP)
+    	nv = length(VD)
+    	nke = map(i-> length(ED[i].div2),1:ne)
+
+    	img = plot(;title = "Konstrukcija",aspect_ratio = :equal, xticks = [], yticks = [],yflip = true,xlabel = "x",ylabel = "z")
+
+    	for i1 = 1:ne
+    	node1 = [VD[ED[i1].v[1]].x VD[ED[i1].v[1]].z]
+    	node2 = [VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z]
+    	geom_koeff = vcat(node1,node2,ED[i1].Kb)
+
+
+    	plot!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0); linecolor = :black,labels = :none)
+
+
+    	annotate!(InterpolValue(0.0,geom_koeff[:,1],ED[i1].Ib_geom),InterpolValue(0.0,geom_koeff[:,2],ED[i1].Ib_geom),("  "*string(i1),8,:black,:left))
+
+    	for i2 = 1:nke[i1]
+    	xs = range( ED[i1].div1[i2],ED[i1].div1[i2+1],length = ED[i1].div2[i2])
+    	scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom),xs),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), xs); m = :circle, markercolor = :cyan,markersize = 4,labels = :none)
+
+    	end
+
+
+
+    	scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), ED[i1].div1[2:end-1]),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), ED[i1].div1[2:end-1]); m = :circle, markercolor = :limegreen,markersize = 6,labels = :none)
+
+    	end
+
+
+    	for i1 = 1:nv
+    	scatter!([VD[i1].x],[VD[i1].z]; m = :circle, markercolor = :red,markersize = 6,labels = :none,series_annotations = [("  "*string(i1),8,:red,:left)])
+
+    	end
+
+    	scatter!(; xticks = map(i->VD[i].x,1:nv),yticks = map(i->VD[i].z,1:nv))
+
+    	display(img)
+    	return
+	end
+
+
+
 
 
 
 	# Funkcije za interpolacijsko bazo	
-    	function DotP(a::Array{Float64},DataIn::Vector{Vector{Float64}})
+    function DotP(a::Array{Float64},DataIn::Vector{Vector{Float64}})
         	m = length(DataIn)
        	 	n = sum(length.(DataIn))-1
 		#Diferencialni operator
@@ -358,12 +364,12 @@ end
 		#Seznam funkcijskih vrednosti polinoma glede na DataIn
         	b = vcat(map( (A,i) -> (((Dp^i)*a)'* (A'.^(0:n)) )' ,DataIn,0:(m-1))...)
         	return b
-    	end
+    end
 	function DotP(a::Array{Float64},b::Array{Float64},DataIn::Vector{Vector{Float64}})
 		#Skalarni produkt vektorjev iz DotP(a,A)
 		return DotP(a::Array{Float64},DataIn::Vector{Vector{Float64}})'*DotP(b::Array{Float64},DataIn::Vector{Vector{Float64}})
 	end
-    	function gramschmid(DataIn::Vector{Vector{Float64}}; B0::Union{Array{Float64},Int64} = 1)
+	function gramschmid(DataIn::Vector{Vector{Float64}}; B0::Union{Array{Float64},Int64} = 1)
         	n::Int64 = sum(length.(DataIn))-1
         	
 		#Standardna baza        
@@ -444,14 +450,16 @@ end
 	end
 	
 
+
+
 	# Na KE
 	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64} ,Fmy::Vector{Float64},dt::Float64,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Float64)
 
 		ux1 = ux[:,1]; uz1 = uz[:,1]; phi1 = phi[:,1];
 		vx1 = vx[:,1]; vz1 = vz[:,1]; omg1 = omg[:,1]; vx2 = vx[:,2]; vz2 = vz[:,2]; omg2 = omg[:,2]
 		#ux,uz,... so vrednosti v interpolacijskih točkah
-		
-		
+
+
 
 		F = fill(Vector{Float64}([0.0;0.0;0.0]),length(ux1))
 		dlF = fill(zeros(Float64,(3,3)),(length(ux1),length(ux1)))
@@ -517,30 +525,30 @@ end
 			tv =(V2-V1)/dt + [0.0; g; 0.0]
 			
 
-			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(N,[E[2];-(1.0 +E[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1] * L / 2.	
-	
+			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(N,[E[2];-(1.0 +E[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1] * L / 2.
+
 			# dlRe
-			dlF .+= map( ij -> -PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) - dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)) ,indx2) * wInt[i1] * dt / 2.
-			
+			dlF .+= map( ij -> -PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) + dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)) ,indx2) * wInt[i1] * dt / 2.
+
 
 			# dlN[1] dlE[1]   clen z delta omega
 			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 (E[2]*dlN[1][1] - (1+E[1])*dlN[1][2] + N[1]*dlE[1][2] - N[2]*dlE[2][1])]])*PolyValue(xInt[i1],Ib[:,ij[2]]), indx2 ) * wInt[i1] * dt / 2.
-	
+
 
 			# dlN[2] dlE[2]   clen z delta d
 			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)*[[0.0 0.0 0.0; 0.0 0.0 0.0]; (E[2]*dlN[2][1,:] - (1+E[1])*dlN[2][2,:] - N[2]*dlE[2][1,:] + N[1]*dlE[2][2,:])'] ,indx2) * wInt[i1] * dt / 2.
-		
+
 		end
 
 
-		
+
 		xb = [-1.,1.]
 		for i in 1:2 
 			#Poračunaj količine v x
 				#za čas tn in tn+1
 			#Treba je zračunat kot in ukrivljenost v robnih točkah		
-			e0 = [-1.;0.; -kb[i]]	
-			
+			e0 = [-1.;0.; -kb[i]]
+
 			V1 = map(vi->InterpolValue(xb[i],vi,Ib),[vx1,vz1,omg1])
 			V2 = map(vi->InterpolValue(xb[i],vi,Ib),[vx2,vz2,omg2])
 			dV1 = map(vi->InterpolValue(xb[i],vi,Ib;n=1),[vx1,vz1,omg1])
@@ -580,14 +588,14 @@ end
 			#Količine v času tn+1/2
 			Re = (Re1 + Re2)/2.
 			=#
-			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2]) ,1:length(Ib[:,1])) 
+			println(Re)
+			println(map(i2 -> PolyValue(xb[i],Ib[:,i2]) ,1:length(Ib[:,1])) )
+			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2]) ,1:length(Ib[:,1]))
 		end
 
 		dlF.*= L/2.
 
-		#display(dlF[1])
-		#display(F[1])
-		return dlF,F
+		return dlF, F
 
 	end
 

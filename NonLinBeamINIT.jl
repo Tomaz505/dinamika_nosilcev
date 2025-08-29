@@ -18,11 +18,3 @@ macro assignto(DatVar::Any,ei::Any,Prop::Expr,StrucField::Any)
         )
     end
 end;    
-
-
-
-
-# Precompile
-datainit([1 2],[0. 0.;0. -1.]);
-re_gramschmid([[-1.,1.]]);
-GaussInt(2);
