@@ -63,13 +63,13 @@ elementi::Array{Int64} = [
 @assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 5.0/6.0*21000. 0.; 0. 0. 0.175] ) :(C)
 
 
-@assignto :(ElementDataIn) [1] :(t->[0.1 0.1]*t) :(pz)
-#@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(px)
+@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(pz)
+@assignto :(ElementDataIn) [1] :(t->[0.001 0.001]) :(px)
 #@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(my)
 
-#@assignto :(ElementDataIn) [1] :( [-1.; 0.; 1.] ) :(div1)
-#@assignto :(ElementDataIn) [1] :( [4;4] ) :(div2)
-#@assignto :(ElementDataIn) [1] :( [20;20] ) :(nInt) 
+#@assignto :(ElementDataIn) [1] :( [-1.; 1.] ) :(div1)
+@assignto :(ElementDataIn) [1] :( [5] ) :(div2)
+@assignto :(ElementDataIn) [1] :( [30] ) :(nInt) 
 #@assignto :(ElementDataIn) [1] :( false ) :(Ci)
 
 

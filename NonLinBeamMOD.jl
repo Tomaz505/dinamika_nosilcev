@@ -95,7 +95,7 @@ module NonLinBeam
     #Funkcija za rotacijo 3-terice za kot a okrov e3
     function R(a;n = 0)::Matrix{Float64}
 	    # n je stopnja odvoda
-	    return [0. -1. 0.;1. 0. 0.; 0. 0. 0.]^n * [cos(a) -sin(a) 0. ; sin(a) cos(a) 0. ; 0. 0. 1.]
+	    return [0. 1. 0.;-1. 0. 0.; 0. 0. 0.]^n * [cos(a) sin(a) 0. ; -sin(a) cos(a) 0. ; 0. 0. 1.]
     end
 
 
@@ -574,7 +574,6 @@ module NonLinBeam
 			E2 = R(U2[3]+pb[i])*D2 + e0 
 			E = R(U[3]+pb[i])*D + e0
 			#E = R(dt/2*V[3])*(E1 - e0) + e0 + dt*R(U[3]+p0[i1])*dV
-			
 
 			#   R E Z U L T A N T E   G L O B A L N E
 			#Re = R(U[3]+p0[i1])'*C*E
@@ -588,8 +587,7 @@ module NonLinBeam
 			#Količine v času tn+1/2
 			Re = (Re1 + Re2)/2.
 			=#
-			println(Re)
-			println(map(i2 -> PolyValue(xb[i],Ib[:,i2]) ,1:length(Ib[:,1])) )
+		
 			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2]) ,1:length(Ib[:,1]))
 		end
 
