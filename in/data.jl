@@ -1,23 +1,25 @@
+#   K O O R D I N A T E   V O Z L I S C
 vozlisca::Array{Float64} = [
         0. 0.;
-	0. 2.;
-	1. 1.;
-	-1. 1.;
 	0. 1.
     ]
 
+
+#   E L E M E N T I   M E D   V O Z L I S C I
 elementi::Array{Int64} = [
-        1 5;
-	2 5;
-	3 5; 
-	4 5
+        1 2
     ]
 
 
 
+#   P O D A T K I   R A Č U N A 
+const ti = 0.
+const tf = 2.
+const dt = 0.001
+const g = 0.0
 
 
-n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca);
+n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 #	L A S T N O S T I   S T R U K T U R
 
 # ElementDataIn
@@ -64,16 +66,16 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca);
 
 
 # E L E M E N T I
-@assignto :(ElementDataIn) [1] :( [0.0 0.0] ) :(M)
-@assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 5.0/6.0*21000. 0.; 0. 0. 0.175] ) :(C)
+@assignto :(ElementDataIn) [1] :( [0. 0.] ) :(M)
+@assignto :(ElementDataIn) [1] :( [300000. 0. 0.;0. 5.0/6.0*300000. 0.; 0. 0. 3000] ) :(C)
 
 
-@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(pz)
-@assignto :(ElementDataIn) [1] :(t->[0.001 0.001]) :(px)
+@assignto :(ElementDataIn) [1] :(t->[0.1 0.1]*t) :(pz)
+#@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(px)
 #@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(my)
 
 #@assignto :(ElementDataIn) [1] :( [-1.; 1.] ) :(div1)
-@assignto :(ElementDataIn) [1] :( [5] ) :(div2)
+#@assignto :(ElementDataIn) [1] :( [5] ) :(div2)
 @assignto :(ElementDataIn) [1] :( [30] ) :(nInt) 
 #@assignto :(ElementDataIn) [1] :( false ) :(Ci)
 

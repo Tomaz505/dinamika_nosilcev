@@ -3,7 +3,7 @@ module NonLinBeam
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
 		datainit, readdata, dataprocess,
 		R, GaussInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValuei,
-		plotbeams
+		plotbeams, adj_mat,randpermute,node_permute
 
 
     using LinearAlgebra, Plots
@@ -89,7 +89,67 @@ module NonLinBeam
     end
 
 
+    function adj_mat(conn::Matrix{Int64},nodes::Matrix{Float64})::Matrix{Int64}
+		n = size(nodes)[1]
+		m = size(conn)[1]
 
+		A = zeros(Int64,(n,n))
+			
+		for i=1:m	
+			A[conn[i,1],conn[i,2]] = A[conn[i,2],conn[i,1]] = 1
+		end
+		return A
+	end
+
+	function randpermute(n::Int64)
+		indx  = collect(1:n)
+		P = Matrix(I,(n,n))
+		P2 = copy(P)
+				
+		for i= eachindex(indx)
+			c = rand(indx)
+			P[:,i] = P2[:,c]
+			popat!(indx,findfirst(indx .== c))
+		end
+		return P
+	end
+
+	function node_permute(conn::Matrix{Int64},nodes::Matrix{Float64})
+		m = size(nodes)[1]
+		n = size(conn)[1]
+
+		A = adj_mat(conn,nodes)
+		P = Matrix(I,(m,m))
+		
+		indx = collect(1:m)
+		n_diag = maximum(map(ij-> A[ij] == 0 ? 0 : abs(ij[1]-ij[2]),CartesianIndex.((1:m)',1:m)))
+
+		c = 1
+	  	while c < 10
+			P2 = randpermute(m)
+			A2 = adj_mat((P2*indx)[conn],P2*nodes)
+			n_diag2 = maximum(map(ij -> A2[ij] == 0 ? 0 : abs(ij[1]-ij[2]), CartesianIndex.((1:m)',1:m)))	
+		
+			if n_diag2 < n_diag
+				A = A2
+				n_diag = n_diag2
+				P = P2
+				c = 1
+			else
+				c += 1
+			end
+			if n_diag == 1
+				break
+			end
+		end
+
+		nodes = P'*nodes
+		conn = (P*indx)[conn]
+		
+		return conn,nodes
+
+	end
+	
 
 
     #Funkcija za rotacijo 3-terice za kot a okrov e3
@@ -143,14 +203,15 @@ module NonLinBeam
 
 		element_data::Vector{BeamDataIn} = fill(BeamDataIn(),n_elem)
 		voz_data::Vector{NodeDataIn} = fill(NodeDataIn(),n_voz)
-
+		
+	
 
 		for i =1:n_elem
 		    element_data[i] = BeamDataIn(v = elem[i,[1,2]]) 
 		end
 
 		for i =1:n_voz
-		    voz_data[i] = NodeDataIn(x=voz[i,1],z=voz[i,2],i=i)
+			voz_data[i] = NodeDataIn(x=voz[i,1],z=voz[i,2],i=i)
 		end
 
 		return n_elem,n_voz,element_data,voz_data
@@ -483,13 +544,13 @@ module NonLinBeam
 			#   P O M I K I
 			U1 = map(ui->InterpolValue(xInt[i1],ui,Ib),[ux1,uz1,phi1])
 			dU1 = map(ui->InterpolValue(xInt[i1],ui,Ib;n=1), [ux1,uz1,phi1])
-			U = U1+V*dt/2
+			U = U1+V*dt/2.0
 			U2 = U1+V*dt
 			
 
 			#   D E F O R M A C I J E   F I K S N E
 			D1 = dU1+[cos(p0[i1]);sin(p0[i1]);0.0]
-			D = D1+dt/2*dV
+			D = D1+dt/2.0*dV
 			D2 = D1+dt*dV
 
 
@@ -501,46 +562,46 @@ module NonLinBeam
 			#E = R(dt/2*V[3])*(E1 - e0) + e0 + dt*R(U[3]+p0[i1])*dV
 			
 
+			#   R E Z U L T A N T E   L O K A L N E
+			N = C*(E1+E2)/2
+
+
 			#   R E Z U L T A N T E   G L O B A L N E
+			Re = R(U[3]+p0[i1])'*N
 			#Re = R(U[3]+p0[i1])'*C*E
-			#Re = R(U[3]+p0[i1])'*C*E
-			Re1 = R(U1[3]+p0[i1])'*C*E1; Re2 = R(U2[3]+p0[i1])'*C*E2; Re = (Re1+Re2)/2
+			#Re1 = R(U1[3]+p0[i1])'*C*E1; Re2 = R(U2[3]+p0[i1])'*C*E2; Re = (Re1+Re2)/2
 		
 
-			#   R E Z U L T A N T E   L O K A L N E
-			N = R(U[3]+p0[i1])*Re
-
-
 			
-			dlE = (R(U[3]+p0[i1];n=1)*D , R(U[3]+p0[i1]))
-			dlRe =(R(U[3]+p0[i1];n=1)'*C*E + R(U[3]+p0[i1])'*C*R(U[3]+p0[i1];n=1)*D , R(U[3]+p0[i1])'*C*R(U[3]+p0[i1]))
-			dlN = (C*R(U[3]+p0[i1];n=1)*D , C*R(U[3]+p0[i1]))
-			# Tu je bla napaka 
+			dlE = (  dt/2.0 *( R(U[3];n=1)*(E1-e0) + dt/2.0 * R(U[3]+p0[i1])*dV ) ,  dt/2.0 * R(U[3]+p0[i1])  )
+			dlN = (  dt/2.0 * C * R(U[3]+p0[i1];n=1)*D2  ,  dt/2.0 * C *R(U[3]+p0[i1])  )
+			dlRe =(  dt/2.0 * R(U[3]+p0[i1];n=1)'*N  +  R(U[3]+p0[i1])'*dlN[1]  ,  R(U[3]+p0[i1])'*dlN[2]  )
+			#dlN = (C*R(U[3]+p0[i1];n=1)*D , C*R(U[3]+p0[i1]))
 
 			#   O B T E Ž B A
 			p = map(pj -> PolyValue(xInt[i1],[0.5 0.5;-0.5 0.5]*reshape(pj,(2))),[Fpx,Fpz,Fmy])
 			
 
 			#   D I F E R E N C A   H I T R O S T I
-			tv =(V2-V1)/dt + [0.0; g; 0.0]
+			tv = (V2-V1)/dt + [0.0; g; 0.0]
 			
 
-			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(N,[E[2];-(1.0 +E[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1] * L / 2.
+			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(N,[E[2];-(1.0 +E[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1]
 
 			# dlRe
-			dlF .+= map( ij -> -PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) + dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)) ,indx2) * wInt[i1] * dt / 2.
+			dlF .+= map( ij -> -PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) + dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)) ,indx2) * wInt[i1]
 
 
 			# dlN[1] dlE[1]   clen z delta omega
-			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 (E[2]*dlN[1][1] - (1+E[1])*dlN[1][2] + N[1]*dlE[1][2] - N[2]*dlE[2][1])]])*PolyValue(xInt[i1],Ib[:,ij[2]]), indx2 ) * wInt[i1] * dt / 2.
+			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 (E[2]*dlN[1][1] - (1+E[1])*dlN[1][2] + N[1]*dlE[1][2] - N[2]*dlE[2][1])]])*PolyValue(xInt[i1],Ib[:,ij[2]]), indx2 ) * wInt[i1]
 
 
 			# dlN[2] dlE[2]   clen z delta d
-			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)*[[0.0 0.0 0.0; 0.0 0.0 0.0]; (E[2]*dlN[2][1,:] - (1+E[1])*dlN[2][2,:] - N[2]*dlE[2][1,:] + N[1]*dlE[2][2,:])'] ,indx2) * wInt[i1] * dt / 2.
+			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)*[[0.0 0.0 0.0; 0.0 0.0 0.0]; (E[2]*dlN[2][1,:] - (1+E[1])*dlN[2][2,:] - N[2]*dlE[2][1,:] + N[1]*dlE[2][2,:])'] ,indx2) * wInt[i1]
 
 		end
 
-
+		F .*= L/2.0
 
 		xb = [-1.,1.]
 		for i in 1:2 
@@ -572,13 +633,14 @@ module NonLinBeam
 			#   D E F O R M A C I J E   L O K A L N E
 			E1 = R(U1[3]+pb[i])*D1 + e0
 			E2 = R(U2[3]+pb[i])*D2 + e0 
-			E = R(U[3]+pb[i])*D + e0
+			#E = R(U[3]+pb[i])*D + e0
+			E = (E1+E2)/2
 			#E = R(dt/2*V[3])*(E1 - e0) + e0 + dt*R(U[3]+p0[i1])*dV
 
 			#   R E Z U L T A N T E   G L O B A L N E
 			#Re = R(U[3]+p0[i1])'*C*E
-			#Re = R(U[3]+p0[i1])'*C*E
-			Re1 = R(U1[3]+pb[i])'*C*E1; Re2 = R(U2[3]+pb[i])'*C*E2; Re = (Re1+Re2)/2
+			Re = R(U[3]+pb[i])'*C*E
+			#Re1 = R(U1[3]+pb[i])'*C*E1; Re2 = R(U2[3]+pb[i])'*C*E2; Re = (Re1+Re2)/2
 			
 			#=
 			U1,V1,dU1,dV1,D1,Re1,dlRe1 = VarsAtX(xb[i],ux1,uz1,phi1,vx1,vz1,omg1,Ib,pb[i],kb[i],C)
@@ -590,8 +652,6 @@ module NonLinBeam
 		
 			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2]) ,1:length(Ib[:,1]))
 		end
-
-		dlF.*= L/2.
 
 		return dlF, F
 

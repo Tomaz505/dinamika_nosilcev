@@ -1,6 +1,6 @@
 \documentclass{article}
 
-
+\usepackage[left = 2cm,top = 2cm, bottom = 2cm, rigth = 2cm]{geometry}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{mathtools}
@@ -45,13 +45,13 @@ $$
 
 $$\mathbf{R}\dep{\varphi} =
 \begin{bmatrix}
-	\cos\varphi & \sin \varphi & 0\\
-	-\sin\varphi & \cos\varphi & 0\\
+	\cos\varphi & -\sin\varphi & 0\\
+	\sin\varphi & \cos\varphi & 0\\
 	0 & 0 & 1
 \end{bmatrix} \qquad \mathbf{R}^{(n)}\dep{\varphi} = 
 \begin{bmatrix}
-	0 & 1 & 0\\
-	-1 & 0 & 0\\
+	0 & -1 & 0\\
+	1 & 0 & 0\\
 	0 & 0 & 0
 \end{bmatrix}^n \mathbf{R}\dep{\varphi}
 $$
@@ -59,79 +59,63 @@ $$
 
 $$\mathbf{e} = \mathbf{R}\dep{\varphi}\mathbf{d}+\mathbf{e}_0 \qquad \mathcal{R} = \mathbf{R}^T\dep{\varphi}\mathbf{Ce} \qquad \mathcal{N} = \mathbf{Ce}$$
 
-
-$$\delta \mathbf{e} = \delta\varphi\;\mathbf{R}^{(1)}\dep{\varphi}\mathbf{d} + \mathbf{R}\dep{\varphi}\;\delta \mathbf{d}$$
-$$\delta \mathcal{R} = \delta\varphi\;((\mathbf{R}^{(1)})^T\dep{\varphi}\mathbf{Ce}+\mathbf{R}^T\dep{\varphi}\mathbf{CR}^{(1)}\dep{\varphi}\mathbf{d}) +  \mathbf{R}^T\dep{\varphi}\mathbf{CR}\dep{\varphi}\;\delta \mathbf{d}$$
-$$\delta \mathcal{N} = \delta\varphi\;\mathbf{CR}^{(1)}\dep{\varphi}\mathbf{d} +  \mathbf{CR}\dep{\varphi}\;\delta \mathbf{d}$$
-
-
-$$\mathcal{F} = \int_0^l-\mathcal{R}\mathcal{P}_i' + (\mathbf{p}-\rho_A \dot{\mathbf{v}} + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ \mathcal{N}_1\mathbf{e}_2 - (1+\mathbf{e}_1) \mathcal{N}_2 \end{bmatrix}}) \mathcal{P}_i \; dx + \mathcal{R}\mathcal{P}_i\Bigl |_0^l$$
-	$$\delta \mathcal{F} = \int_0^l- \delta \mathcal{RP}_i' + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ \mathbf{e}_2\delta\mathcal{N}_1+\delta \mathbf{e}_2 \mathcal{N}_1-(1+\mathbf{e}_1)\delta \mathcal{N}_2 - \delta \mathbf{e}_1 \mathcal{N}_2 \end{bmatrix}}\mathcal{P}_i\; dx$$
-
-Če vzamem $\mathbf{e} = [C,0,0]$, kejr je $C>0$ dobim po formuli $\mathbf{d} = [0,C+1,0]$.
-
-Recimo, da je element vertikalen, in spodaj podprt. Potem je $u_z$ linearna funkcija, ki pada z koordinato $x$ na elementu. Tako je $\mathbf{d} = [0,A+1,0]$, kjer je $A<0$ kar je v protislovju.
-
-Rezultata se uskaldita za $\mathbf{e} = \mathbf{R}^T\mathbf{d}+\mathbf{e}_0$.
+$$\mathcal{F} = \mathcal{R}' + (\mathbf{p}-\rho_A \dot{\mathbf{v}} + {\scriptscriptstyle \begin{bmatrix} 0\\ 0\\ \mathcal{N}_1\mathbf{e}_2 - (1+\mathbf{e}_1) \mathcal{N}_2 \end{bmatrix}}) = 0$$
 
 
 
 
 
-\newpage
-\section{Numerični račun}
+
+
+
+	\section{Numerični račun}
+
 Poznamo količine v času $t_n$. Za $t_{n+1}$ predpostavimo hitrosti $\mathbf{v}_{n+1}$.
 
-$$\bar{\mathbf{v}} = (\mathbf{v}_{n+1} + \mathbf{v}_{n})/2 \qquad \bar{\mathbf{u}} = \mathbf{u}_{n} + \frac{h}{2}\bar{\mathbf{v}} \qquad \bar{\mathbf{d}} = \mathbf{d}_n + \frac{h}{2}\bar{\mathbf{v}}' $$
-$$\mathbf{u}_{n+1} = \mathbf{u}_n+h\bar{\mathbf{v}} \qquad \mathbf{d}_{n+1} = \mathbf{d}_n+h\bar{\mathbf{v}}'$$ 
-$$ \delta\bar{\mathbf{u}} = \frac{h}{2}\delta\bar{\mathbf{v}} \qquad  \delta\bar{\mathbf{d}} = \frac{h}{2}\delta\bar{\mathbf{v}}'$$ 
+$$\bar{\mathbf{v}} = (\mathbf{v}_{n+1} + \mathbf{v}_{n})/2 \qquad \mathbf{u}_{n+1/2} = \mathbf{u}_{n} + \frac{h}{2}\bar{\mathbf{v}} \qquad \mathbf{d}_{n+\frac{1}{2}}= \mathbf{d}_n + \frac{h}{2}\bar{\mathbf{v}}' $$
+$$\mathbf{u}_{n+1} = \mathbf{u}_n+h\bar{\mathbf{v}} \qquad \mathbf{d}_{n+1} = \mathbf{d}_n+h\bar{\mathbf{v}}'$$
 
-$$\bar{\mathcal{R}} = \mathbf{R}^T\dep{\bar{\varphi}}\mathbf{C}\bar{\mathbf{e}}  \qquad \bar{\mathbf{e}} = \mathbf{R}\dep{\bar{\varphi}}\bar{\mathbf{d}}-\mathbf{e}_0 \qquad \bar{\mathcal{N}} = \mathbf{C}\bar{\mathbf{e}}  $$
 
-$$\delta \bar{\mathcal{R}} = \frac{h}{2} (\delta\bar{\Omega}((\mathbf{R}^{(1)})^T\dep{\bar{\varphi}}\mathbf{C}\bar{\mathbf{e}} + \mathbf{R}^T\dep{\bar{\varphi}}\mathbf{CR}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}}) + \mathbf{R}^T\dep{\bar{\varphi}} \mathbf{CR}\dep{\bar{\varphi}}\delta\bar{\mathbf{v}}' )$$
-$$\delta\bar{\mathbf{e}} = \frac{h}{2}(\delta\bar{\Omega}\mathbf{R}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} + \mathbf{R}\dep{\bar{\varphi}}\delta\bar{\mathbf{v}}')$$
-$$\delta\bar{\mathcal{N}} = \frac{h}{2} (\delta\bar{\Omega}\mathbf{CR}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} + \mathbf{CR}\dep{\bar{\varphi}}\delta\bar{\mathbf{v}}')$$
+$$ \mathbf{e}_{n+\frac{1}{2}} = \mathbf{R}\dep{\frac{h}{2}\bar{\Omega}}(\mathbf{e}_n - \mathbf{e}_0) + \mathbf{e}_0 + \frac{h}{2}\mathbf{R}\dep{\varphi_n+\frac{h}{2}\bar{\Omega}}\bar{\mathbf{v}}'$$
 
-%$$\rho_A( \mathbf{v}_{n+1}-\mathbf{v}_n) = h(\bar{\mathcal{R}}'+\bar{p}+\begin{bmatrix} 0\\ 0\\ \bar{\mathcal{N}}_1\bar\mathbf$$
+$$\mathcal{N}_{n+\frac{1}{2}} = \mathbf{C}\frac{\mathbf{e}_{n+1}+\mathbf{e}_n}{2}$$
+$$\bar{\mathcal{R}} = \mathbf{R}^{T}\dep{\varphi_n+\frac{h}{2}\bar{\Omega}}\mathcal{N}_{n+\frac{1}{2}}$$
 
-V programu je napaka ker ne računam količin v $t_{n+1}$ z pravimi $u_{n+1}$.\\
-{\it Najprej bi moral poračunati hitrosti za $n+1$ in $n$ in od tod hitrosti za $n+\frac{1}{2}$. Z temi izračunam $\mathbf{u}_{n+1}$ in $\mathbf{d}_{n+1}$ in od tod $\mathcal{R}_{n+1}$. Nadaljni postopek bi moral biti pravilen.}
 
-Kaj bi moral narediti z energijama?\\
-{\it Če prav razumem sta hitrosti ob časih $n+1$ in $n$ neki funkciji. Zato ker jih ne znamo izvrednostit moramo uporabiti ravnotežne enačbe $\bar{\mathcal{F}}$ in iz njih izraziti diferenco hitrosti (pospešek), kar se pojavi tudi v enačbi energije. Po drugi strani pa je funkcija vmesne hitrosti linearna kombinacija robnih.}
-
-Kakšen bi bil pravilen postopek za račun $\delta\bar{\mathcal{R}}$, če za $\bar{\mathcal{R}}$ vzamem povprečnega?\\
-{\it Ker je $\delta\mathcal{R}_n$ neodvisna od $\bar{\mathbf{v}}$ je variacija enaka $0$. Razlika med povprečnim in analitično formulo je ta, da so v vseh členih nevariirane količine tiste ob drugem oziroma vmesnem času. Najprej bi raje poiskusil doseči smiselne rezultate z izvorno formulo za $\mathcal{R}$.}
+$$\mathcal{F}_{n+\frac{1}{2}} = \int_0^l -\bar{\mathcal{R}}\mathcal{P}_i' + (\mathbf{p}_{n+\frac{1}{2}} - \rho_A(\mathbf{v}_{n+1}-\mathbf{v}_n) + {\scriptscriptstyle \begin{bmatrix} 0 \\ 0 \\ \mathcal{N}_{n+\frac{1}{2}}[1]\mathbf{e}_{n+\frac{1}{2}}[2] - (1-\mathbf{e}_{n+\frac{1}{2}}[1])\mathcal{N}_{n+\frac{1}{2}}[2] \end{bmatrix}})\mathcal{P}_i\; dx + \bar{\mathcal{R}}\mathcal{P}_i\vert_0^l = 0$$
 
 
 
 
-
-\newpage
-\section{Implementacija v program}
-$$\delta\bar{\mathbf{e}} = \frac{h}{2}\mathcal{P}_j
-\begin{bmatrix}
-0 & 0 & | \\
-	0 & 0 & \mathbf{R}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} \\
-0 & 0 & |
-\end{bmatrix} + \frac{h}{2}\mathcal{P}_j' \mathbf{R}\dep{\bar{\varphi}}$$
+	\section{Linearizacija}
 
 
-$$\delta\bar{\mathcal{N}} = \frac{h}{2}\mathcal{P}_j
-\begin{bmatrix}
-0 & 0 & | \\
-0 & 0 & \mathbf{CR}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} \\
-0 & 0 & |
-\end{bmatrix} + \frac{h}{2}\mathcal{P}_j' \mathbf{CR}\dep{\bar{\varphi}}$$
 
-$$\delta\bar{\mathcal{R}} = \frac{h}{2}\mathcal{P}_j
-\begin{bmatrix}
-0 & 0 & | \\
-0 & 0 & (\mathbf{R}^{(1)})^T\dep{\bar{\varphi}}\mathbf{C}\bar{\mathbf{e}} + \mathbf{R}^T\dep{\bar{\varphi}}\mathbf{CR}^{(1)}\dep{\bar{\varphi}}\bar{\mathbf{d}} \\
-0 & 0 & |
-\end{bmatrix} + \frac{h}{2}\mathcal{P}_j' \mathbf{R}^T\dep{\bar{\varphi}} \mathbf{CR}\dep{\bar{\varphi}}$$
+$$ \delta\mathbf{u}_{n+1/2} = \frac{h}{2}\delta\bar{\mathbf{v}} \qquad  \delta\mathbf{d}_{n+1/2} = \frac{h}{2}\delta\bar{\mathbf{v}}'$$ 
 
-Za enostaven primer konzole se komponente zadnjega stoplca in vrstice hitro povečujejo. Preveri eačbe ki prispevajo k temu delu.
+$$\delta\mathbf{e}_{n+1/2} = \frac{h}{2}\delta\bar{\Omega}\mathbf{R}^{(1)}\dep{\frac{h}{2}\bar{\Omega}}(\mathbf{e}_n-\mathbf{e}_0)+\frac{h^2}{4}\delta\bar{\Omega}\mathbf{R}^{(1)}\dep{\varphi_n+\frac{h}{2}\bar{\Omega}}\bar{\mathbf{v}}' + \frac{h}{2}\mathbf{R}\dep{\varphi_n+\frac{h}{2}\bar{\Omega}}\delta\bar{\mathbf{v}}'$$
+
+$$\delta\mathbf{e}_{n+1} = \delta\bar{\Omega} h \mathbf{R}^{(1)}\dep{\varphi_n+h\bar{\Omega}}\mathbf{d}_{n+1} + \mathbf{R}\dep{\varphi_n+h\bar{\Omega}}h\delta\bar{\mathbf{v}}'$$
+
+$$ \delta \mathcal{N}_{n+\frac{1}{2}} = \mathbf{C}\frac{\delta\mathbf{e}_{n+1}}{2}$$
+$$ \delta\bar{\mathcal{R}} = \frac{h}{2}\delta\bar{\Omega}(\mathbf{R}^{(1)}\dep{\varphi_n+\frac{h}{2}\bar{\Omega}})^T\mathcal{N}_{n+\frac{1}{2}} + \mathbf{R}^T\dep{\varphi_n+\frac{h}{2}\bar{\Omega}}\delta\mathcal{N}_{n+\frac{1}{2}}$$ 
+
+$$\delta \mathcal{F}_{n+\frac{1}{2}} = \int_0^l- \delta \mathcal{RP}_i' + \delta{\scriptscriptstyle \begin{bmatrix} 0 \\ 0 \\ \mathcal{N}_{n+\frac{1}{2}}[1]\mathbf{e}_{n+\frac{1}{2}}[2] - (1-\mathbf{e}_{n+\frac{1}{2}}[1])\mathcal{N}_{n+\frac{1}{2}}[2] \end{bmatrix}}\mathcal{P}_i\; dx$$
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 \end{document}
