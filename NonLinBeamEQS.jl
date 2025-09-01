@@ -8,10 +8,7 @@ using InteractiveUtils
 using Symbolics, Plots
 
 # ╔═╡ ddccdcee-c4da-4c93-b708-744b3f846a21
-# ╠═╡ disabled = true
-#=╠═╡
 include("NonLinBeamINIT.jl");
-  ╠═╡ =#
 
 # ╔═╡ 4e9a733b-3102-4f82-b4a1-213e38ba37b8
 begin
@@ -23,12 +20,15 @@ begin
 	dϵ = Differential(ϵ)
 	δ(F) = (simplify.(Symbolics.jacobian(F,[vx,vz,Ω])),simplify.(Symbolics.jacobian(F,dx.([vx,vz,Ω]))))
 
-	xInt,wInt = NonLinBeam.GaussInt(20)
+	xInt,wInt = NonLinBeam.GaussInt(10)
 	L = 1.
+
+
+
 
 	
 
-	e0 = [1,0,κ₀]
+	e0 = [-1,0,-κ₀]
 	C = Symbolics.variables(:C,1:3,1:3)
 	ρAI = [m 0 0; 0 m 0 ; 0 0 I]
 	p = [px,pz,my]
@@ -52,8 +52,8 @@ begin
 	R1 = [cos(u1[3]+φ₀) -sin(u1[3]+φ₀) 0; sin(u1[3]+φ₀) cos(u1[3]+φ₀) 0; 0 0 1]
 
 	Γ0 = R0*d0+e0
-	Γm = Rm*dm+e0
 	Γ1 = R1*d1+e0
+	Γm = (Γ0+Γ1)/2#Rm*dm+e0
 	
 		
 	Nm = C*Γm
@@ -63,41 +63,30 @@ begin
 
 	F = -Re + Mpm - ρAI*Δv + p
 	
-	wF = ( -Re*dx(Pi) + (p - ρAI*Δv+Mpm)*Pi , Re*Pi)
-	δwF = δ(wF[1])
+	wF = ( -Re*dx(Pi) + (p - ρAI*Δv + Mpm)*Pi , Re*Pi)
+	δwF = sum(δ(wF[1]).*(Pj,dx(Pj)))*h/2.
 	
 	
 end;
 
-# ╔═╡ ebbdd6ef-0565-4da4-a2ac-90c69b1b7e08
-wF
-
 # ╔═╡ 08f6f31d-5183-4470-abf4-4b4df7371ccd
 md"## Substitucija vrednosti"
 
-# ╔═╡ 7487dc0d-dfdb-4724-b17e-f11f0e88eef6
-[collect(range(-1.,1.,length=4))[[1,end
-,2,3]]]
-
-
-# ╔═╡ 03652bef-6e4d-434f-8c37-605aa4afb4ce
-ij = (4,4)
-
 # ╔═╡ fa5ebdce-e59c-4c5f-9671-46c662f19d3e
 begin
-Pbasis = NonLinBeam.re_gramschmid([collect(range(-1.,1.,length=4))[[1,end,2,3]]])'*[1,x,x^2,x^3]
+Pbasis = NonLinBeam.re_gramschmid([collect(range(-1.,1.,length=4))])'*[1,x,x^2,x^3]
 
 
 	
-dat = Dict(
-	Pi => Pbasis[ij[1]],
-	Pj => Pbasis[ij[2]],
+Dat(i,j) = Dict(
+	Pi => Pbasis[i],
+	Pj => Pbasis[j],
 	C[1,1] => 21000. , C[2,2] => 17500. , C[3,3] =>0.175,
 	C[1,2] => 0., C[2,1] => 0., C[2,3] => 0., C[3,2] => 0., C[1,3] => 0., C[3,1] =>0.,
 	φ₀ =>  pi/2, κ₀ => 0.,
 	m => 0., I => 0.,
 	h => 0.1,
-	px => 0., pz => 0.1*0.1, my => 0.,
+	px => 0., pz => 0.01, my => 0.,
 	dx(vz) => 0.,dx(vx) => 0., dx(Ω) => 0.,
 	vz => 0., vx => 0., Ω => 0.,
 	dx(ux) => 0., dx(uz) => 0., dx(φ) => 0.,
@@ -106,79 +95,38 @@ dat = Dict(
 )
 
 
-interm = simplify(expand_derivatives.(substitute(wF[1],dat)))
-interm2 = simplify(expand_derivatives.(substitute(wF[2],dat)))
-
-δinterm = simplify(expand_derivatives.(substitute(δwF[1]*Pj + δwF[2]*dx(Pj),dat)))
+#interm = simplify(expand_derivatives.(substitute(wF[1],dat)))
+#interm2 = simplify(expand_derivatives.(substitute(wF[2],dat)))
+#δinterm = simplify(expand_derivatives.(substitute(δwF[1]*Pj + δwF[2]*dx(Pj),dat)))
 	
 end;
 
-# ╔═╡ ca3d2dbc-273d-4d56-af55-78ce14583e01
-k = (1,1)
+# ╔═╡ ed67d7ca-f00f-4b9b-8ef8-e80eaec7cf1b
+begin
+JX = hvcat((length(Pbasis)), map(ij -> simplify(expand_derivatives.(substitute(δwF,Dat(ij[1],ij[2])))), CartesianIndex.((1:length(Pbasis))',1:length(Pbasis)) )...)
 
-# ╔═╡ 0c7244a1-f3e6-4050-9199-66e7deced7fc
-md"### Rezidual"
+RX = vcat(map(i -> simplify(expand_derivatives.(substitute(wF[1],Dat(i,1))))  , 1:length(Pbasis) )...)
+RB = vcat(map(i -> simplify(expand_derivatives.(substitute(wF[2],Dat(i,1))))  , 1:length(Pbasis) )...)
 
-# ╔═╡ 86f7c925-542a-4042-9c1d-e00a53acea81
-md" Simbolno"
+	
+Jacobi = round.(sum(map(i-> substitute.(JX,(x=>xInt[i]))*wInt[i], eachindex(xInt) ))*L/2.0,digits = 11)
 
-# ╔═╡ 6f833cb8-e611-457c-b8cb-ced75e0bd4ca
-sum(map(i-> substitute(interm[k[1]], Dict(x => xInt[i]))*wInt[i], eachindex(xInt)))*L/2. + substitute(interm2[k[1]], x=> 1.) - substitute(interm2[k[1]], x=> -1.) 
+Residual = round.(sum(map(i-> substitute.(RX,(x=>xInt[i]))*wInt[i], eachindex(xInt) ))*L/2.0 + substitute.(RB,(x=>1.0))-substitute.(RB,(x=>-1.0)),digits = 11)
 
-# ╔═╡ 66480c49-5dc8-4eb4-bc88-6a861e6251b0
-md" Iz programa"
+	
+end;
 
-# ╔═╡ a24be236-6143-40fb-8dc8-974f079e2960
-md"### Tangentna"
+# ╔═╡ c5168e29-36d9-40e6-b1ea-22d58e3c33b6
+Jacobi[4:12,4:12]\Residual[4:12]
 
-# ╔═╡ f75c57a3-b30f-4f09-9cd2-c857267bf34e
-sum(map(i-> substitute(δinterm[k[1],k[2]], Dict(x => xInt[i]))*wInt[i], eachindex(xInt)))*L/2. 
+# ╔═╡ 0d23f987-1423-45eb-8bcc-620af93e5477
+Residual[4:12]
 
-# ╔═╡ 4c19cafb-87f7-4b23-aa57-d93207d80bbe
-collect(range(-1,1,length=4))[[1,3,4,2]]
+# ╔═╡ 093c3f0f-851b-44f4-b912-f6e2c8741dc7
+Jacobi[4:12,4:12]
 
-# ╔═╡ ca43e0ac-4055-46c2-b62c-a13dfc5009e5
-J = [2362.5 0.0 0.0 -1624.22 0.0 -620.156 295.312 0.0 183.75;
-	 0.0 2835.0 0.0 0.0 -1949.06 0.0 0.0 354.375 0.0;
-	 0.0 0.0 472.524 620.156 0.0 -59.0787 -183.75 0.0 -26.247;
-	 -1624.22 0.0 620.156 2362.5 0.0 0.0 -1033.59 0.0 -436.406;
-	 0.0 -1949.06 0.0 0.0 2835.0 0.0 0.0 -1240.31 0.0;
-	 -620.156 0.0 -59.0787 0.0 0.0 472.524 436.406 0.0 72.1772;
-	 295.312 0.0 -183.75 -1033.59 0.0 436.406 809.375 0.0 306.25;
-	 0.0 354.375 0.0 0.0 -1240.31 0.0 0.0 971.25 0.0;
-	 183.75 0.0 -26.247 -436.406 0.0 72.1772 306.25 0.0 93.3414];
+# ╔═╡ 7e2cdbe8-148d-4c3f-9829-e967c3a309ed
 
-# ╔═╡ b02c1596-d4bc-4ab1-8b12-511fb455dea8
-J[(ij[1]-2)*3+k[1],(ij[2]-2)*3+k[2]]
-
-# ╔═╡ 9c19acbb-b0a1-43bb-8e67-c33e0fe440ed
-Res = [0.0
-      0.00375000024
-      0.0
-      0.0
-      0.00374999976
-      0.0
-      0.0
- -20999.99874999992
-      0.0];
-
-# ╔═╡ f03a2e06-6500-4ee4-836d-7ad57b8d6d01
-Res[(ij[1]-2)*3+k[1]]
-
-# ╔═╡ 63b420f9-c831-4d87-965a-bcec6f985892
-yrange = collect(-1:0.01:1)
-
-# ╔═╡ 34f66519-b5f8-447b-aa15-1ca4a05d8311
-plot(yrange,map(i-> Meta.parse(string(substitute(Pbasis[4],x=>i))),yrange))
-
-# ╔═╡ 49bfb4f6-4e17-4774-bed0-67046d678ec8
-indx = [1,3,4,2]
-
-# ╔═╡ fcf5b716-ad8c-4e7b-ba71-aea62da43715
-J[[1,2,3,4],[1,2,3,4]]
-
-# ╔═╡ 4e9b9c4e-cdcd-4c5b-b47c-1c618a54ff9b
-J[indx,indx]
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1889,27 +1837,12 @@ version = "1.9.2+0"
 # ╠═c29b11c0-3107-11f0-1a61-bf1e631caba8
 # ╠═ddccdcee-c4da-4c93-b708-744b3f846a21
 # ╠═4e9a733b-3102-4f82-b4a1-213e38ba37b8
-# ╠═ebbdd6ef-0565-4da4-a2ac-90c69b1b7e08
 # ╟─08f6f31d-5183-4470-abf4-4b4df7371ccd
-# ╠═7487dc0d-dfdb-4724-b17e-f11f0e88eef6
 # ╠═fa5ebdce-e59c-4c5f-9671-46c662f19d3e
-# ╠═03652bef-6e4d-434f-8c37-605aa4afb4ce
-# ╠═ca3d2dbc-273d-4d56-af55-78ce14583e01
-# ╟─0c7244a1-f3e6-4050-9199-66e7deced7fc
-# ╟─86f7c925-542a-4042-9c1d-e00a53acea81
-# ╠═6f833cb8-e611-457c-b8cb-ced75e0bd4ca
-# ╟─66480c49-5dc8-4eb4-bc88-6a861e6251b0
-# ╠═f03a2e06-6500-4ee4-836d-7ad57b8d6d01
-# ╟─a24be236-6143-40fb-8dc8-974f079e2960
-# ╠═f75c57a3-b30f-4f09-9cd2-c857267bf34e
-# ╠═b02c1596-d4bc-4ab1-8b12-511fb455dea8
-# ╠═4c19cafb-87f7-4b23-aa57-d93207d80bbe
-# ╠═ca43e0ac-4055-46c2-b62c-a13dfc5009e5
-# ╠═9c19acbb-b0a1-43bb-8e67-c33e0fe440ed
-# ╠═63b420f9-c831-4d87-965a-bcec6f985892
-# ╠═34f66519-b5f8-447b-aa15-1ca4a05d8311
-# ╠═49bfb4f6-4e17-4774-bed0-67046d678ec8
-# ╠═fcf5b716-ad8c-4e7b-ba71-aea62da43715
-# ╠═4e9b9c4e-cdcd-4c5b-b47c-1c618a54ff9b
+# ╠═ed67d7ca-f00f-4b9b-8ef8-e80eaec7cf1b
+# ╠═c5168e29-36d9-40e6-b1ea-22d58e3c33b6
+# ╠═0d23f987-1423-45eb-8bcc-620af93e5477
+# ╠═093c3f0f-851b-44f4-b912-f6e2c8741dc7
+# ╠═7e2cdbe8-148d-4c3f-9829-e967c3a309ed
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
