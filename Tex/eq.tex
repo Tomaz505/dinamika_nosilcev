@@ -82,7 +82,7 @@ $$\mathcal{N}_{n+\frac{1}{2}} = \mathbf{C}\frac{\mathbf{e}_{n+1}+\mathbf{e}_n}{2
 $$\bar{\mathcal{R}} = \mathbf{R}^{T}\dep{\varphi_n+\frac{h}{2}\bar{\Omega}}\mathcal{N}_{n+\frac{1}{2}}$$
 
 
-$$\mathcal{F}_{n+\frac{1}{2}} = \int_0^l -\bar{\mathcal{R}}\mathcal{P}_i' + (\mathbf{p}_{n+\frac{1}{2}} - \rho_A(\mathbf{v}_{n+1}-\mathbf{v}_n) + {\scriptscriptstyle \begin{bmatrix} 0 \\ 0 \\ \mathcal{N}_{n+\frac{1}{2}}[1]\mathbf{e}_{n+\frac{1}{2}}[2] - (1-\mathbf{e}_{n+\frac{1}{2}}[1])\mathcal{N}_{n+\frac{1}{2}}[2] \end{bmatrix}})\mathcal{P}_i\; dx + \bar{\mathcal{R}}\mathcal{P}_i\vert_0^l = 0$$
+$$\mathcal{F}_{n+\frac{1}{2}} = \int_0^l -\bar{\mathcal{R}}\mathcal{P}_i' + (\mathbf{p}_{n+\frac{1}{2}} - \rho_A\frac{\mathbf{v}_{n+1}-\mathbf{v}_n}{h} + {\scriptscriptstyle \begin{bmatrix} 0 \\ 0 \\ \mathcal{N}_{n+\frac{1}{2}}[1]\mathbf{e}_{n+\frac{1}{2}}[2] - (1+\mathbf{e}_{n+\frac{1}{2}}[1])\mathcal{N}_{n+\frac{1}{2}}[2] \end{bmatrix}})\mathcal{P}_i\; dx + \bar{\mathcal{R}}\mathcal{P}_i\vert_0^l = 0$$
 
 
 
@@ -100,7 +100,7 @@ $$\delta\mathbf{e}_{n+1} = \delta\bar{\Omega} h \mathbf{R}^{(1)}\dep{\varphi_n+h
 $$ \delta \mathcal{N}_{n+\frac{1}{2}} = \mathbf{C}\frac{\delta\mathbf{e}_{n+1}}{2}$$
 $$ \delta\bar{\mathcal{R}} = \frac{h}{2}\delta\bar{\Omega}(\mathbf{R}^{(1)}\dep{\varphi_n+\frac{h}{2}\bar{\Omega}})^T\mathcal{N}_{n+\frac{1}{2}} + \mathbf{R}^T\dep{\varphi_n+\frac{h}{2}\bar{\Omega}}\delta\mathcal{N}_{n+\frac{1}{2}}$$ 
 
-$$\delta \mathcal{F}_{n+\frac{1}{2}} = \int_0^l- \delta \mathcal{RP}_i' + \delta{\scriptscriptstyle \begin{bmatrix} 0 \\ 0 \\ \mathcal{N}_{n+\frac{1}{2}}[1]\mathbf{e}_{n+\frac{1}{2}}[2] - (1-\mathbf{e}_{n+\frac{1}{2}}[1])\mathcal{N}_{n+\frac{1}{2}}[2] \end{bmatrix}}\mathcal{P}_i\; dx$$
+$$\delta \mathcal{F}_{n+\frac{1}{2}} = \int_0^l- \delta \mathcal{RP}_i' + \delta{\scriptscriptstyle \begin{bmatrix} 0 \\ 0 \\ \mathcal{N}_{n+\frac{1}{2}}[1]\mathbf{e}_{n+\frac{1}{2}}[2] - (1+\mathbf{e}_{n+\frac{1}{2}}[1])\mathcal{N}_{n+\frac{1}{2}}[2] \end{bmatrix}}\mathcal{P}_i\; dx$$
 
 
 

@@ -96,6 +96,7 @@ for i_time in 2:n_time
 	println()
 
 	while norm(Dv) > 10.0^-7
+		sleep(1)
 		# Tangentna in rezidual v eni matriki
 		Ja = spzeros(Float64,3*n_nodes,3*n_nodes)
 		Re = zeros(Float64,3*n_nodes,1)
@@ -123,6 +124,9 @@ for i_time in 2:n_time
 		# inv_arr_indx = invpermute(arr,c)
 		#
 		Dv = round.(-Ja[indx_solve,indx_solve]\Re[indx_solve],digits = 10)
+
+		display(Ja)
+		display(Re)
 
 		# *2 je zaradi povprečenja za vmesno ??? je to ok ???
 		M.vx[indxX,i_time] += Dv[1:3:end]*2

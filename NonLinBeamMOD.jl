@@ -593,7 +593,7 @@ module NonLinBeam
 
 
 			# dlN[1] dlE[1]   clen z delta omega
-			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 (E[2]*dlN[1][1] - (1+E[1])*dlN[1][2] + N[1]*dlE[1][2] - N[2]*dlE[2][1])]])*PolyValue(xInt[i1],Ib[:,ij[2]]), indx2 ) * wInt[i1]
+			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 (E[2]*dlN[1][1] - (1+E[1])*dlN[1][2] + N[1]*dlE[1][2] - N[2]*dlE[1][1])]])*PolyValue(xInt[i1],Ib[:,ij[2]]), indx2 ) * wInt[i1]
 
 
 			# dlN[2] dlE[2]   clen z delta d
@@ -602,6 +602,8 @@ module NonLinBeam
 		end
 
 		F .*= L/2.0
+		dlF .*= L/2.0
+
 
 		xb = [-1.,1.]
 		for i in 1:2 
@@ -650,7 +652,7 @@ module NonLinBeam
 			Re = (Re1 + Re2)/2.
 			=#
 		
-			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2]) ,1:length(Ib[:,1]))
+			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2])*((-1)^i) ,1:length(Ib[:,1]))
 		end
 
 		return dlF, F
