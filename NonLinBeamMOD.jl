@@ -583,14 +583,16 @@ module NonLinBeam
 			
 
 			#   D I F E R E N C A   H I T R O S T I
-			tv = (V2-V1)/dt + [0.0; g; 0.0]
+			tv = ((V2-V1) +dt* [0.0; g; 0.0]).*[M[1];M[1];M[2]]
 		
 		
 
 
 
 			# F
-			F .+= map(i2 -> -Re * PolyValue(xInt[i1],Ib[:,i2];n=1)+(p + [0.0;0.0;N[1]*E[2]-(1+E[1])*N[2]] - tv.*[M[1];M[1];M[2]]) * PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1]
+			F .+= map(i2 ->  PolyValue(xInt[i1],Ib[:,i2];n=1)*(-Re)*dt
+				  	+PolyValue(xInt[i1],Ib[:,i2])    *(p*dt + dt* [0.0;0.0;N[1]*E[2]-(1+E[1])*N[2]] - tv),
+					1:length(Ib[:,1])) * wInt[i1]
 
 			# dlRe
 			dlF .+= map( ij ->
@@ -646,7 +648,7 @@ module NonLinBeam
 			Re = R(U[3]+pb[i])'*C*E
 			#Re1 = R(U1[3]+pb[i])'*C*E1; Re2 = R(U2[3]+pb[i])'*C*E2; Re = (Re1+Re2)/2	
 	
-			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2])*((-1)^i) ,1:length(Ib[:,1]))
+			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2])*((-1)^i) ,1:length(Ib[:,1]))*dt
 		end
 		
 		return dlF, F

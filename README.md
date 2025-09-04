@@ -1,14 +1,14 @@
 # Dinamika nosilcev
 Skripte za račun nelinearne dinamike nosilcev.
 
-## Popravki
-- Preveri kako so zapisani členi vektorskega produkta v 3. enačbi
-- Preveri kje bi morala biti transponirana rotacijska matrika
-- Preveri kje bi moral uporabit tudi kot začetne lege in ne samo kot pomikov.
-- Premisli ali je postopek z $\deltaD \to I$ ustrezen.
+## Problemi
+- Dinamika divergira
+- Statika se izačuna ampak ob konstanti obtežbi alternira. (Tudi če je na začetku obremenjen element in nato ne več pomiki in hitrosti alternirajo predznake. V absolutnem so enaki.)
 
+## Kontoliraj
+- Kaj se zgodi z alterniranjem v statiki če uporabim za N nastavek, ki ne bi ohranjal energije? Poiskusi $R  =(R_1+R_2)/2$.
 
 ## Dopolnitve
-- Dodaj postopek za shkranjevanje rezultatov v .dat
-- Dadaj postopek za pripravo .tex za predstavitev rezultatov in jo compajlaj
-- Poskusi ločit funkcije za splošno uporabo in funkcije za račun dinamike. Tako lahko napišeš module z podaobnimi funkcijami za druge račune.
+- Dodaj točkovne obtežbe na robovih.
+- Nekonzervativna obtežba (Potrebna linearizacija. Mislim, da samo rotacija v globalne komponente ki sledijo ubliki elementa)
+

@@ -100,7 +100,7 @@ for i_time in 2:n_time
 		Ja = spzeros(Float64,3*n_nodes,3*n_nodes)
 		Re = zeros(Float64,3*n_nodes,1)
 
-		sleep(1)
+	#	sleep(1)
 			for i_el in eachindex(E)
 				for i_ke in eachindex(E[i_el].P)
 
@@ -117,18 +117,19 @@ for i_time in 2:n_time
 			Re = round.(Re,digits = 11)
 
 			Dv = -Ja[indx_solve,indx_solve]\Re[indx_solve]
-		
-			println("\t\tDv = ")
+			Dv = Dv/dt
+#=		
+		println("\t\tDv = ")
 		display(Dv)
-		println("\t|Dv| = ",norm(Dv),"\n")
-		println("\t\tJa = ")
+	=#	println("\t|Dv| = ",norm(Dv),"\n")
+	#=	println("\t\tJa = ")
 		display(Ja[indx_solve,indx_solve])
 		println("\n")
 
 		println("\t\tRe = ")
 		display(Re[indx_solve])
 		println("\t|Re| = ",norm(Re),"\n")
-
+=#
 
 		M.vx[indxX,i_time]  += Dv[1:3:end]*2.0
 		M.vz[indxZ,i_time]  += Dv[2:3:end]*2.0
