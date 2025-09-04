@@ -2,7 +2,7 @@ module NonLinBeam
     
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
 		datainit, readdata, dataprocess,
-		R, GaussInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValuei,
+		R, GaussInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValue,
 		plotbeams, adj_mat,randpermute,node_permute
 
 
@@ -525,7 +525,7 @@ module NonLinBeam
 		F = fill(Vector{Float64}([0.0;0.0;0.0]),length(ux1))
 		dlF = fill(zeros(Float64,(3,3)),(length(ux1),length(ux1)))
 
-		indx2 = CartesianIndex.((1:length(Ib[:,1]))',1:length(Ib[:,1]))
+		indx2 = CartesianIndex.((1:length(Ib[:,1])),(1:length(Ib[:,1]))')
 		for i1 = eachindex(xInt)
 			#Poračunaj količine v xg
 			#za čas tn in tn+1
@@ -558,8 +558,8 @@ module NonLinBeam
 			#   D E F O R M A C I J E   L O K A L N E
 			E1 = R(U1[3]+p0[i1])*D1 + e0
 			E2 = R(U2[3]+p0[i1])*D2 + e0 
-			E = R(U[3]+p0[i1])*D + e0
-			#E = R(dt/2*V[3])*(E1 - e0) + e0 + dt*R(U[3]+p0[i1])*dV
+			E  = R(U[3]+p0[i1]) *D  + e0
+			#E = R(dt/2*V[3])*(E1 - e0) + e0 + dt/2*R(U[3]+p0[i1])*dV
 			
 
 			#   R E Z U L T A N T E   L O K A L N E
@@ -573,8 +573,8 @@ module NonLinBeam
 		
 
 			
-			dlE = (  dt/2.0 *( R(U[3];n=1)*(E1-e0) + dt/2.0 * R(U[3]+p0[i1])*dV ) ,  dt/2.0 * R(U[3]+p0[i1])  )
-			dlN = (  dt/2.0 * C * R(U[3]+p0[i1];n=1)*D2  ,  dt/2.0 * C *R(U[3]+p0[i1])  )
+			dlE = (  dt/2.0 * R(U[3]+p0[i1];n=1)*D  ,  dt/2.0 * R(U[3]+p0[i1])  )
+			dlN = (  C * dlE[1]  ,  C* dlE[2]  )
 			dlRe =(  dt/2.0 * R(U[3]+p0[i1];n=1)'*N  +  R(U[3]+p0[i1])'*dlN[1]  ,  R(U[3]+p0[i1])'*dlN[2]  )
 			#dlN = (C*R(U[3]+p0[i1];n=1)*D , C*R(U[3]+p0[i1]))
 
@@ -584,21 +584,24 @@ module NonLinBeam
 
 			#   D I F E R E N C A   H I T R O S T I
 			tv = (V2-V1)/dt + [0.0; g; 0.0]
-			
+		
+		
 
-			F .+= map(i2 -> -Re*PolyValue(xInt[i1],Ib[:,i2];n=1) + (p + [0.0;0.0;dot(N,[E[2];-(1.0 +E[1]);0.0])] - tv.*[M[1];M[1];M[2]] )*PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1]
+
+
+			# F
+			F .+= map(i2 -> -Re * PolyValue(xInt[i1],Ib[:,i2];n=1)+(p + [0.0;0.0;N[1]*E[2]-(1+E[1])*N[2]] - tv.*[M[1];M[1];M[2]]) * PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1]
 
 			# dlRe
-			dlF .+= map( ij -> -PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]]) + dlRe[2]*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)) ,indx2) * wInt[i1]
+			dlF .+= map( ij -> -PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]])+ dlRe[2] * PolyValue(xInt[i1],Ib[:,ij[2]];n=1)),indx2) * wInt[i1]
 
 
 			# dlN[1] dlE[1]   clen z delta omega
 			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 (E[2]*dlN[1][1] - (1+E[1])*dlN[1][2] + N[1]*dlE[1][2] - N[2]*dlE[1][1])]])*PolyValue(xInt[i1],Ib[:,ij[2]]), indx2 ) * wInt[i1]
 
-
 			# dlN[2] dlE[2]   clen z delta d
 			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)*[[0.0 0.0 0.0; 0.0 0.0 0.0]; (E[2]*dlN[2][1,:] - (1+E[1])*dlN[2][2,:] - N[2]*dlE[2][1,:] + N[1]*dlE[2][2,:])'] ,indx2) * wInt[i1]
-
+			dlF .+= map( ij -> -PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]])*[M[1] 0.0 0.0; 0.0 M[1] 0.0; 0.0 0.0 M[2]]*2 ,indx2) * wInt[i1] 
 		end
 
 		F .*= L/2.0
@@ -607,9 +610,8 @@ module NonLinBeam
 
 		xb = [-1.,1.]
 		for i in 1:2 
-			#Poračunaj količine v x
-				#za čas tn in tn+1
-			#Treba je zračunat kot in ukrivljenost v robnih točkah		
+			
+
 			e0 = [-1.;0.; -kb[i]]
 
 			V1 = map(vi->InterpolValue(xb[i],vi,Ib),[vx1,vz1,omg1])
@@ -642,19 +644,11 @@ module NonLinBeam
 			#   R E Z U L T A N T E   G L O B A L N E
 			#Re = R(U[3]+p0[i1])'*C*E
 			Re = R(U[3]+pb[i])'*C*E
-			#Re1 = R(U1[3]+pb[i])'*C*E1; Re2 = R(U2[3]+pb[i])'*C*E2; Re = (Re1+Re2)/2
-			
-			#=
-			U1,V1,dU1,dV1,D1,Re1,dlRe1 = VarsAtX(xb[i],ux1,uz1,phi1,vx1,vz1,omg1,Ib,pb[i],kb[i],C)
-			U2,V2,dU2,dV2,D2,Re2,dlRe2 = VarsAtX(xb[i],ux2,uz2,phi2,vx2,vz2,omg2,Ib,pb[i],kb[i],C)
+			#Re1 = R(U1[3]+pb[i])'*C*E1; Re2 = R(U2[3]+pb[i])'*C*E2; Re = (Re1+Re2)/2	
 	
-			#Količine v času tn+1/2
-			Re = (Re1 + Re2)/2.
-			=#
-		
 			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2])*((-1)^i) ,1:length(Ib[:,1]))
 		end
-
+		
 		return dlF, F
 
 	end

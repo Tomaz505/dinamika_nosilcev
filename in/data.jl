@@ -15,12 +15,13 @@ elementi::Array{Int64} = [
 #   P O D A T K I   R A Č U N A 
 const ti = 0.
 const tf = 2.
-const dt = 0.01
+const dt = 0.001
 const g = 0.0
 
 
 n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 #	L A S T N O S T I   S T R U K T U R
+#	K T U R
 
 # ElementDataIn
 # n = st. ke. na nosilcui
@@ -66,8 +67,8 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 # E L E M E N T I
-@assignto :(ElementDataIn) [1] :( [0. 0.] ) :(M)
-@assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 5.0/6.0*21000. 0.; 0. 0. 0.175] ) :(C)
+@assignto :(ElementDataIn) [1] :( [0.008 0.00012] ) :(M)
+@assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 17500. 0.; 0. 0. 0.175] ) :(C)
 
 
 @assignto :(ElementDataIn) [1] :(t->[0.01 0.01]) :(pz)
@@ -75,8 +76,8 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 #@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(my)
 
 #@assignto :(ElementDataIn) [1] :( [-1.; 1.] ) :(div1)
-#@assignto :(ElementDataIn) [1] :( [5] ) :(div2)
-@assignto :(ElementDataIn) [1] :( [30] ) :(nInt) 
+@assignto :(ElementDataIn) [1] :( [3] ) :(div2)
+@assignto :(ElementDataIn) [1] :( [20] ) :(nInt) 
 #@assignto :(ElementDataIn) [1] :( false ) :(Ci)
 
 
