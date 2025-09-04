@@ -77,7 +77,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 #@assignto :(ElementDataIn) [1] :( [-1.; 1.] ) :(div1)
 @assignto :(ElementDataIn) [1] :( [3] ) :(div2)
-@assignto :(ElementDataIn) [1] :( [20] ) :(nInt) 
+@assignto :(ElementDataIn) [1] :( [30] ) :(nInt) 
 #@assignto :(ElementDataIn) [1] :( false ) :(Ci)
 
 

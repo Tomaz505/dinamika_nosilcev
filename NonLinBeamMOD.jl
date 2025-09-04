@@ -593,15 +593,15 @@ module NonLinBeam
 			F .+= map(i2 -> -Re * PolyValue(xInt[i1],Ib[:,i2];n=1)+(p + [0.0;0.0;N[1]*E[2]-(1+E[1])*N[2]] - tv.*[M[1];M[1];M[2]]) * PolyValue(xInt[i1],Ib[:,i2]) ,1:length(Ib[:,1])) * wInt[i1]
 
 			# dlRe
-			dlF .+= map( ij -> -PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * ([[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]*PolyValue(xInt[i1],Ib[:,ij[2]])+ dlRe[2] * PolyValue(xInt[i1],Ib[:,ij[2]];n=1)),indx2) * wInt[i1]
+			dlF .+= map( ij ->
+		  PolyValue(xInt[i1],Ib[:,ij[1]];n=1) * (
+			-PolyValue(xInt[i1],Ib[:,ij[2]])     *[[0.0;0.0;0.0] [0.0;0.0;0.0] dlRe[1]]
+			-PolyValue(xInt[i1],Ib[:,ij[2]];n=1) *dlRe[2])
+		+ PolyValue(xInt[i1],Ib[:,ij[1]])     * (
+			PolyValue(xInt[i1],Ib[:,ij[2]])*[[-2.0*M[1] 0.0 0.0;0.0 -2.0*M[1] 0.0];[0.0 0.0 -2.0*M[2]+(E[2]*dlN[1][1] - (1+E[1])*dlN[1][2] + N[1]*dlE[1][2] - N[2]*dlE[1][1])]]
+			+PolyValue(xInt[i1],Ib[:,ij[2]];n=1)*[[0.0 0.0 0.0; 0.0 0.0 0.0]; (E[2]*dlN[2][1,:] - (1+E[1])*dlN[2][2,:] - N[2]*dlE[2][1,:] + N[1]*dlE[2][2,:])'] 
+			),indx2)*wInt[i1]
 
-
-			# dlN[1] dlE[1]   clen z delta omega
-			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*([[0.0 0.0 0.0; 0.0 0.0 0.0];[0.0 0.0 (E[2]*dlN[1][1] - (1+E[1])*dlN[1][2] + N[1]*dlE[1][2] - N[2]*dlE[1][1])]])*PolyValue(xInt[i1],Ib[:,ij[2]]), indx2 ) * wInt[i1]
-
-			# dlN[2] dlE[2]   clen z delta d
-			dlF .+= map( ij -> PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]];n=1)*[[0.0 0.0 0.0; 0.0 0.0 0.0]; (E[2]*dlN[2][1,:] - (1+E[1])*dlN[2][2,:] - N[2]*dlE[2][1,:] + N[1]*dlE[2][2,:])'] ,indx2) * wInt[i1]
-			dlF .+= map( ij -> -PolyValue(xInt[i1],Ib[:,ij[1]])*PolyValue(xInt[i1],Ib[:,ij[2]])*[M[1] 0.0 0.0; 0.0 M[1] 0.0; 0.0 0.0 M[2]]*2 ,indx2) * wInt[i1] 
 		end
 
 		F .*= L/2.0
