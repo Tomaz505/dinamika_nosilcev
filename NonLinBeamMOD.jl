@@ -502,11 +502,12 @@ module NonLinBeam
 
 		D = dU+[cos(p0); sin(p0); 0.0]
 		E = R(U[3]+p0)*D+[-1.0;0.0;-k0]
-		Re = R(U[3]+p0)'* C* E
+		N = C*E
+		#Re = R(U[3]+p0)'* C* E
 		
 		# (dlPhi , dlD)
-		dlRe = ( R(U[3]+p0;n=1)'*C*E + R(U[3]+p0)'*C*R(U[3]+p0;n=1)*D, R(U[3]+p0)'*C*R(U[3]+p0) )
-		return U,V,dU,dV,D,Re,dlRe
+		#dlRe = ( R(U[3]+p0;n=1)'*C*E + R(U[3]+p0)'*C*R(U[3]+p0;n=1)*D, R(U[3]+p0)'*C*R(U[3]+p0) )
+		return U,V,dU,dV,E,N
 		
 	end
 	
@@ -563,8 +564,8 @@ module NonLinBeam
 			
 
 			#   R E Z U L T A N T E   L O K A L N E
-			N = C*(E1+E2)/2
-
+			#N = C*(E1+E2)/2
+			N = C*E
 
 			#   R E Z U L T A N T E   G L O B A L N E
 			Re = R(U[3]+p0[i1])'*N
@@ -573,9 +574,9 @@ module NonLinBeam
 		
 
 			
-			dlE = (  dt/2.0 * R(U[3]+p0[i1];n=1)*D  ,  dt/2.0 * R(U[3]+p0[i1])  )
+			dlE = (  R(U[3]+p0[i1];n=1)*D  ,  R(U[3]+p0[i1])  )
 			dlN = (  C * dlE[1]  ,  C* dlE[2]  )
-			dlRe =(  dt/2.0 * R(U[3]+p0[i1];n=1)'*N  +  R(U[3]+p0[i1])'*dlN[1]  ,  R(U[3]+p0[i1])'*dlN[2]  )
+			dlRe =(  R(U[3]+p0[i1];n=1)'*N  +  R(U[3]+p0[i1])'*dlN[1]  ,  R(U[3]+p0[i1])'*dlN[2]  )
 			#dlN = (C*R(U[3]+p0[i1];n=1)*D , C*R(U[3]+p0[i1]))
 
 			#   O B T E Ž B A
@@ -590,9 +591,11 @@ module NonLinBeam
 
 
 			# F
-			F .+= map(i2 ->  PolyValue(xInt[i1],Ib[:,i2];n=1)*(-Re)*dt
-				  	+PolyValue(xInt[i1],Ib[:,i2])    *(p*dt + dt* [0.0;0.0;N[1]*E[2]-(1+E[1])*N[2]] - tv),
-					1:length(Ib[:,1])) * wInt[i1]
+			F .+= map(i2 ->  PolyValue(xInt[i1],Ib[:,i2];n=1)*(-Re)
+				  	+PolyValue(xInt[i1],Ib[:,i2])    *(p + [0.0;0.0;N[1]*E[2]-(1+E[1])*N[2]] - tv),1:length(Ib[:,1])) * wInt[i1]*dt
+
+			F .+= map(i2 -> PolyValue(xInt[i1],Ib[:,i2]) * (-tv) ,1:length(Ib[:,1])) * wInt[i1]
+
 
 			# dlRe
 			dlF .+= map( ij ->
@@ -606,8 +609,8 @@ module NonLinBeam
 
 		end
 
-		F .*= L/2.0
-		dlF .*= L/2.0
+		#F .*= L/2.0
+		dlF .*= dt*L/4.0
 
 
 		xb = [-1.,1.]
@@ -639,8 +642,8 @@ module NonLinBeam
 			#   D E F O R M A C I J E   L O K A L N E
 			E1 = R(U1[3]+pb[i])*D1 + e0
 			E2 = R(U2[3]+pb[i])*D2 + e0 
-			#E = R(U[3]+pb[i])*D + e0
-			E = (E1+E2)/2
+			E = R(U[3]+pb[i])*D + e0
+			#E = (E1+E2)/2
 			#E = R(dt/2*V[3])*(E1 - e0) + e0 + dt*R(U[3]+p0[i1])*dV
 
 			#   R E Z U L T A N T E   G L O B A L N E
@@ -650,6 +653,8 @@ module NonLinBeam
 	
 			F .+= map(i2 -> Re*PolyValue(xb[i],Ib[:,i2])*((-1)^i) ,1:length(Ib[:,1]))*dt
 		end
+		
+		F .*= L/2.0
 		
 		return dlF, F
 

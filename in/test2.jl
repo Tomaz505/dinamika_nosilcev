@@ -15,7 +15,7 @@ elementi::Array{Int64} = [
 #   P O D A T K I   R A Č U N A 
 const ti = 0.
 const tf = 2.
-const dt = 0.001
+const dt = 0.3
 const g = 0.0
 
 
@@ -67,17 +67,17 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 # E L E M E N T I
-@assignto :(ElementDataIn) [1] :( [0.004 0.00012] ) :(M)
+@assignto :(ElementDataIn) [1] :( [0.0 0.0] ) :(M)
 @assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 17500. 0.; 0. 0. 0.175] ) :(C)
 
 
-@assignto :(ElementDataIn) [1] :(t->[0.01 0.01]*max(0,-t+0.01)) :(pz)
-#@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(px)
+#@assignto :(ElementDataIn) [1] :(t->[0.0 0.0]) :(pz)
+@assignto :(ElementDataIn) [1] :(t->[0.0001 0.0001]) :(px)
 #@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(my)
 
 #@assignto :(ElementDataIn) [1] :( [-1.; 1.] ) :(div1)
-@assignto :(ElementDataIn) [1] :( [4] ) :(div2)
-@assignto :(ElementDataIn) [1] :( [20] ) :(nInt) 
+@assignto :(ElementDataIn) [1] :( [5] ) :(div2)
+@assignto :(ElementDataIn) [1] :([20] ) :(nInt) 
 #@assignto :(ElementDataIn) [1] :( false ) :(Ci)
 
 
