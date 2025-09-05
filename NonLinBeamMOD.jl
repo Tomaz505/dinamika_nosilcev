@@ -28,7 +28,7 @@ module NonLinBeam
         div1::Array{Float64} = [-1.,1.]
 	#Naj bo vedno med -1 in 1
 
-        div2::Array{Int64} = [4]
+        div2::Array{Int64} = [5]
 	#Številow vozlišč v sekundarni delitvi. Dve sta robni. Int za vsak element.
 
         nInt::Array{Int64} = [20]
@@ -241,7 +241,7 @@ module NonLinBeam
 			n_nodes = maximum(indx[1]) 
 			if elem_dat.Ci
 				for i = 2:n_ke-1
-					indx[i] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div[i]-1),[n_nodes;n_nodes+elem_dat.div2[i]])
+					indx[i] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div2[i]-1),[n_nodes;n_nodes+elem_dat.div2[i]])
 					n_nodes = maximum(indx[i])
 				end
 				indx[n_ke] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div2[n_ke]-2),[elem_dat.v[2]],[n_nodes])
@@ -526,7 +526,7 @@ module NonLinBeam
 		F = fill(Vector{Float64}([0.0;0.0;0.0]),length(ux1))
 		dlF = fill(zeros(Float64,(3,3)),(length(ux1),length(ux1)))
 
-		indx2 = CartesianIndex.((1:length(Ib[:,1])),(1:length(Ib[:,1]))')
+		indx2 = CartesianIndex.((1:length(Ib[:,1]))',(1:length(Ib[:,1])))
 		for i1 = eachindex(xInt)
 			#Poračunaj količine v xg
 			#za čas tn in tn+1

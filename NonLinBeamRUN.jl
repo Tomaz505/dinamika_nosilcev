@@ -1,8 +1,11 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
 
-
-println("Pot do datoteke z podatki")
-file = readline()
+try 
+	isa(file,String)
+catch
+	println("Pot do datoteke z podatki")
+	global file = readline()
+end
 include(file*".jl")
 #data1,data2,data3 = readdata(file);
 #eval(Meta.parse(data1));
@@ -100,7 +103,7 @@ for i_time in 2:n_time-1
 		Ja = spzeros(Float64,3*n_nodes,3*n_nodes)
 		Re = zeros(Float64,3*n_nodes,1)
 
-		sleep(1)
+		#sleep(1)
 			for i_el in eachindex(E)
 				for i_ke in eachindex(E[i_el].P)
 
@@ -113,17 +116,17 @@ for i_time in 2:n_time-1
 					Re[indx_dof] += vcat(F...)
 				end # i_ke
 			end # i_el
-			Ja = round.(Ja,digits = 11)
-			Re = round.(Re,digits = 11)
+			Ja = round.(Ja,digits = 13)
+			Re = round.(Re,digits = 13)
 
 			Dv = -Ja[indx_solve,indx_solve]\Re[indx_solve]
-			Dv = round.(Dv/dt,digits=12) 
+			Dv = round.(Dv/dt,digits=13) 
 
-	
+#=	
 		println("\t\tDv = ")
 		display(Dv)
-		println("\t|Dv| = ",norm(Dv),"\n")
-		println("\t\tJa = ")
+=#		println("\t|Dv| = ",norm(Dv),"\n")
+#=		println("\t\tJa = ")
 		display(Ja[indx_solve,indx_solve])
 		println("\n")
 
@@ -131,10 +134,10 @@ for i_time in 2:n_time-1
 		display(Re[indx_solve])
 		println("\t|Re| = ",norm(Re),"\n")
 
-
-		M.vx[indxX,i_time]  += Dv[1:3:end]*2.0
-		M.vz[indxZ,i_time]  += Dv[2:3:end]*2.0
-		M.Omg[indxP,i_time] += Dv[3:3:end]*2.0
+=#
+		M.vx[indxX,i_time] += Dv[1:3:end]*2.0
+		M.vz[indxZ,i_time] += Dv[2:3:end]*2.0
+		M.Omg[indxP,i_time]+= Dv[3:3:end]*2.0
 
 
 	
@@ -142,7 +145,7 @@ for i_time in 2:n_time-1
 	
 	M.vx[indxX,i_time+1] = M.vx[indxX,i_time]
 	M.vz[indxZ,i_time+1] = M.vz[indxZ,i_time]
-	M.Omg[indxP,i_time+1] = M.Omg[indxP,i_time]
+	M.Omg[indxP,i_time+1]= M.Omg[indxP,i_time]
 
 	M.ux[indxX,i_time] =  M.ux[indxX,i_time-1]  + dt*(M.vx[indxX,i_time]  + M.vx[indxX,i_time-1]  )/2.0
 	M.uz[indxZ,i_time] =  M.uz[indxZ,i_time-1]  + dt*(M.vz[indxZ,i_time]  + M.vz[indxZ,i_time-1]  )/2.0
