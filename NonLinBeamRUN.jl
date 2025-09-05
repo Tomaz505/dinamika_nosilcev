@@ -1,14 +1,15 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
 
 
-println("Pot do datoteke z podatki")
-file = readline()
+
+try 
+	size(file)
+catch
+	println("Pot do datoteke z podatki")
+	file = readline()
+end
+
 include(file*".jl")
-#data1,data2,data3 = readdata(file);
-#eval(Meta.parse(data1));
-#eval(Meta.parse(data2));
-#n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca);
-#eval.(Meta.parse.(data3));
 println("\n[  Ok  ]  Vnos podatkov")
 
 
@@ -42,14 +43,22 @@ println("[  Ok  ]  Risnaje Konstrikcije")
 
 
 
-println("\n Kako nadaljujem?")
-println("0\t\t-> preklici postopek")
-println("Enter\t\t-> nadaljuj račun")
+try 
+	RUN == true
+catch
 
-canc = readline()
-if canc == "0"
+	println("\n Kako nadaljujem?")
+	println("0\t\t-> preklici postopek")
+	println("Enter\t\t-> nadaljuj račun")
+
+	canc = readline()
+	RUN = canc == "0"
+
+end
+if !(RUN)
 	error("Preklic")
 end
+
 
 
 
