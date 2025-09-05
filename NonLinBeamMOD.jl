@@ -150,11 +150,6 @@ module NonLinBeam
 
 
 
-
-
-
-
-
 	#Funkcija za rotacijo 3-terice za kot a okrov e3
 	function R(a;n = 0)::Matrix{Float64}
 		# n je stopnja odvoda

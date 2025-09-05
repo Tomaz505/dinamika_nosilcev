@@ -1,13 +1,9 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
 
-<<<<<<< HEAD
-try 
-	isa(file,String)
-catch
-	println("Pot do datoteke z podatki")
-	global file = readline()
-end
->>>>>>> workon
+
+println("Pot do datoteke z podatki")
+file = readline()
+
 include(file*".jl")
 println("\n[  Ok  ]  Vnos podatkov")
 
@@ -41,23 +37,14 @@ plotbeams(E,ElementDataIn,VozDataIn)
 println("[  Ok  ]  Risnaje Konstrikcije")
 
 
+println("\n Kako nadaljujem?")
+println("0\t\t-> preklici postopek")
+println("Enter\t\t-> nadaljuj račun")
 
-try 
-	RUN == true
-catch
-
-	println("\n Kako nadaljujem?")
-	println("0\t\t-> preklici postopek")
-	println("Enter\t\t-> nadaljuj račun")
-
-	canc = readline()
-	RUN = canc == "0"
-
-end
-if !(RUN)
+canc = readline()
+if (canc == "0")
 	error("Preklic")
 end
-
 
 
 
