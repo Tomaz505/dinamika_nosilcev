@@ -75,6 +75,23 @@ module NonLinBeam
 
 
 
+<<<<<<< HEAD
+    
+# SPRAVI TA MACRO V MODUL !
+macro assignto(DatVar::Any,ei::Any,Prop::Expr,StrucField::Any)
+    ei = eval(ei)
+    for i in ei
+        eval(
+            Meta.parse(string(eval(DatVar))*"["*string(i)*"]."*string(eval(StrucField))*"="*string(eval(Prop)))
+        )
+    end
+end; 
+
+    function adj_mat(conn::Matrix{Int64},nodes::Matrix{Float64})::Matrix{Int64}
+=======
+
+
+
 
 
 

@@ -14,8 +14,8 @@ elementi::Array{Int64} = [
 
 #   P O D A T K I   R A Č U N A 
 const ti = 0.
-const tf = 2.
-const dt = 0.3
+const tf = 10.
+const dt = 1.0
 const g = 0.0
 
 
@@ -68,17 +68,17 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 # E L E M E N T I
 @assignto :(ElementDataIn) [1] :( [0.0 0.0] ) :(M)
-@assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 17500. 0.; 0. 0. 0.175] ) :(C)
+@assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 17500. 0.; 0. 0. 17500] ) :(C)
 
 
-#@assignto :(ElementDataIn) [1] :(t->[0.0 0.0]) :(pz)
-@assignto :(ElementDataIn) [1] :(t->[0.0001 0.0001]) :(px)
-#@assignto :(ElementDataIn) [1] :(t->[0. 0.]) :(my)
+#@assignto :(ElementDataIn) [1] :(t->[0.0 0.0; 0.0 0.0;0.0 0.0]) :(pz)
+#@assignto :(ElementDataIn) [1] :(t->[0.0 0.0; 0.0 0.0;0.0 0.0]) :(my)
+@assignto :(ElementDataIn) [1] :(t->[0.0001 0.0001]*t) :(my)
 
-#@assignto :(ElementDataIn) [1] :( [-1.; 1.] ) :(div1)
-@assignto :(ElementDataIn) [1] :( [5] ) :(div2)
+@assignto :(ElementDataIn) [1] :( [-1.0; 1.0] ) :(div1)
+@assignto :(ElementDataIn) [1] :( [8] ) :(div2)
 @assignto :(ElementDataIn) [1] :([20] ) :(nInt) 
-#@assignto :(ElementDataIn) [1] :( false ) :(Ci)
+#@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 
 
 #@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,1.,0.]])) :(Ib_geom)
@@ -86,7 +86,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 # V O Z L I Š Č A
-@assignto :(VozDataIn) [1] :( Bool[0, 0, 0] ) :(Supp)
+@assignto :(VozDataIn) [1] :( Bool[0, 0, 1] ) :(Supp)
 #@assignto :(VozDataIn) [1] :( pi/3. ) :(dir)
 
 

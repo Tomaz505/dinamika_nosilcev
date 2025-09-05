@@ -81,8 +81,10 @@ module NonLinBeam
 
 
 
+
+
+
     	function adj_mat(conn::Matrix{Int64},nodes::Matrix{Float64})::Matrix{Int64}
->>>>>>> workon
 		n = size(nodes)[1]
 		m = size(conn)[1]
 

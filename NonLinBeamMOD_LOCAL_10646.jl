@@ -6,83 +6,105 @@ module NonLinBeam
 		plotbeams, adj_mat,randpermute,node_permute
 
 
-    	using LinearAlgebra, Plots
+    using LinearAlgebra, Plots
 
 
     # Struktura podatkov za nosilec
-	abstract type Beam
-	end
-	
-	@kwdef mutable struct BeamDataIn <:Beam
-		v::Vector{Int64} = [1;2] # Vozlišča - krajna
+    abstract type Beam end
+
+    @kwdef mutable struct BeamDataIn <:Beam
+        v::Vector{Int64} = [1;2] # Vozlišča - krajna
+        
 		C::Matrix{Float64} = [1. 0. 0.;0. 1. 0.;0. 0. 1.] #Materialna matrika
-		M::Matrix{Float64} = [1.0 1.0] #Vektor [ρA; ρI]
+        M::Matrix{Float64} = [1.0 1.0] #Vektor [ρA; ρI]
+
 		Ib_geom::Matrix{Float64} = [0.5 0.5; -0.5 0.5] #re_gramschmid(DataIn::Vector{Vector{Float64}})
 		Kb::Matrix{Float64} = Array{Float64,2}(undef,(0,2))
-		px::Function = t->[0. 0.] 
+	
+        px::Function = t->[0. 0.] 
 		pz::Function = t->[0. 0.]
-		my::Function = t->[0. 0.]
-		div1::Array{Float64} = [-1.;1.]
-		div2::Array{Int64} = [5]
-		nInt::Array{Int64} = [20]	
-		Ci::Bool = false	#Zveznost odvodov
-	end 
+        my::Function = t->[0. 0.]
 
+        div1::Array{Float64} = [-1.,1.]
+	#Naj bo vedno med -1 in 1
 
-	struct BeamDataProcess <:Beam
-		L::Vector{Float64} 
+        div2::Array{Int64} = [4]
+	#Številow vozlišč v sekundarni delitvi. Dve sta robni. Int za vsak element.
+
+        nInt::Array{Int64} = [20]
+	#Število integracijskih točk v posameznem div1. Smiselno je približno 3*div2. Ponovno Int za vsak element
+	
+
+		Ci::Bool = false
+	#Ib::Array{Matrix{Float64}} = ... 
+	#Zveznost odvodov
+	#Bi shranil tudi baze
+    end 
+
+	#Li,Pi,Ki,Ib,xi,wi
+    struct BeamDataProcess <:Beam
+        L::Vector{Float64} 
 		p0::Vector{Vector{Float64}}
 		k0::Vector{Vector{Float64}}
-		P::Vector{Matrix{Float64}} #
+        P::Vector{Matrix{Float64}} #
 		pb::Vector{Vector{Float64}}
 		kb::Vector{Vector{Float64}}
-		xInt::Vector{Vector{Float64}}
-		wInt::Vector{Vector{Float64}}
+        xInt::Vector{Vector{Float64}}
+        wInt::Vector{Vector{Float64}} # Jih dejansko rabim s sabo če so v A1,...? Lahko jih poračunam samo lokalno.
 		indx::Vector{Vector{Int64}}
-    	end
+    end
     
 
 
-    	abstract type Node 
-    	end
+    abstract type Node 
+    end
 
-    	@kwdef mutable struct NodeDataIn <:Node
+    @kwdef mutable struct NodeDataIn <:Node
         # te poračuna algoritem
 		x::Float64 = 0.
 		z::Float64 = 0.
 		i::Int64 = 1
+
+	# prilagodi tako, da lahko nastavis drsno pod kotom.
+	# sprostitev v smeri vektorja [x,y] pomeni vezno enačbo
+	# y*ux-x*uy = 0 [ux,uy] je pravokoten na [y,-x]
 		Supp::Array{Bool} = [1, 1, 1]
 		dir::Float64 = 0.
-		#mot::Function t-> [0.; 0.; 0.] #Prisiljeno gibanje vozlišča    
+	# lahko nastaviš številko za rotacijo globalnih koordinat v kateri je ta sprostitev jasna in je potem supp podan za ta rotiran koordinatni sistem. smiselno je le za 0-pi/2
+	# dokler ne urediš vsega naj bo vedno 0.
+	#mot::Function t-> [0.; 0.; 0.] #Prisiljeno gibanje vozlišča    
 	end
 
 
 
-	abstract type Motion
-	end
+    abstract type Motion end
 
-	mutable struct BeamMotion <:Motion
-		ux::Array{Float64}
-		uz::Array{Float64}
-		phi::Array{Float64}
-		vx::Array{Float64}
-		vz::Array{Float64}
-		Omg::Array{Float64}
-	end
-
+    mutable struct BeamMotion <:Motion
+        ux::Array{Float64}
+        uz::Array{Float64}
+        phi::Array{Float64}
+        vx::Array{Float64}
+        vz::Array{Float64}
+        Omg::Array{Float64}
+    end
 
 
 
 
 
 
+    
+# SPRAVI TA MACRO V MODUL !
+macro assignto(DatVar::Any,ei::Any,Prop::Expr,StrucField::Any)
+    ei = eval(ei)
+    for i in ei
+        eval(
+            Meta.parse(string(eval(DatVar))*"["*string(i)*"]."*string(eval(StrucField))*"="*string(eval(Prop)))
+        )
+    end
+end; 
 
-
-
-
-
-    	function adj_mat(conn::Matrix{Int64},nodes::Matrix{Float64})::Matrix{Int64}
->>>>>>> workon
+    function adj_mat(conn::Matrix{Int64},nodes::Matrix{Float64})::Matrix{Int64}
 		n = size(nodes)[1]
 		m = size(conn)[1]
 
@@ -145,35 +167,16 @@ module NonLinBeam
 	
 
 
+    #Funkcija za rotacijo 3-terice za kot a okrov e3
+    function R(a;n = 0)::Matrix{Float64}
+	    # n je stopnja odvoda
+	    return [0. 1. 0.;-1. 0. 0.; 0. 0. 0.]^n * [cos(a) sin(a) 0. ; -sin(a) cos(a) 0. ; 0. 0. 1.]
+    end
 
 
 
 
-
-
-
-
-
-
-
-	#Funkcija za rotacijo 3-terice za kot a okrov e3
-	function R(a;n = 0)::Matrix{Float64}
-		# n je stopnja odvoda
-		return [0. 1. 0.;-1. 0. 0.; 0. 0. 0.]^n * [cos(a) sin(a) 0. ; -sin(a) cos(a) 0. ; 0. 0. 1.]
-	end
-
-
-
-
-    
-	function LobbatoInt(n::Int64)
-		return 1
-	end
-
-
-
-
-	#Funkcija za določitev uteži wi in koordinat xi za gaussovo integracijo
+    #Funkcija za določitev uteži wi in koordinat xi za gaussovo integracijo
     function GaussInt(n::Int64)
         if n<2
             error("Število integracijskih točn naj bo večje od 2. (Vnešena $n)")
@@ -253,7 +256,7 @@ module NonLinBeam
 			n_nodes = maximum(indx[1]) 
 			if elem_dat.Ci
 				for i = 2:n_ke-1
-					indx[i] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div2[i]-1),[n_nodes;n_nodes+elem_dat.div2[i]])
+					indx[i] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div[i]-1),[n_nodes;n_nodes+elem_dat.div2[i]])
 					n_nodes = maximum(indx[i])
 				end
 				indx[n_ke] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div2[n_ke]-2),[elem_dat.v[2]],[n_nodes])
@@ -538,7 +541,7 @@ module NonLinBeam
 		F = fill(Vector{Float64}([0.0;0.0;0.0]),length(ux1))
 		dlF = fill(zeros(Float64,(3,3)),(length(ux1),length(ux1)))
 
-		indx2 = CartesianIndex.((1:length(Ib[:,1]))',(1:length(Ib[:,1])))
+		indx2 = CartesianIndex.((1:length(Ib[:,1])),(1:length(Ib[:,1]))')
 		for i1 = eachindex(xInt)
 			#Poračunaj količine v xg
 			#za čas tn in tn+1
