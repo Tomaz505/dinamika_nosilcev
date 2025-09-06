@@ -3,7 +3,7 @@ module NonLinBeam
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
 		datainit, readdata, dataprocess,
 		R, GaussInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValue,
-		plotbeams, adj_mat,randpermute,node_permute
+		plotbeams, adj_mat,randpermute,node_permute,plotmotion
 
 
     	using LinearAlgebra, Plots
@@ -375,48 +375,82 @@ module NonLinBeam
 
     # Funkcija za skico
 	function plotbeams(EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn})
-    	ne = length(EP)
-    	nv = length(VD)
-    	nke = map(i-> length(ED[i].div2),1:ne)
+		ne = length(EP)
+		nv = length(VD)
+		nke = map(i-> length(ED[i].div2),1:ne)
 
-    	img = plot(;title = "Konstrukcija",aspect_ratio = :equal, xticks = [], yticks = [],yflip = true,xlabel = "x",ylabel = "z")
+		img = plot(;title = "Konstrukcija",aspect_ratio = :equal, xticks = [], yticks = [],yflip = true,xlabel = "x",ylabel = "z")
 
-    	for i1 = 1:ne
-    	node1 = [VD[ED[i1].v[1]].x VD[ED[i1].v[1]].z]
-    	node2 = [VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z]
-    	geom_koeff = vcat(node1,node2,ED[i1].Kb)
-
-
-    	plot!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0); linecolor = :black,labels = :none)
+		for i1 = 1:ne
+			node1 = [VD[ED[i1].v[1]].x VD[ED[i1].v[1]].z]
+			node2 = [VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z]
+			geom_koeff = vcat(node1,node2,ED[i1].Kb)
 
 
-    	annotate!(InterpolValue(0.0,geom_koeff[:,1],ED[i1].Ib_geom),InterpolValue(0.0,geom_koeff[:,2],ED[i1].Ib_geom),("  "*string(i1),8,:black,:left))
-
-    	for i2 = 1:nke[i1]
-    	xs = range( ED[i1].div1[i2],ED[i1].div1[i2+1],length = ED[i1].div2[i2])
-    	scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom),xs),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), xs); m = :circle, markercolor = :cyan,markersize = 4,labels = :none)
-
-    	end
+			plot!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0); linecolor = :black,labels = :none)
 
 
+			annotate!(InterpolValue(0.0,geom_koeff[:,1],ED[i1].Ib_geom),InterpolValue(0.0,geom_koeff[:,2],ED[i1].Ib_geom),("  "*string(i1),8,:black,:left))
 
-    	scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), ED[i1].div1[2:end-1]),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), ED[i1].div1[2:end-1]); m = :circle, markercolor = :limegreen,markersize = 6,labels = :none)
+			for i2 = 1:nke[i1]
+				xs = range( ED[i1].div1[i2],ED[i1].div1[i2+1],length = ED[i1].div2[i2])
+				scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom),xs),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), xs); m = :circle, markercolor = :cyan,markersize = 4,labels = :none)
 
-    	end
+			end
 
 
-    	for i1 = 1:nv
-    	scatter!([VD[i1].x],[VD[i1].z]; m = :circle, markercolor = :red,markersize = 6,labels = :none,series_annotations = [("  "*string(i1),8,:red,:left)])
 
-    	end
+			scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), ED[i1].div1[2:end-1]),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), ED[i1].div1[2:end-1]); m = :circle, markercolor = :limegreen,markersize = 6,labels = :none)
 
-    	scatter!(; xticks = map(i->VD[i].x,1:nv),yticks = map(i->VD[i].z,1:nv))
+		end
 
-    	display(img)
-    	return
+
+		for i1 = 1:nv
+			scatter!([VD[i1].x],[VD[i1].z]; m = :circle, markercolor = :red,markersize = 6,labels = :none,series_annotations = [("  "*string(i1),8,:red,:left)])
+
+		end
+
+		scatter!(; xticks = map(i->VD[i].x,1:nv),yticks = map(i->VD[i].z,1:nv))
+
+		
+		return img
+		
 	end
 
+	function plotmotion(EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},M::BeamMotion)
+		#anim = plot(;aspect_ration =:equal,yflip = true, xlabel = "x", ylabel = "z")
+		ne = length(EP)
+		nke = map(i-> length(ED[i].div2),1:ne)
+		points = 40
+		
+		R0  = map(i1-> map(i2-> vcat(map(x->InterpolValue(x,vcat([VD[ED[i1].v[1]].x VD[ED[i1].v[1]].z],[VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z],ED[i1].Kb),ED[i1].Ib_geom) , range(ED[i1].div1[i2],ED[i1].div1[i2+1],length=points))'...),1:nke[i1]),1:ne)
+		
+		anim = @animate for i1 = 1:size(M.ux)[2]-1
+			for i2 = 1:ne
+				for i3 = 1:nke[i2]
 
+					U = [M.ux[:,i1][EP[i2].indx[i3]] M.uz[:,i1][EP[i2].indx[i3]] M.phi[:,i1][EP[i2].indx[i3]]]
+					dU = vcat(map(xi-> InterpolValue(xi,U[:,1:2],EP[i2].P[i3]), range(-1,1,length=ED[i2].div2[i3]))'...)					
+					
+					# POpravi sin cos če je treba.
+					# Še začetni kot
+					#P = [sin.(U[:,3]) cos.(U[:,3])].*map(i-> norm(dU[i,:]),size(dU)[1])
+					bi = re_gramschmid([collect(range(-1,1,length=ED[i2].div2[i3]))#=,collect(range(-1,1,length=ED[i2].div2[i3]))=#])
+					A = vcat(map(xi-> InterpolValue(xi,U[:,1:2]#=vcat(U[:,1:2],P)=#,bi),range(-1,1,length=points))'...)
+					display(A)
+
+					R = R0[i2][i3]+A
+					plot(R[:,1],R[:,2]; label = false,linecolor = :black,yflip = true)
+				end
+			end
+		end
+
+
+		gif(anim,"in/gif.gif",fps = 1)				 
+		return 	
+
+
+	end
 
 
 
@@ -479,9 +513,14 @@ module NonLinBeam
 
 
 
+	function InterpolValue(x::Float64,Kb::Matrix{Float64},Ib::Matrix{Float64};n::Int64=0)::Vector{Float64}
+		Df = diagm(1 => 1. : size(Kb)[1]-1.)^n
+		f = (Df*Ib*Kb)'*x.^(0:size(Kb)[1]-1)
+		return f
+	end
 	#Funkcije za izvrednotenje linearne kombinacije ali polinom sam
 	function InterpolValue(x::Float64,Kb::Vector{Float64},Ib::Matrix{Float64};n::Int64=0)::Float64
-		Df = diagm(1 => 1. :length(Kb)-1.)^n
+		Df = diagm(1 => 1. : length(Kb)-1.)^n
 		f = (Df*Ib*Kb)'*x.^(0:length(Kb)-1)
 		return f
 	end

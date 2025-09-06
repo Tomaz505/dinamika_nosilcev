@@ -1,10 +1,7 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
 
-
 println("Pot do datoteke z podatki")
-file = readline()
-
-include(file*".jl")
+include(readline()*".jl")
 println("\n[  Ok  ]  Vnos podatkov")
 
 
@@ -33,16 +30,16 @@ println("[  Ok  ]  Procesiranje podatkov")
 
 
 #   P L O T
-plotbeams(E,ElementDataIn,VozDataIn)
+konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
+display(konstr_img)
+
 println("[  Ok  ]  Risnaje Konstrikcije")
 
 
 println("\n Kako nadaljujem?")
 println("0\t\t-> preklici postopek")
 println("Enter\t\t-> nadaljuj račun")
-
-canc = readline()
-if (canc == "0")
+if (readline() == "0")
 	error("Preklic")
 end
 
@@ -55,9 +52,6 @@ end
 
 
 
-#   P O D A T K I   I T R A C I J S K E G A   P O S T O P K A
-# Tole spravi v data.txt
-#
 
 t = collect(ti:dt:tf)
 n_time = length(t)
@@ -90,7 +84,9 @@ for i_time in 2:n_time-1
 	println("i_time = ",i_time,"\t\tt = ",t[i_time])
 	println()
 
-	while norm(Dv) > 10.0^-10
+	count::Int64 = 0
+	while norm(Dv) > 10.0^-10 && count < 50
+		count += 1
 		# Tangentna in rezidual v eni matriki
 		Ja = spzeros(Float64,3*n_nodes,3*n_nodes)
 		Re = zeros(Float64,3*n_nodes,1)
