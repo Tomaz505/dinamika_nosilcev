@@ -1,7 +1,7 @@
 module NonLinBeam
     
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
-		datainit, readdata, dataprocess,
+		datainit, dataprocess,
 		R, GaussInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValue,
 		plotbeams, adj_mat,randpermute,node_permute,plotmotion
 
@@ -150,6 +150,14 @@ module NonLinBeam
 
 
 
+
+
+
+
+
+
+
+
 	#Funkcija za rotacijo 3-terice za kot a okrov e3
 	function R(a;n = 0)::Matrix{Float64}
 		# n je stopnja odvoda
@@ -168,26 +176,42 @@ module NonLinBeam
 
 
 	#Funkcija za določitev uteži wi in koordinat xi za gaussovo integracijo
-    function GaussInt(n::Int64)
-        if n<2
-            error("Število integracijskih točn naj bo večje od 2. (Vnešena $n)")
-        end
+    function GaussInt(n::Int64;mtd = "gauss")
 
-        b = map( i-> (i+1)/(((2*i+1)*(2*i+3))^0.5 ),0:n-2)
+	if mtd == "gauss"
+        	b = map( i-> (i+1)/(((2*i+1)*(2*i+3))^0.5 ),0:n-2)
+	elseif mtd == "lobatto"
+		b = map( i1->  i1/(2*i1+3)*(i1+2)/(2*i1+1), 1:n-1).^0.5
+	end
+        		
         K = diagm(1=>b,-1=>b)
         E = eigen(K)
 
-        wg = E.vectors[1,:].^2*2
-        xg = E.values
+	if mtd == "gauss"
+        	
+		xg = E.values
+		wg = E.vectors[1,:].^2*2
+
+	elseif mtd == "lobatto"
+		
+		xg = E.values
+		P = [[1.0],[0.0,1.0]]
+		bI = map( i-> (i+1)^2.0/(((2*i+1)*(2*i+3)) ),0:n-1)
+			
+		for i = 1:n
+			P = [P[2],vcat([0],P[2])-bI[i]*vcat(P[1],[0.0;0.0])]	
+		end
+		wg = 2.0./((n+2)*(n+1)*map(xi->sum(P[2].*(xi.^(0:(length(P[2])-1))))^2,xg))
+		wg = vcat(2.0/((n+1)*(n+2)),wg,2/((n+1)*(n+2)))
+		wg[2:end-1] = (2-2*wg[1])/sum(wg[2:end-1])*wg[2:end-1]
+		xg = vcat(-1.0,xg,1.0)
+	end
 
         return xg,wg
     end
-    function GaussInt(n::Array{Int64})
-        if any(n.<2)
-            error("Število integracijskih točn naj bo večje od 2. (Vnešena $n)")
-        end
+    function GaussInt(n::Array{Int64};mtd = "gauss")
 
-        b = map.( i-> (i+1)/(((2*i+1)*(2*i+3))^0.5 ), collect.(range.(0,n.-2)))
+       	b = map.( i-> (i+1)/(((2*i+1)*(2*i+3))^0.5 ), collect.(range.(0,n.-2)))
         K = map(k ->diagm(1=>k,-1=>k),b)
         E = eigen.(K)
 
@@ -350,25 +374,15 @@ module NonLinBeam
 		return BeamDataProcess(Li,Pi,Ki,Ib,Pb,Kb,xg,wg,indx), n_nodes	
 	end
 
-	# Funkcija za branje datoteka z podatki
-	function readdata(file::String)::Tuple{String,String,Array{String}}
-
-		if isempty(findall(".txt",file))
-			file = file*".txt"
-		end
-
-		data = readlines(file)
-		data = data[setdiff(1:length(data),findall(sizeof.(data).==0))]
-		data = data[findall(isempty.(findall.("#",replace.(data,"\t"=>""))))]
 
 
-		data1 = data[1:findfirst(isempty.(findall.("elementi::Array",data)).==0) - 1]
-		data2 = data[(length(data1)+1):findfirst(isempty.(findall.("@assignto",data)).==0)-1]
-		data1 = prod(data1)
-		data2 = prod(data2)
-		data3 = data[setdiff(1:length(data),findall(isempty.(findall.("@assignto",data))))]
-		return data1,data2,data3
-    end #readdata
+
+
+
+
+
+
+
 
 
 
@@ -421,9 +435,11 @@ module NonLinBeam
 		#anim = plot(;aspect_ration =:equal,yflip = true, xlabel = "x", ylabel = "z")
 		ne = length(EP)
 		nke = map(i-> length(ED[i].div2),1:ne)
-		points = 40
+		points = 100
 		
 		R0  = map(i1-> map(i2-> vcat(map(x->InterpolValue(x,vcat([VD[ED[i1].v[1]].x VD[ED[i1].v[1]].z],[VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z],ED[i1].Kb),ED[i1].Ib_geom) , range(ED[i1].div1[i2],ED[i1].div1[i2+1],length=points))'...),1:nke[i1]),1:ne)
+		dR = map(i1-> map(i2-> vcat(map(x->InterpolValue(x,vcat([VD[ED[i1].v[1]].x VD[ED[i1].v[1]].z],[VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z],ED[i1].Kb),ED[i1].Ib_geom;n=1) , range(ED[i1].div1[i2],ED[i1].div1[i2+1],length=ED[i1].div2[i1]))'...),1:nke[i1]),1:ne)
+		
 		
 		anim = @animate for i1 = 1:size(M.ux)[2]-1
 			for i2 = 1:ne
@@ -434,10 +450,15 @@ module NonLinBeam
 					
 					# POpravi sin cos če je treba.
 					# Še začetni kot
-					#P = [sin.(U[:,3]) cos.(U[:,3])].*map(i-> norm(dU[i,:]),size(dU)[1])
-					bi = re_gramschmid([collect(range(-1,1,length=ED[i2].div2[i3]))#=,collect(range(-1,1,length=ED[i2].div2[i3]))=#])
-					A = vcat(map(xi-> InterpolValue(xi,U[:,1:2]#=vcat(U[:,1:2],P)=#,bi),range(-1,1,length=points))'...)
-					display(A)
+					
+					p = -map(a -> atan(dR[i2][i3][a,2],dR[i2][i3][a,1]),1:size(dR[i2][i3])[1])
+					
+
+					P = [sin.(U[:,3]+p) cos.(U[:,3]+p)].*map(i-> norm(dU[i,:]),size(dU)[1])
+					display(P)	
+					bi = re_gramschmid([collect(range(-1,1,length=ED[i2].div2[i3])),collect(range(-1,1,length=ED[i2].div2[i3]))])
+					A = vcat(map(xi-> InterpolValue(xi,vcat(U[:,1:2],P),bi),range(-1,1,length=points))'...)
+					
 
 					R = R0[i2][i3]+A
 					plot(R[:,1],R[:,2]; label = false,linecolor = :black,yflip = true)
