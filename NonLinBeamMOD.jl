@@ -356,7 +356,8 @@ module NonLinBeam
 		gif(anim,"in/gif.gif",fps = 1)				 
 		return 	
 	end
-
+	#
+	# A N I M A C I J A
 	function plotVar(M::BeamMotion,EP::BeamDataProcess,ED::BeamDataIn,var::String = "U",comp::String = "z")
 
 		var_dict = Dict("U"=>1,"V"=>2,"dU"=>3,"dV"=>4,"E"=>5,"N"=>6,"Re"=>7)
@@ -366,23 +367,26 @@ module NonLinBeam
 			plot(;yflip = true)
 
 			for i2 = 1:length(EP.P)
-				plot!(EP.xInt[i2],map(i3->VarsAtX(EP.xInt[i2][i3],M.ux[EP.indx[i2],i1], M.uz[EP.indx[i2],i1], M.phi[EP.indx[i2],i1], M.vx[EP.indx[i2],i1], M.vz[EP.indx[i2],i1], M.Omg[EP.indx[i2],i1],EP.P[i2],EP.p0[i2][i3],EP.k0[i2][i3],ED.C )[get(var_dict,var,1)][get(comp_dict,comp,1)],eachindex(EP.xInt[i2])),line_color = :balck)
+				xrange = sum(EP.L[1:i2-1]) .+ (EP.xInt[i2].+1)/2*EP.L[i2]
+				plot!(xrange,map(i3->VarsAtX(EP.xInt[i2][i3],M.ux[EP.indx[i2],i1], M.uz[EP.indx[i2],i1], M.phi[EP.indx[i2],i1], M.vx[EP.indx[i2],i1], M.vz[EP.indx[i2],i1], M.Omg[EP.indx[i2],i1],EP.P[i2],EP.p0[i2][i3],EP.k0[i2][i3],ED.C )[get(var_dict,var,1)][get(comp_dict,comp,1)],eachindex(EP.xInt[i2])),line_color = :balck)
 			end
 		end
 		return anim
 	end
-
+	#
+	# F R A M E
 	function plotVar(ti::Int64,M::BeamMotion,EP::BeamDataProcess,ED::BeamDataIn,var::String = "U",comp::String = "z")
 
 		var_dict = Dict("U"=>1,"V"=>2,"dU"=>3,"dV"=>4,"E"=>5,"N"=>6,"Re"=>7)
 		comp_dict = Dict("x"=>1,"z"=>2,"y"=>3)
-		
-		
-		plt = plot(;yflip = true)
+			
+		plt = plot()
 		i1 = ti
 
 		for i2 = 1:length(EP.P)
-				plot!(EP.xInt[i2].-1.0.+2.0*i2,map(i3->VarsAtX(EP.xInt[i2][i3],M.ux[EP.indx[i2],i1], M.uz[EP.indx[i2],i1], M.phi[EP.indx[i2],i1], M.vx[EP.indx[i2],i1], M.vz[EP.indx[i2],i1], M.Omg[EP.indx[i2],i1],EP.P[i2],EP.p0[i2][i3],EP.k0[i2][i3],ED.C )[get(var_dict,var,1)][get(comp_dict,comp,1)],eachindex(EP.xInt[i2])),color = :black,label = false)
+			xrange = sum(EP.L[1:i2-1]) .+ (EP.xInt[i2].+1)/2*EP.L[i2]
+
+			plot!(xrange,map(i3->VarsAtX(EP.xInt[i2][i3],M.ux[EP.indx[i2],i1], M.uz[EP.indx[i2],i1], M.phi[EP.indx[i2],i1], M.vx[EP.indx[i2],i1], M.vz[EP.indx[i2],i1], M.Omg[EP.indx[i2],i1],EP.P[i2],EP.p0[i2][i3],EP.k0[i2][i3],ED.C )[get(var_dict,var,1)][get(comp_dict,comp,1)],eachindex(EP.xInt[i2])),color = :black,label = false)
 		end
 		display(plt)
 		return plt
@@ -410,7 +414,7 @@ module NonLinBeam
 		D = dU+[cos(p0); sin(p0); 0.0]
 		E = R(U[3]+p0)*D+[-1.0;0.0;-k0]
 		N = C*E
-		Re = R(U[3]+p0)'* C* E
+		Re = R(U[3]+p0)'*N
 		
 		# (dlPhi , dlD)
 		#dlRe = ( R(U[3]+p0;n=1)'*C*E + R(U[3]+p0)'*C*R(U[3]+p0;n=1)*D, R(U[3]+p0)'*C*R(U[3]+p0) )

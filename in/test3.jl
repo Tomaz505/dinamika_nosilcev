@@ -69,15 +69,15 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 # E L E M E N T I
-@assignto :(ElementDataIn) [1] :( [0.0 0.0;0.0 0.0;0.0 0.0] ) :(M)
+@assignto :(ElementDataIn) [1] :( [1.0 1.0;1.0 1.0;1.0 1.0] ) :(M)
 @assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 17500. 0.; 0. 0. 17500.] ) :(C)
 
 
 @assignto :(ElementDataIn) [1] :(t->[0.0 0.0; 0.0 0.0;0.0 0.0]) :(pz)
 @assignto :(ElementDataIn) [1] :(t->[0.0 0.0; 0.0 0.0;0.0 0.0]) :(px)
-@assignto :(ElementDataIn) [1] :(t->[0.0001 0.0001;0.0001 0.0001;0.0001 0.0001]) :(my)
+@assignto :(ElementDataIn) [1] :(t->[0.0001 0.0001;0.0001 0.0001;0.0001 0.0001]*Int(t<15)) :(my)
 
-@assignto :(ElementDataIn) [1] :( [-1.0;-0.5;0.5; 1.0] ) :(div1)
+@assignto :(ElementDataIn) [1] :( [-1.0;-0.3333;0.3333; 1.0] ) :(div1)
 @assignto :(ElementDataIn) [1] :( [6,6,6] ) :(div2)
 @assignto :(ElementDataIn) [1] :([25,25,25] ) :(nInt) 
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
