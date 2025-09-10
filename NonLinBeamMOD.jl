@@ -1,18 +1,31 @@
 module NonLinBeam
-    
+	
+
+
+
+
+	# E K S P O R T
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
 		datainit, dataprocess,
-		R, GaussInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValue,
-		plotbeams, adj_mat,randpermute,node_permute,plotmotion
-
-
+		R, QuadInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValue,
+		plotbeams, adj_mat,randpermute,node_permute,plotmotion,plotVar
+	#
+	#
+	#
+	#
+	#
+	# M O D U L I
     	using LinearAlgebra, Plots
-
-
-    # Struktura podatkov za nosilec
+    	#
+	#
+	#
+	#
+	#
+	# E L E M E N T
 	abstract type Beam
 	end
-	
+	#
+	# V N E Š E N I   P O D A T K I   N O S I L C A
 	@kwdef mutable struct BeamDataIn <:Beam
 		v::Vector{Int64} = [1;2] # Vozlišča - krajna
 		C::Matrix{Float64} = [1. 0. 0.;0. 1. 0.;0. 0. 1.] #Materialna matrika
@@ -27,8 +40,8 @@ module NonLinBeam
 		nInt::Array{Int64} = [20]	
 		Ci::Bool = false	#Zveznost odvodov
 	end 
-
-
+	#
+	# P R O C E S I R A N I   P O D A T K I  N O S I L C A
 	struct BeamDataProcess <:Beam
 		L::Vector{Float64} 
 		p0::Vector{Vector{Float64}}
@@ -40,12 +53,16 @@ module NonLinBeam
 		wInt::Vector{Vector{Float64}}
 		indx::Vector{Vector{Int64}}
     	end
-    
-
-
+	#
+	#
+	#
+	#
+	#
+	# V O Z L I Š Č A
     	abstract type Node 
     	end
-
+	#
+	# V N E Š E N I   P O D A T K O I   V O Z L I Š Č A
     	@kwdef mutable struct NodeDataIn <:Node
         # te poračuna algoritem
 		x::Float64 = 0.
@@ -55,12 +72,16 @@ module NonLinBeam
 		dir::Float64 = 0.
 		#mot::Function t-> [0.; 0.; 0.] #Prisiljeno gibanje vozlišča    
 	end
-
-
-
+	#
+	#
+	#
+	#
+	#
+	# G I B A N J E
 	abstract type Motion
 	end
-
+	#
+	# R E Z U L T A T I
 	mutable struct BeamMotion <:Motion
 		ux::Array{Float64}
 		uz::Array{Float64}
@@ -81,70 +102,6 @@ module NonLinBeam
 
 
 
-    	function adj_mat(conn::Matrix{Int64},nodes::Matrix{Float64})::Matrix{Int64}
-		n = size(nodes)[1]
-		m = size(conn)[1]
-
-		A = zeros(Int64,(n,n))
-			
-		for i=1:m	
-			A[conn[i,1],conn[i,2]] = A[conn[i,2],conn[i,1]] = 1
-		end
-		return A
-	end
-
-	function randpermute(n::Int64)
-		indx  = collect(1:n)
-		P = Matrix(I,(n,n))
-		P2 = copy(P)
-				
-		for i= eachindex(indx)
-			c = rand(indx)
-			P[:,i] = P2[:,c]
-			popat!(indx,findfirst(indx .== c))
-		end
-		return P
-	end
-
-	function node_permute(conn::Matrix{Int64},nodes::Matrix{Float64})
-		m = size(nodes)[1]
-		n = size(conn)[1]
-
-		A = adj_mat(conn,nodes)
-		P = Matrix(I,(m,m))
-		
-		indx = collect(1:m)
-		n_diag = maximum(map(ij-> A[ij] == 0 ? 0 : abs(ij[1]-ij[2]),CartesianIndex.((1:m)',1:m)))
-
-		c = 1
-	  	while c < 10
-			P2 = randpermute(m)
-			A2 = adj_mat((P2*indx)[conn],P2*nodes)
-			n_diag2 = maximum(map(ij -> A2[ij] == 0 ? 0 : abs(ij[1]-ij[2]), CartesianIndex.((1:m)',1:m)))	
-		
-			if n_diag2 < n_diag
-				A = A2
-				n_diag = n_diag2
-				P = P2
-				c = 1
-			else
-				c += 1
-			end
-			if n_diag == 1
-				break
-			end
-		end
-
-		nodes = P'*nodes
-		conn = (P*indx)[conn]
-		
-		return conn,nodes
-
-	end
-	
-
-
-
 
 
 
@@ -159,67 +116,12 @@ module NonLinBeam
 
 
 	#Funkcija za rotacijo 3-terice za kot a okrov e3
-	function R(a;n = 0)::Matrix{Float64}
+	function R(a::Float64;n = 0)::Matrix{Float64}
 		# n je stopnja odvoda
 		return [0. 1. 0.;-1. 0. 0.; 0. 0. 0.]^n * [cos(a) sin(a) 0. ; -sin(a) cos(a) 0. ; 0. 0. 1.]
 	end
 
 
-
-
-    
-	function LobbatoInt(n::Int64)
-		return 1
-	end
-
-
-
-
-	#Funkcija za določitev uteži wi in koordinat xi za gaussovo integracijo
-    function GaussInt(n::Int64;mtd = "gauss")
-
-	if mtd == "gauss"
-        	b = map( i-> (i+1)/(((2*i+1)*(2*i+3))^0.5 ),0:n-2)
-	elseif mtd == "lobatto"
-		b = map( i1->  i1/(2*i1+3)*(i1+2)/(2*i1+1), 1:n-1).^0.5
-	end
-        		
-        K = diagm(1=>b,-1=>b)
-        E = eigen(K)
-
-	if mtd == "gauss"
-        	
-		xg = E.values
-		wg = E.vectors[1,:].^2*2
-
-	elseif mtd == "lobatto"
-		
-		xg = E.values
-		P = [[1.0],[0.0,1.0]]
-		bI = map( i-> (i+1)^2.0/(((2*i+1)*(2*i+3)) ),0:n-1)
-			
-		for i = 1:n
-			P = [P[2],vcat([0],P[2])-bI[i]*vcat(P[1],[0.0;0.0])]	
-		end
-		wg = 2.0./((n+2)*(n+1)*map(xi->sum(P[2].*(xi.^(0:(length(P[2])-1))))^2,xg))
-		wg = vcat(2.0/((n+1)*(n+2)),wg,2/((n+1)*(n+2)))
-		wg[2:end-1] = (2-2*wg[1])/sum(wg[2:end-1])*wg[2:end-1]
-		xg = vcat(-1.0,xg,1.0)
-	end
-
-        return xg,wg
-    end
-    function GaussInt(n::Array{Int64};mtd = "gauss")
-
-       	b = map.( i-> (i+1)/(((2*i+1)*(2*i+3))^0.5 ), collect.(range.(0,n.-2)))
-        K = map(k ->diagm(1=>k,-1=>k),b)
-        E = eigen.(K)
-
-        wg = map(k->E[k].vectors[1,:].^2*2,1:length(n))
-        xg = map(k->E[k].values,1:length(n))
-
-        return xg,wg
-    end
 
 
 
@@ -247,11 +149,13 @@ module NonLinBeam
 		return n_elem,n_voz,element_data,voz_data
 	end #datainit
 
-	function dataprocess(elem_dat::BeamDataIn,node_dat::Array{NodeDataIn},n_nodes::Int64)::Tuple{BeamDataProcess,Int64}
+	function dataprocess(elem_dat::BeamDataIn,node_dat::Array{NodeDataIn},n_nodes::Int64;intmtd::String = "gauss")::Tuple{BeamDataProcess,Int64}
+		
 		node1 = [node_dat[1].x node_dat[1].z]
 		node2 = [node_dat[2].x node_dat[2].z]
 		n_ke = length(elem_dat.div1)-1
 		indx = fill(Vector{Int64}([]),n_ke)
+
 		if n_ke ==1
 			indx[1] = vcat([elem_dat.v[1]],collect(n_nodes+1:n_nodes-2+elem_dat.div2[1]),[elem_dat.v[2]])
 			n_nodes = maximum(indx[1])
@@ -286,31 +190,15 @@ module NonLinBeam
 				n_nodes = maximum(indx[n_ke])
 			end
 		end
-			
-
-			
-		
-		
 
 		#koeficienti razoja geometrije
 		geom_koeff = vcat(node1,node2,elem_dat.Kb)
 		#vektor koeficientov polinoma za x in y
-
-
-
 		f_geom = sum(map( i -> elem_dat.Ib_geom[:,i].*geom_koeff[i,:]',1:size(elem_dat.Ib_geom)[1]))
-		#diff operator za geometrijo
-
-
-
-		
+		#diff operator za geometrijo	
 		Df_geom = diagm(1=>1:length(geom_koeff[:,1])-1)
-
-
-
-		
-
 		#koeficienti razoja geometrije
+		#
 		Ki = fill(Vector{Float64}([]),n_ke)
 		Pi = fill(Vector{Float64}([]),n_ke)
 		xg = fill(Vector{Float64}([]),n_ke)
@@ -343,13 +231,16 @@ module NonLinBeam
 		#koeficienti razoja geometrije
 		for i = 1:n_ke
 
-			xg[i],wg[i] = GaussInt(elem_dat.nInt[i])
+			xg[i],wg[i] = QuadInt(elem_dat.nInt[i];mtd = intmtd)
 
 			x_trans = vcat([elem_dat.div1[i] ; elem_dat.div1[i+1]],xg[i]/2. *(elem_dat.div1[i+1]-elem_dat.div1[i]).+(elem_dat.div1[i+1]+elem_dat.div1[i])/2.)
 
 			D1_vec = map(x->sum((Df_geom*f_geom).*(x.^(0:length(geom_koeff[:,1])-1)),dims = 1),x_trans)
+			#D1_vec = map(x-> InterpolValue(x,geom_koeff,elem_dat.Ib_geom;n=1),x_trans)
 			D2_vec =  map(x->sum(((Df_geom^2)*f_geom).*(x.^(0:length(geom_koeff[:,1])-1)),dims = 1),x_trans) 
-			
+			#D2_vec = map(x-> InterpolValue(x,geom_koeff,elem_dat.Ib_geom;n=2),x_trans)
+
+
 			Pi[i] = -map(v-> atan(v[2],v[1]),D1_vec)
 			Ki[i] = map((v1,v2)-> abs(det([v1;v2]))/norm(v1)^3,D1_vec,D2_vec)		
 			
@@ -395,14 +286,12 @@ module NonLinBeam
 
 		img = plot(;title = "Konstrukcija",aspect_ratio = :equal, xticks = [], yticks = [],yflip = true,xlabel = "x",ylabel = "z")
 
+		scatter!(; xticks = map(i->VD[i].x,1:nv),yticks = map(i->VD[i].z,1:nv))
+
 		for i1 = 1:ne
 			node1 = [VD[ED[i1].v[1]].x VD[ED[i1].v[1]].z]
 			node2 = [VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z]
 			geom_koeff = vcat(node1,node2,ED[i1].Kb)
-
-
-			plot!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0); linecolor = :black,labels = :none)
-
 
 			annotate!(InterpolValue(0.0,geom_koeff[:,1],ED[i1].Ib_geom),InterpolValue(0.0,geom_koeff[:,2],ED[i1].Ib_geom),("  "*string(i1),8,:black,:left))
 
@@ -415,21 +304,18 @@ module NonLinBeam
 
 
 			scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), ED[i1].div1[2:end-1]),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), ED[i1].div1[2:end-1]); m = :circle, markercolor = :limegreen,markersize = 6,labels = :none)
-
+			plot!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0); linecolor = :black,labels = :none)
 		end
-
+		
 
 		for i1 = 1:nv
 			scatter!([VD[i1].x],[VD[i1].z]; m = :circle, markercolor = :red,markersize = 6,labels = :none,series_annotations = [("  "*string(i1),8,:red,:left)])
 
 		end
 
-		scatter!(; xticks = map(i->VD[i].x,1:nv),yticks = map(i->VD[i].z,1:nv))
-
-		
-		return img
-		
+		return img	
 	end
+
 
 	function plotmotion(EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},M::BeamMotion)
 		#anim = plot(;aspect_ration =:equal,yflip = true, xlabel = "x", ylabel = "z")
@@ -469,64 +355,37 @@ module NonLinBeam
 
 		gif(anim,"in/gif.gif",fps = 1)				 
 		return 	
-
-
 	end
 
+	function plotVar(M::BeamMotion,EP::BeamDataProcess,ED::BeamDataIn,var::String = "U",comp::String = "z")
 
+		var_dict = Dict("U"=>1,"V"=>2,"dU"=>3,"dV"=>4,"E"=>5,"N"=>6,"Re"=>7)
+		comp_dict = Dict("x"=>1,"z"=>2,"y"=>3)
 
+		anim = @animate for i1 = 1:size(M.ux)[2]
+			plot(;yflip = true)
 
-	# Funkcije za interpolacijsko bazo	
-    function DotP(a::Array{Float64},DataIn::Vector{Vector{Float64}})
-        	m = length(DataIn)
-       	 	n = sum(length.(DataIn))-1
-		#Diferencialni operator
-        	Dp = diagm(1=>1:n)
+			for i2 = 1:length(EP.P)
+				plot!(EP.xInt[i2],map(i3->VarsAtX(EP.xInt[i2][i3],M.ux[EP.indx[i2],i1], M.uz[EP.indx[i2],i1], M.phi[EP.indx[i2],i1], M.vx[EP.indx[i2],i1], M.vz[EP.indx[i2],i1], M.Omg[EP.indx[i2],i1],EP.P[i2],EP.p0[i2][i3],EP.k0[i2][i3],ED.C )[get(var_dict,var,1)][get(comp_dict,comp,1)],eachindex(EP.xInt[i2])),line_color = :balck)
+			end
+		end
+		return anim
+	end
+
+	function plotVar(ti::Int64,M::BeamMotion,EP::BeamDataProcess,ED::BeamDataIn,var::String = "U",comp::String = "z")
+
+		var_dict = Dict("U"=>1,"V"=>2,"dU"=>3,"dV"=>4,"E"=>5,"N"=>6,"Re"=>7)
+		comp_dict = Dict("x"=>1,"z"=>2,"y"=>3)
 		
-		#Seznam funkcijskih vrednosti polinoma glede na DataIn
-        	b = vcat(map( (A,i) -> (((Dp^i)*a)'* (A'.^(0:n)) )' ,DataIn,0:(m-1))...)
-        	return b
-    end
-	function DotP(a::Array{Float64},b::Array{Float64},DataIn::Vector{Vector{Float64}})
-		#Skalarni produkt vektorjev iz DotP(a,A)
-		return DotP(a::Array{Float64},DataIn::Vector{Vector{Float64}})'*DotP(b::Array{Float64},DataIn::Vector{Vector{Float64}})
-	end
-	function gramschmid(DataIn::Vector{Vector{Float64}}; B0::Union{Array{Float64},Int64} = 1)
-        	n::Int64 = sum(length.(DataIn))-1
-        	
-		#Standardna baza        
-       	 	Id = Matrix{Float64}(I,n+1,n+1);
-
-		#Re-ortogoanalizacija
-        	if typeof(B0) == Int64 
-		    B0::Array{Float64} = copy(Id)
-		end
-
-		#Diferencialni operator
-		Dp::Array{Float64} = diagm(1=>Float64.(1:n))
-
-		#Skalarni produkti standardne baze + normiranje
-		ei = B0./sqrt.(DotP(B0,B0,DataIn)[CartesianIndex.(1:n+1,1:n+1)])
-
-		#Ortogonalizacija
-		bi = copy(ei);
-		for i1 = 2:n+1
-		    c1 =ei[:,i1] - sum(DotP(ei[:,i1],bi[:,1:i1-1],DataIn) .*bi[:,1:i1-1],dims=2)[:,1]
-		    bi[:,i1] = c1/sqrt(DotP(c1,c1,DataIn)[1])
-		end
 		
-		#Interpolacija
-		Ib = hcat(map(i-> round.(sum(DotP(bi,DataIn)[i,:]'.*bi,dims=2),digits = 13) ,1:n+1)...)
+		plt = plot(;yflip = true)
+		i1 = ti
 
-		return Ib,n,Dp,bi
-	end
-	function re_gramschmid(DataIn::Vector{Vector{Float64}})
-		bi = gramschmid(DataIn)[4]
-		bi = gramschmid(DataIn;B0 = bi)[1]
-		if all(bi[end,:].<10^(-13))
-			error("Interpolacijska baza ne obstaja")
+		for i2 = 1:length(EP.P)
+				plot!(EP.xInt[i2].-1.0.+2.0*i2,map(i3->VarsAtX(EP.xInt[i2][i3],M.ux[EP.indx[i2],i1], M.uz[EP.indx[i2],i1], M.phi[EP.indx[i2],i1], M.vx[EP.indx[i2],i1], M.vz[EP.indx[i2],i1], M.Omg[EP.indx[i2],i1],EP.P[i2],EP.p0[i2][i3],EP.k0[i2][i3],ED.C )[get(var_dict,var,1)][get(comp_dict,comp,1)],eachindex(EP.xInt[i2])),color = :black,label = false)
 		end
-		return bi
+		display(plt)
+		return plt
 	end
 
 
@@ -534,29 +393,11 @@ module NonLinBeam
 
 
 
-	function InterpolValue(x::Float64,Kb::Matrix{Float64},Ib::Matrix{Float64};n::Int64=0)::Vector{Float64}
-		Df = diagm(1 => 1. : size(Kb)[1]-1.)^n
-		f = (Df*Ib*Kb)'*x.^(0:size(Kb)[1]-1)
-		return f
-	end
-	#Funkcije za izvrednotenje linearne kombinacije ali polinom sam
-	function InterpolValue(x::Float64,Kb::Vector{Float64},Ib::Matrix{Float64};n::Int64=0)::Float64
-		Df = diagm(1 => 1. : length(Kb)-1.)^n
-		f = (Df*Ib*Kb)'*x.^(0:length(Kb)-1)
-		return f
-	end
-	function PolyValue(x::Float64,Ki::Vector{Float64};n::Int64 = 0)
-		m = length(Ki)
-		a = n
-		f = InterpolValue(x,Ki,Matrix{Float64}(I,(m,m)); n = a)
-		return f
-	end
-	
 
 
 
 
-	#Funkcija za račun količin v integracijskih točkah nosilca
+	#Funkcija za račun količin v izbranih točkah nosilca
 	function VarsAtX(x::Float64,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},omg::Array{Float64},Ib::Matrix{Float64},p0::Float64,k0::Float64,C::Matrix{Float64})
 
 		U = map(qi -> InterpolValue(x,qi,Ib),[ux,uz,phi])	
@@ -569,12 +410,11 @@ module NonLinBeam
 		D = dU+[cos(p0); sin(p0); 0.0]
 		E = R(U[3]+p0)*D+[-1.0;0.0;-k0]
 		N = C*E
-		#Re = R(U[3]+p0)'* C* E
+		Re = R(U[3]+p0)'* C* E
 		
 		# (dlPhi , dlD)
 		#dlRe = ( R(U[3]+p0;n=1)'*C*E + R(U[3]+p0)'*C*R(U[3]+p0;n=1)*D, R(U[3]+p0)'*C*R(U[3]+p0) )
-		return U,V,dU,dV,E,N
-		
+		return U,V,dU,dV,E,N,Re
 	end
 	
 
@@ -726,5 +566,218 @@ module NonLinBeam
 
 	end
 
+
+
+
+
+#	 A L G O R I T M I:
+#
+#
+#		- I N T E R P O L A C I J S K A   	B A Z A
+#
+#		- N U M E R I Č N A   			I N T E G R A C I J A
+#
+#		- I Z V R E D N O T E N J E   		I N T E R P O L A C I J E
+#
+#		- P E R M U T A C I R A N J E 		V O Z L I Š Č			G R A F A
+	
+	
+	
+	
+	
+	# V E K T O R   V R E D N O S T I   B A Z E
+    	function DotP(a::Array{Float64},DataIn::Vector{Vector{Float64}})
+        	m = length(DataIn)
+       	 	n = sum(length.(DataIn))-1
+		#Diferencialni operator
+        	Dp = diagm(1=>1:n)
+		
+		#Seznam funkcijskih vrednosti polinoma glede na DataIn
+        	b = vcat(map( (A,i) -> (((Dp^i)*a)'* (A'.^(0:n)) )' ,DataIn,0:(m-1))...)
+        	return b
+    	end
+	#
+	# S K A L A R N I   P R O D U K T
+	function DotP(a::Array{Float64},b::Array{Float64},DataIn::Vector{Vector{Float64}})
+		#Skalarni produkt vektorjev iz DotP(a,A)
+		return DotP(a::Array{Float64},DataIn::Vector{Vector{Float64}})'*DotP(b::Array{Float64},DataIn::Vector{Vector{Float64}})
+	end
+	#
+	# O R T O G O N A L I Z A C I J A
+	function gramschmid(DataIn::Vector{Vector{Float64}}; B0::Union{Array{Float64},Int64} = 1)
+        	n::Int64 = sum(length.(DataIn))-1
+        	
+		#Standardna baza        
+       	 	Id = Matrix{Float64}(I,n+1,n+1);
+
+		#Re-ortogoanalizacija
+        	if typeof(B0) == Int64 
+		    B0::Array{Float64} = copy(Id)
+		end
+
+		#Diferencialni operator
+		Dp::Array{Float64} = diagm(1=>Float64.(1:n))
+
+		#Skalarni produkti standardne baze + normiranje
+		ei = B0./sqrt.(DotP(B0,B0,DataIn)[CartesianIndex.(1:n+1,1:n+1)])
+
+		#Ortogonalizacija
+		bi = copy(ei);
+		for i1 = 2:n+1
+		    c1 =ei[:,i1] - sum(DotP(ei[:,i1],bi[:,1:i1-1],DataIn) .*bi[:,1:i1-1],dims=2)[:,1]
+		    bi[:,i1] = c1/sqrt(DotP(c1,c1,DataIn)[1])
+		end
+		
+		#Interpolacija
+		Ib = hcat(map(i-> round.(sum(DotP(bi,DataIn)[i,:]'.*bi,dims=2),digits = 13) ,1:n+1)...)
+
+		return Ib,n,Dp,bi
+	end
+	#
+	# D V O J N A   O R T O G O N A L I Z A C I J A
+	function re_gramschmid(DataIn::Vector{Vector{Float64}})
+		bi = gramschmid(DataIn)[4]
+		bi = gramschmid(DataIn;B0 = bi)[1]
+		if all(bi[end,:].<10^(-13))
+			error("Interpolacijska baza ne obstaja")
+		end
+		return bi
+	end
+	#
+	#
+	#
+	#
+	#
+	# I N T E G R A C I J A   Z   V O Z L I Š Č I   I N   U T E Ž M I
+    	function QuadInt(n::Int64;mtd::String = "gauss")
+
+
+		if mtd == "gauss"
+			b = map( i-> (i+1)/(((2*i+1)*(2*i+3))^0.5 ),0:n-2)
+		elseif mtd == "lobatto"
+			b = map( i1->  i1/(2*i1+3)*(i1+2)/(2*i1+1), 1:n-1).^0.5
+		end
+
+
+		K = diagm(1=>b,-1=>b)
+		E = eigen(K)
+
+
+		if mtd == "gauss"
+			
+			xg = E.values
+			wg = E.vectors[1,:].^2*2
+
+		elseif mtd == "lobatto"
+			
+			xg = E.values
+			P = [[1.0],[0.0,1.0]]
+			bI = map( i-> (i+1)^2.0/(((2*i+1)*(2*i+3)) ),0:n-1)
+				
+			for i = 1:n
+				P = [P[2],vcat([0],P[2])-bI[i]*vcat(P[1],[0.0;0.0])]	
+			end
+			wg = 2.0./((n+2)*(n+1)*map(xi->sum(P[2].*(xi.^(0:(length(P[2])-1))))^2,xg))
+			wg = vcat(2.0/((n+1)*(n+2)),wg,2/((n+1)*(n+2)))
+			wg[2:end-1] = (2-2*wg[1])/sum(wg[2:end-1])*wg[2:end-1]
+			xg = vcat(-1.0,xg,1.0)
+		end
+
+		return xg,wg
+    	end
+	#
+	#
+	#
+	#
+	#
+	# I Z V R E D N O T E N J E   I N T E R P O L A C I J E
+	function InterpolValue(x::Float64,Kb::Matrix{Float64},Ib::Matrix{Float64};n::Int64=0)::Vector{Float64}
+		Df = diagm(1 => 1. : size(Kb)[1]-1.)^n
+		f = (Df*Ib*Kb)'*x.^(0:size(Kb)[1]-1)
+		return f
+	end
+	#
+	# I Z V R E D N O T E N J E   I N T E R P O L A C I J E 
+	function InterpolValue(x::Float64,Kb::Vector{Float64},Ib::Matrix{Float64};n::Int64=0)::Float64
+		Df = diagm(1 => 1. : length(Kb)-1.)^n
+		f = (Df*Ib*Kb)'*x.^(0:length(Kb)-1)
+		return f
+	end
+	#
+	# V R E D N O S T   P O L I N O M A 
+	function PolyValue(x::Float64,Ki::Vector{Float64};n::Int64 = 0)
+		m = length(Ki)
+		a = n
+		f = InterpolValue(x,Ki,Matrix{Float64}(I,(m,m)); n = a)
+		return f
+	end
+	#
+	#
+	#
+	#
+	#
+	# S O S E D N O S T N A   M A T R I K A
+    	function adj_mat(conn::Matrix{Int64},nodes::Matrix{Float64})::Matrix{Int64}
+		n = size(nodes)[1]
+		m = size(conn)[1]
+
+		A = zeros(Int64,(n,n))
+			
+		for i=1:m	
+			A[conn[i,1],conn[i,2]] = A[conn[i,2],conn[i,1]] = 1
+		end
+		return A
+	end
+	#
+	# N A K L J U Č N A   P E R M U T A C I J A
+	function randpermute(n::Int64)
+		indx  = collect(1:n)
+		P = Matrix(I,(n,n))
+		P2 = copy(P)
+				
+		for i= eachindex(indx)
+			c = rand(indx)
+			P[:,i] = P2[:,c]
+			popat!(indx,findfirst(indx .== c))
+		end
+		return P
+	end
+	#
+	# M A N J Š A N J E   D I A G O N A L N E G A   P A S U
+	function node_permute(conn::Matrix{Int64},nodes::Matrix{Float64})
+		m = size(nodes)[1]
+		n = size(conn)[1]
+
+		A = adj_mat(conn,nodes)
+		P = Matrix(I,(m,m))
+		
+		indx = collect(1:m)
+		n_diag = maximum(map(ij-> A[ij] == 0 ? 0 : abs(ij[1]-ij[2]),CartesianIndex.((1:m)',1:m)))
+
+		c = 1
+	  	while c < 10
+			P2 = randpermute(m)
+			A2 = adj_mat((P2*indx)[conn],P2*nodes)
+			n_diag2 = maximum(map(ij -> A2[ij] == 0 ? 0 : abs(ij[1]-ij[2]), CartesianIndex.((1:m)',1:m)))	
+		
+			if n_diag2 < n_diag
+				A = A2
+				n_diag = n_diag2
+				P = P2
+				c = 1
+			else
+				c += 1
+			end
+			if n_diag == 1
+				break
+			end
+		end
+
+		nodes = P'*nodes
+		conn = (P*indx)[conn]
+		
+		return conn,nodes
+	end
+	
 
 end # module

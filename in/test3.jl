@@ -14,10 +14,10 @@ elementi::Array{Int64} = [
 
 #   P O D A T K I   R A Č U N A 
 const ti = 0.
-const tf =80.
+const tf =50.
 const dt = 1.0
 const g = 0.0
-const Integracija = ["gauss","lobatto"][2] 
+const Integracija = ["gauss","lobatto"][1] 
 
 
 
@@ -69,17 +69,17 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 # E L E M E N T I
-@assignto :(ElementDataIn) [1] :( [10.0 10.0] ) :(M)
+@assignto :(ElementDataIn) [1] :( [0.0 0.0;0.0 0.0;0.0 0.0] ) :(M)
 @assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 17500. 0.; 0. 0. 17500.] ) :(C)
 
 
-#@assignto :(ElementDataIn) [1] :(t->[0.0 0.0; 0.0 0.0;0.0 0.0]) :(pz)
-#@assignto :(ElementDataIn) [1] :(t->[0.0 0.0; 0.0 0.0;0.0 0.0]) :(my)
-@assignto :(ElementDataIn) [1] :(t->[0.001 0.001]) :(my)
+@assignto :(ElementDataIn) [1] :(t->[0.0 0.0; 0.0 0.0;0.0 0.0]) :(pz)
+@assignto :(ElementDataIn) [1] :(t->[0.0 0.0; 0.0 0.0;0.0 0.0]) :(px)
+@assignto :(ElementDataIn) [1] :(t->[0.0001 0.0001;0.0001 0.0001;0.0001 0.0001]) :(my)
 
-@assignto :(ElementDataIn) [1] :( [-1.0; 1.0] ) :(div1)
-@assignto :(ElementDataIn) [1] :( [6] ) :(div2)
-@assignto :(ElementDataIn) [1] :([20] ) :(nInt) 
+@assignto :(ElementDataIn) [1] :( [-1.0;-0.5;0.5; 1.0] ) :(div1)
+@assignto :(ElementDataIn) [1] :( [6,6,6] ) :(div2)
+@assignto :(ElementDataIn) [1] :([25,25,25] ) :(nInt) 
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 
 

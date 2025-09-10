@@ -4,9 +4,11 @@ Skripte za račun nelinearne dinamike nosilcev.
 ## Problemi
 - Dinamika se računa za velike vrednosti mase
 - Račun konvergira za velike časovne korake. Npr. $dt = 1.0 s$.
+- Dinamika divergira za večje število KE.
 - Premislim katere enote so najbolj primerje.
 - Premisli številske vrednosti za $C$.
 - Statika se izačuna ampak ob konstanti obtežbi alternira. (Tudi če je na začetku obremenjen element in nato ne več pomiki in hitrosti alternirajo predznake. V absolutnem so enaki.)
+- Pri dinamiki robni pogoji sčasoma niso zagotovljeni.
 
 ## Kontoliraj
 - Kaj se zgodi z alterniranjem v statiki če uporabim za N nastavek, ki ne bi ohranjal energije? Poiskusi $R  =(R_1+R_2)/2$.
@@ -15,8 +17,6 @@ Skripte za račun nelinearne dinamike nosilcev.
 ## Dopolnitve
 - Dodaj točkovne obtežbe na robovih.
 - Nekonzervativna obtežba (Potrebna linearizacija. Mislim, da samo rotacija v globalne komponente ki sledijo deformirani obliki elementa)
-- Uredi strukturo modula. Splošne funkcije zloži skupaj.
-- Lobbato integracija. Poišči bolši način računa uteži.
-- Premisli kako bi podajal možnost izbire metode integracije (če uspejo tudi časovni elementi, možnost za izbiro med metododami analize)
+- Poišči bolši način računa uteži Lobatto integracije, če obstaja.
 
 
