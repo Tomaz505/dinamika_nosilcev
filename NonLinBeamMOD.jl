@@ -293,7 +293,7 @@ module NonLinBeam
 			node2 = [VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z]
 			geom_koeff = vcat(node1,node2,ED[i1].Kb)
 
-			annotate!(InterpolValue(0.0,geom_koeff[:,1],ED[i1].Ib_geom),InterpolValue(0.0,geom_koeff[:,2],ED[i1].Ib_geom),("  "*string(i1),8,:black,:left))
+			annotate!(InterpolValue(0.0,geom_koeff[:,1],ED[i1].Ib_geom),InterpolValue(0.0,geom_koeff[:,2],ED[i1].Ib_geom),("  "*string(i1),8,:white,:left))
 
 			for i2 = 1:nke[i1]
 				xs = range( ED[i1].div1[i2],ED[i1].div1[i2+1],length = ED[i1].div2[i2])
@@ -304,7 +304,7 @@ module NonLinBeam
 
 
 			scatter!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), ED[i1].div1[2:end-1]),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), ED[i1].div1[2:end-1]); m = :circle, markercolor = :limegreen,markersize = 6,labels = :none)
-			plot!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0); linecolor = :black,labels = :none)
+			plot!(map(x->InterpolValue(x,geom_koeff[:,1],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0),map(x->InterpolValue(x,geom_koeff[:,2],ED[i1].Ib_geom), -1.0 : 0.05 : 1.0); linecolor = :white,labels = :none)
 		end
 		
 
@@ -347,7 +347,7 @@ module NonLinBeam
 					
 
 					R = R0[i2][i3]+A
-					plot(R[:,1],R[:,2]; label = false,linecolor = :black,yflip = true)
+					plot(R[:,1],R[:,2]; label = false,linecolor = :white,yflip = true)
 				end
 			end
 		end
@@ -368,7 +368,7 @@ module NonLinBeam
 
 			for i2 = 1:length(EP.P)
 				xrange = sum(EP.L[1:i2-1]) .+ (EP.xInt[i2].+1)/2*EP.L[i2]
-				plot!(xrange,map(i3->VarsAtX(EP.xInt[i2][i3],M.ux[EP.indx[i2],i1], M.uz[EP.indx[i2],i1], M.phi[EP.indx[i2],i1], M.vx[EP.indx[i2],i1], M.vz[EP.indx[i2],i1], M.Omg[EP.indx[i2],i1],EP.P[i2],EP.p0[i2][i3],EP.k0[i2][i3],ED.C )[get(var_dict,var,1)][get(comp_dict,comp,1)],eachindex(EP.xInt[i2])),line_color = :balck)
+				plot!(xrange,map(i3->VarsAtX(EP.xInt[i2][i3],M.ux[EP.indx[i2],i1], M.uz[EP.indx[i2],i1], M.phi[EP.indx[i2],i1], M.vx[EP.indx[i2],i1], M.vz[EP.indx[i2],i1], M.Omg[EP.indx[i2],i1],EP.P[i2],EP.p0[i2][i3],EP.k0[i2][i3],ED.C )[get(var_dict,var,1)][get(comp_dict,comp,1)],eachindex(EP.xInt[i2])),line_color = :blue)
 			end
 		end
 		return anim
@@ -386,7 +386,7 @@ module NonLinBeam
 		for i2 = 1:length(EP.P)
 			xrange = sum(EP.L[1:i2-1]) .+ (EP.xInt[i2].+1)/2*EP.L[i2]
 
-			plot!(xrange,map(i3->VarsAtX(EP.xInt[i2][i3],M.ux[EP.indx[i2],i1], M.uz[EP.indx[i2],i1], M.phi[EP.indx[i2],i1], M.vx[EP.indx[i2],i1], M.vz[EP.indx[i2],i1], M.Omg[EP.indx[i2],i1],EP.P[i2],EP.p0[i2][i3],EP.k0[i2][i3],ED.C )[get(var_dict,var,1)][get(comp_dict,comp,1)],eachindex(EP.xInt[i2])),color = :black,label = false)
+			plot!(xrange,map(i3->VarsAtX(EP.xInt[i2][i3],M.ux[EP.indx[i2],i1], M.uz[EP.indx[i2],i1], M.phi[EP.indx[i2],i1], M.vx[EP.indx[i2],i1], M.vz[EP.indx[i2],i1], M.Omg[EP.indx[i2],i1],EP.P[i2],EP.p0[i2][i3],EP.k0[i2][i3],ED.C )[get(var_dict,var,1)][get(comp_dict,comp,1)],eachindex(EP.xInt[i2])),color = :blue,label = false)
 		end
 		display(plt)
 		return plt
