@@ -20,7 +20,7 @@ begin
 	dϵ = Differential(ϵ)
 	δ(F) = (simplify.(Symbolics.jacobian(F,[vx,vz,Ω])),simplify.(Symbolics.jacobian(F,dx.([vx,vz,Ω]))))
 
-	xInt,wInt = NonLinBeam.GaussInt(30)
+	xInt,wInt = NonLinBeam.QuadInt(20)
 	L = 1.
 
 
@@ -34,7 +34,7 @@ begin
 	p = [px,pz,my]
 	
 	v = [vx, vz, Ω]
-	Δv = 2*[vx-vx0, vz-vz0, Ω-Ω0]
+	Δv = 2*[vx-vx0, vz-vz0, Ω-Ω0]/h
 
 	u0 = [ux, uz, φ]
 	um = u0+v*(h/2)
@@ -42,8 +42,8 @@ begin
 
 	
 	d0 = expand_derivatives.(dx.(u0) + [cos(φ₀), sin(φ₀), 0])
-	dm = expand_derivatives.(dx.(um) + [cos(φ₀), sin(φ₀), 0])
-	d1 = expand_derivatives.(dx.(u1) + [cos(φ₀), sin(φ₀), 0])
+	dm = expand_derivatives.(d0+dx.(v)*h/2)
+	d1 = expand_derivatives.(d0+dx.(v)*h)
 
 
 
@@ -58,9 +58,9 @@ begin
 	#Γm = dR*(Γ0-e0)+e0+h/2*Rm*dx.(v)
 	
 		
-	Nm = C*((Γ0+Γ1)/2)
+	Nm = C*Γm
 	Re = Rm'*Nm
-	Mpm = [0;0;Nm[1]*Γm[2]-(1+Γm[1])*Nm[2]]
+	Mpm = -[0;0;Nm[1]*Γm[2]-(1+Γm[1])*Nm[2]]
 
 	wF = ( -Re * dx(Pi) + (p - ρAI*Δv + Mpm)*Pi , Re*Pi)
 	δwF = sum(δ(wF[1]).*(Pj,dx(Pj)))
@@ -68,15 +68,15 @@ begin
 	
 end;
 
-# ╔═╡ 46b35e05-ca02-4bf4-a557-b2bae08b5488
-δ(wF[2])
+# ╔═╡ 4eccc775-d4aa-410a-9e7f-4267db44bfca
+δ(Mpm*Pi)
 
 # ╔═╡ 08f6f31d-5183-4470-abf4-4b4df7371ccd
 md"## Substitucija vrednosti"
 
 # ╔═╡ fa5ebdce-e59c-4c5f-9671-46c662f19d3e
 begin
-	npoli = 3
+	npoli = 2
 Pbasis = NonLinBeam.re_gramschmid([collect(range(-1.,1.,length=npoli))])'*(x.^(0:(npoli-1)))
 
 
@@ -84,12 +84,12 @@ Pbasis = NonLinBeam.re_gramschmid([collect(range(-1.,1.,length=npoli))])'*(x.^(0
 Dat(i,j) = Dict(
 	Pi => Pbasis[i],
 	Pj => Pbasis[j],
-	C[1,1] => 21000. , C[2,2] => 17500. , C[3,3] =>0.175,
+	C[1,1] => 10.0^4. , C[2,2] => 10.0^4 , C[3,3] =>10.0^3,
 	C[1,2] => 0., C[2,1] => 0., C[2,3] => 0., C[3,2] => 0., C[1,3] => 0., C[3,1] =>0.,
-	φ₀ =>  -pi/2, κ₀ => 0.,
-	m => 0., Iy => 0.,
-	h => 0.001,
-	px => 0.0, pz => 0.01, my => 0.0,
+	φ₀ =>  0.0, κ₀ => 0.0,
+	m => 1.0, Iy => 0.1,
+	h => 0.02,
+	px => 1.0, pz => 0.0, my => 0.0,
 	dx(vz) => 0.,dx(vx) => 0., dx(Ω) => 0.,
 	vz => 0., vx => 0., Ω => 0.,
 	dx(ux) => 0., dx(uz) => 0., dx(φ) => 0.,
@@ -121,13 +121,32 @@ Residual = round.(sum(map(i-> substitute.(RX,(x=>xInt[i]))*wInt[i], eachindex(xI
 end;
 
 # ╔═╡ c5168e29-36d9-40e6-b1ea-22d58e3c33b6
--Jacobi[4:9,4:9]\Residual[4:9]
+-Jacobi[4:6,4:6]\Residual[4:6]
 
 # ╔═╡ 0d23f987-1423-45eb-8bcc-620af93e5477
-Residual[4:9]
+Residual[4:6]
 
 # ╔═╡ 093c3f0f-851b-44f4-b912-f6e2c8741dc7
-Jacobi[4:9,4:9]
+Jacobi[4:6,4:6]
+
+# ╔═╡ 6c22da07-5888-4097-8400-0f4a928271e8
+[2.6667         0         0         0         0         0;
+         0    2.6667         0         0         0    1.0000;
+         0         0    2.6667         0   -1.0000         0;
+         0         0         0    0.2667         0    0.0001;
+         0         0   -1.0000         0    0.7667         0;
+         0    1.0000         0   -0.0001         0    0.7667][[1,3,5],[1,3,5]]\Residual[4:6]
+
+# ╔═╡ af7057a4-b818-484d-91b2-4ad12d04e3e1
+begin
+JX1 = hvcat((length(Pbasis)), map(ij -> simplify(expand_derivatives.(substitute(
+	
+	sum(δ((- ρAI*Δv)*Pi).*(Pj,dx(Pj)))
+	
+	,Dat(ij[1],ij[2])))), CartesianIndex.((1:length(Pbasis)),(1:length(Pbasis))' ))...)
+
+Jacobi1 = round.(sum(map(i-> substitute.(JX1,(x=>xInt[i]))*wInt[i], eachindex(xInt) ))*L/2.0,digits = 11)[4:6,4:6]
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1839,12 +1858,14 @@ version = "1.9.2+0"
 # ╠═c29b11c0-3107-11f0-1a61-bf1e631caba8
 # ╠═ddccdcee-c4da-4c93-b708-744b3f846a21
 # ╠═4e9a733b-3102-4f82-b4a1-213e38ba37b8
-# ╠═46b35e05-ca02-4bf4-a557-b2bae08b5488
+# ╠═4eccc775-d4aa-410a-9e7f-4267db44bfca
 # ╟─08f6f31d-5183-4470-abf4-4b4df7371ccd
 # ╠═fa5ebdce-e59c-4c5f-9671-46c662f19d3e
 # ╠═ed67d7ca-f00f-4b9b-8ef8-e80eaec7cf1b
 # ╠═c5168e29-36d9-40e6-b1ea-22d58e3c33b6
 # ╠═0d23f987-1423-45eb-8bcc-620af93e5477
 # ╠═093c3f0f-851b-44f4-b912-f6e2c8741dc7
+# ╠═6c22da07-5888-4097-8400-0f4a928271e8
+# ╠═af7057a4-b818-484d-91b2-4ad12d04e3e1
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
