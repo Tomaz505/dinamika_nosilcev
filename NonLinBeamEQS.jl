@@ -5,19 +5,20 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ c29b11c0-3107-11f0-1a61-bf1e631caba8
-using Symbolics, Plots, LinearAlgebra
+using Symbolics,Plots, LinearAlgebra
 
 # ╔═╡ ddccdcee-c4da-4c93-b708-744b3f846a21
-include("NonLinBeamINIT.jl");
+include("NonLinBeamMOD.jl"); using .NonLinBeam
 
 # ╔═╡ 4e9a733b-3102-4f82-b4a1-213e38ba37b8
 begin
-	@variables t, h, x, ϵ, t0, tm, t1, φ₀(x), κ₀(x), Pi(x), Pj(x), m, Iy,px,pz,my
+	@variables t, h, x, ϵ, t0, tm, t1, φ₀(x), κ₀(x), Pi(x), Pj(x), m, Iy, px, pz, my, L
 	@variables ux(x), vx(x), uz(x), vz(x), φ(x), Ω(x), vx0(x), vz0(x) ,Ω0(x)
 	
 	dt = Differential(t)
 	dx = Differential(x)
 	dϵ = Differential(ϵ)
+	
 	δ(F) = (simplify.(Symbolics.jacobian(F,[vx,vz,Ω])),simplify.(Symbolics.jacobian(F,dx.([vx,vz,Ω]))))
 
 	xInt,wInt = NonLinBeam.QuadInt(20)
@@ -34,16 +35,16 @@ begin
 	p = [px,pz,my]
 	
 	v = [vx, vz, Ω]
-	Δv = 2*[vx-vx0, vz-vz0, Ω-Ω0]/h
+	Δv = [vx-vx0, vz-vz0, Ω-Ω0]*2
 
 	u0 = [ux, uz, φ]
 	um = u0+v*(h/2)
 	u1 = u0+v*(h)
 
 	
-	d0 = expand_derivatives.(dx.(u0) + [cos(φ₀), sin(φ₀), 0])
-	dm = expand_derivatives.(d0+dx.(v)*h/2)
-	d1 = expand_derivatives.(d0+dx.(v)*h)
+	d0 = expand_derivatives.(dx.(u0)*2/L + [cos(φ₀), sin(φ₀), 0])
+	dm = expand_derivatives.(d0+dx.(v)*h/2*2/L)
+	d1 = expand_derivatives.(d0+dx.(v)*h*2/L)
 
 
 
@@ -53,55 +54,68 @@ begin
 	dR = [cos(h/2*v[3]) sin(h/2*v[3]) 0; -sin(h/2*v[3]) cos(h/2*v[3]) 0; 0 0 1]
 	
 	Γ0 = R0*d0+e0
+	Γ = dR*(Γ0-e0)+e0+h/2*Rm*dx.(v)
+	#Γ1 = Γ0+h*(Rm*dx.(v) + v[3]*[0. 1. 0.; -1. 0. 0.; 0. 0. 0.]*(Γ-e0))  
 	Γ1 = R1*d1+e0
-	Γm = Rm*dm+e0
-	#Γm = dR*(Γ0-e0)+e0+h/2*Rm*dx.(v)
+	Γm = Rm*dm+e0 	#(Γ1+Γ0)/2   #Rm*dm+e0
+	
 	
 		
 	Nm = C*Γm
 	Re = Rm'*Nm
-	Mpm = -[0;0;Nm[1]*Γm[2]-(1+Γm[1])*Nm[2]]
+	Mpm = -[0;0;Nm[1]*dm[2]-dm[1]*Nm[2]]
 
-	wF = ( -Re * dx(Pi) + (p - ρAI*Δv + Mpm)*Pi , Re*Pi)
-	δwF = sum(δ(wF[1]).*(Pj,dx(Pj)))
+	#Prva komponenta je pod integralom druga pa so robne vrednosti
+	wF = (
+		-Re * dx(Pi)*h + (p*h - ρAI*Δv + Mpm*h)*Pi ,
+		   Re*Pi*h
+		 )
+	
+	# δ(wF[1]) je terica gradientov po v in v'
+	# .* je množenje po komponentah
+	δwF = sum( δ(wF[1]).*(Pj,dx(Pj) ))#+sum(δ(wF[2]).*(Pj,dx(Pj)))
 	
 	
 end;
 
-# ╔═╡ 4eccc775-d4aa-410a-9e7f-4267db44bfca
-δ(Mpm*Pi)
+# ╔═╡ 2650ede1-00fb-4de4-b6fa-2d48320a6f4a
+δ(Mpm*h)
+
+# ╔═╡ 55dfaf1b-881d-4887-8b4a-933fc0c45665
+δ(dm)
+
+# ╔═╡ 4d68e1bc-b322-4031-82b3-b1a8a4bae9df
+δ(Γm)
 
 # ╔═╡ 08f6f31d-5183-4470-abf4-4b4df7371ccd
 md"## Substitucija vrednosti"
 
 # ╔═╡ fa5ebdce-e59c-4c5f-9671-46c662f19d3e
 begin
+	#Stopnja polinoma
 	npoli = 2
-Pbasis = NonLinBeam.re_gramschmid([collect(range(-1.,1.,length=npoli))])'*(x.^(0:(npoli-1)))
+	#Interpolacijski polinomi
+	Pbasis = NonLinBeam.re_gramschmid([collect(range(-1.,1.,length=npoli))])'*(x.^(0:(npoli-1)))
 
 
-	
-Dat(i,j) = Dict(
-	Pi => Pbasis[i],
-	Pj => Pbasis[j],
-	C[1,1] => 10.0^4. , C[2,2] => 10.0^4 , C[3,3] =>10.0^3,
-	C[1,2] => 0., C[2,1] => 0., C[2,3] => 0., C[3,2] => 0., C[1,3] => 0., C[3,1] =>0.,
-	φ₀ =>  0.0, κ₀ => 0.0,
-	m => 1.0, Iy => 0.1,
-	h => 0.02,
-	px => 1.0, pz => 0.0, my => 0.0,
-	dx(vz) => 0.,dx(vx) => 0., dx(Ω) => 0.,
-	vz => 0., vx => 0., Ω => 0.,
-	dx(ux) => 0., dx(uz) => 0., dx(φ) => 0.,
-	ux => 0., uz => 0., φ => 0.,
-	vx0 => 0., vz0=> 0., Ω0 => 0.
-)
+	#Vnos podatkov v simboline izraze
+	Dat(i,j) = Dict(
+		Pi => Pbasis[i],
+		Pj => Pbasis[j],
+		C[1,1] => 10.0^4. , C[2,2] => 10.0^4 , C[3,3] =>10.0^3,
+		C[1,2] => 0., C[2,1] => 0., C[2,3] => 0., C[3,2] => 0., C[1,3] => 0., C[3,1] =>0.,
+		φ₀ =>  0.0, κ₀ => 0.0,
+		m => 1.0, Iy => 0.1,
+		h => 0.02,
+		px => 1., pz => 0.0, my => 0.0,
+		dx(vz) => 0.,dx(vx) => 0.00375*dx(Pbasis[2]), dx(Ω) => 0.,
+		vz => 0., vx => 0.00375*Pbasis[2], Ω => 0.,
+		dx(ux) => 0., dx(uz) => 0., dx(φ) => 0.,
+		ux => 0., uz => 0., φ => 0.,
+		vx0 => 0., vz0=> 0., Ω0 => 0.,
+		L => 1.
+	)
 
-
-#interm = simplify(expand_derivatives.(substitute(wF[1],dat)))
-#interm2 = simplify(expand_derivatives.(substitute(wF[2],dat)))
-#δinterm = simplify(expand_derivatives.(substitute(δwF[1]*Pj + δwF[2]*dx(Pj),dat)))
-	
 end;
 
 # ╔═╡ ed67d7ca-f00f-4b9b-8ef8-e80eaec7cf1b
@@ -115,13 +129,10 @@ RB = vcat(map(i -> simplify(expand_derivatives.(substitute(wF[2],Dat(i,1))))  , 
 Jacobi = round.(sum(map(i-> substitute.(JX,(x=>xInt[i]))*wInt[i], eachindex(xInt) ))*L/2.0,digits = 11)
 
 
-Residual = round.(sum(map(i-> substitute.(RX,(x=>xInt[i]))*wInt[i], eachindex(xInt) ))*L/2.0 + substitute.(RB,(x=>1.0)) - substitute.(RB,(x=>-1.0)),digits = 11)
+Residual = round.(sum(map(i-> substitute.(RX,(x=>xInt[i]))*wInt[i], eachindex(xInt) ))*L/2.0#= + substitute.(RB,(x=>1.0)) - substitute.(RB,(x=>-1.0))=#,digits = 11)
 
 
 end;
-
-# ╔═╡ c5168e29-36d9-40e6-b1ea-22d58e3c33b6
--Jacobi[4:6,4:6]\Residual[4:6]
 
 # ╔═╡ 0d23f987-1423-45eb-8bcc-620af93e5477
 Residual[4:6]
@@ -129,24 +140,26 @@ Residual[4:6]
 # ╔═╡ 093c3f0f-851b-44f4-b912-f6e2c8741dc7
 Jacobi[4:6,4:6]
 
-# ╔═╡ 6c22da07-5888-4097-8400-0f4a928271e8
-[2.6667         0         0         0         0         0;
-         0    2.6667         0         0         0    1.0000;
-         0         0    2.6667         0   -1.0000         0;
-         0         0         0    0.2667         0    0.0001;
-         0         0   -1.0000         0    0.7667         0;
-         0    1.0000         0   -0.0001         0    0.7667][[1,3,5],[1,3,5]]\Residual[4:6]
+# ╔═╡ a9eb1553-5ce2-439b-b078-1b87af6e44bc
+-Jacobi[4:6,4:6]\Residual[4:6]
 
-# ╔═╡ af7057a4-b818-484d-91b2-4ad12d04e3e1
-begin
-JX1 = hvcat((length(Pbasis)), map(ij -> simplify(expand_derivatives.(substitute(
-	
-	sum(δ((- ρAI*Δv)*Pi).*(Pj,dx(Pj)))
-	
-	,Dat(ij[1],ij[2])))), CartesianIndex.((1:length(Pbasis)),(1:length(Pbasis))' ))...)
+# ╔═╡ 3ae5626d-9a34-44ab-adb6-dc7bac553b8b
+expand_derivatives.(substitute(Re*h,Dat(1,2)))
 
-Jacobi1 = round.(sum(map(i-> substitute.(JX1,(x=>xInt[i]))*wInt[i], eachindex(xInt) ))*L/2.0,digits = 11)[4:6,4:6]
-end
+# ╔═╡ 18432f5b-0409-46b1-926d-231ac8302cb7
+vcat(map(i -> simplify(expand_derivatives.(substitute(- ρAI*Δv*Pi,Dat(i,1))))  , 1:length(Pbasis) )...)
+
+# ╔═╡ d2907f8a-6637-4b97-a1cd-f60932b91c27
+vcat(map(i -> simplify(expand_derivatives.(substitute(p*Pi*h,Dat(i,1))))  , 1:length(Pbasis) )...)
+
+# ╔═╡ 73ff493e-7412-4f5e-a105-29ac54217e8f
+vcat(map(i -> simplify(expand_derivatives.(substitute(- Re*dx(Pi)*2/L*h,Dat(i,1))))  , 1:length(Pbasis) )...)
+
+# ╔═╡ b575f4ab-48a9-4d40-9264-ec926c54d0c5
+vcat(map(i -> simplify(expand_derivatives.(substitute(Mpm*h*Pi,Dat(i,1))))  , 1:length(Pbasis) )...)
+
+# ╔═╡ 980341fb-3b9c-4d4f-bee1-09816a34af10
+expand_derivatives.(substitute(Re*h,Dat(1,1)))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1858,14 +1871,20 @@ version = "1.9.2+0"
 # ╠═c29b11c0-3107-11f0-1a61-bf1e631caba8
 # ╠═ddccdcee-c4da-4c93-b708-744b3f846a21
 # ╠═4e9a733b-3102-4f82-b4a1-213e38ba37b8
-# ╠═4eccc775-d4aa-410a-9e7f-4267db44bfca
+# ╠═2650ede1-00fb-4de4-b6fa-2d48320a6f4a
+# ╠═55dfaf1b-881d-4887-8b4a-933fc0c45665
+# ╠═4d68e1bc-b322-4031-82b3-b1a8a4bae9df
 # ╟─08f6f31d-5183-4470-abf4-4b4df7371ccd
 # ╠═fa5ebdce-e59c-4c5f-9671-46c662f19d3e
 # ╠═ed67d7ca-f00f-4b9b-8ef8-e80eaec7cf1b
-# ╠═c5168e29-36d9-40e6-b1ea-22d58e3c33b6
 # ╠═0d23f987-1423-45eb-8bcc-620af93e5477
 # ╠═093c3f0f-851b-44f4-b912-f6e2c8741dc7
-# ╠═6c22da07-5888-4097-8400-0f4a928271e8
-# ╠═af7057a4-b818-484d-91b2-4ad12d04e3e1
+# ╠═a9eb1553-5ce2-439b-b078-1b87af6e44bc
+# ╠═3ae5626d-9a34-44ab-adb6-dc7bac553b8b
+# ╠═18432f5b-0409-46b1-926d-231ac8302cb7
+# ╠═d2907f8a-6637-4b97-a1cd-f60932b91c27
+# ╠═73ff493e-7412-4f5e-a105-29ac54217e8f
+# ╠═b575f4ab-48a9-4d40-9264-ec926c54d0c5
+# ╠═980341fb-3b9c-4d4f-bee1-09816a34af10
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

@@ -1,8 +1,9 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
 
 println("Pot do datoteke z podatki")
-include(readline()*".jl")
-println("\n[  Ok  ]  Vnos podatkov")
+include("in/"*readline()*".jl")
+println()
+@info "Vnos podatkov\n\t\t[  Ok  ]"
 
 
 
@@ -19,7 +20,7 @@ for i = 1:n_elem
 	global n_nodes 
 	E[i], n_nodes = dataprocess(ElementDataIn[i],VozDataIn[ElementDataIn[i].v],n_nodes;intmtd = Integracija)
 end
-println("[  Ok  ]  Procesiranje podatkov")
+@info "Procesiranje podatkov\n\t\t[  Ok  ]"
 
 
 
@@ -33,7 +34,7 @@ println("[  Ok  ]  Procesiranje podatkov")
 konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
 display(konstr_img)
 
-println("[  Ok  ]  Risnaje Konstrikcije")
+@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
 
 
 println("\n Kako nadaljujem?")
@@ -99,7 +100,7 @@ begin
 
 		count::Int64 = 0
 		
-		while norm(Dv) > 10.0^-8 && count < 18
+		while norm(Dv) > 10.0^dv_norm_tol_exp && count < nwt_iter_max_count
 			count += 1
 			
 			# Tangentna in rezidual
@@ -109,9 +110,32 @@ begin
 			
 			for i_el in eachindex(E)
 				for i_ke in eachindex(E[i_el].P)
-				
 
-					dlF,F = Tan_Res(E[i_el].xInt[i_ke],E[i_el].wInt[i_ke],M.ux[E[i_el].indx[i_ke],[i_time-1,i_time]],M.uz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.phi[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vx[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.Omg[E[i_el].indx[i_ke],[i_time-1,i_time]],E[i_el].P[i_ke],E[i_el].p0[i_ke],E[i_el].k0[i_ke],ElementDataIn[i_el].C,reshape(ElementDataIn[i_el].M[i_ke,:],2),ElementDataIn[i_el].px(t[i_time])[i_ke,:],ElementDataIn[i_el].pz(t[i_time])[i_ke,:],ElementDataIn[i_el].my(t[i_time])[i_ke,:],dt,E[i_el].pb[i_ke],E[i_el].kb[i_ke],E[i_el].L[i_ke],g)
+
+					# Obtežba ov vemsnem času
+					px = (isnothing(ElementDataIn[i_el].px(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].px((t[i_time]+t[i_time-1])/2)[i_ke,:]) 	
+					pz = (isnothing(ElementDataIn[i_el].pz(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].pz((t[i_time]+t[i_time-1])/2)[i_ke,:]) 
+					my = (isnothing(ElementDataIn[i_el].my(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].my((t[i_time]+t[i_time-1])/2)[i_ke,:]) 
+					if length(E[i_el].P) == 1
+						Px = (ElementDataIn[i_el].Px((t[i_time]+t[i_time-1])/2)[1],ElementDataIn[i_el].Px((t[i_time]+t[i_time-1])/2)[2])
+						Pz = (ElementDataIn[i_el].Pz((t[i_time]+t[i_time-1])/2)[1],ElementDataIn[i_el].Pz((t[i_time]+t[i_time-1])/2)[2])
+						My = (ElementDataIn[i_el].My((t[i_time]+t[i_time-1])/2)[1],ElementDataIn[i_el].My((t[i_time]+t[i_time-1])/2)[2])
+					elseif i_ke == 1
+						Px = (ElementDataIn[i_el].Px((t[i_time]+t[i_time-1])/2)[1],0.)
+						Pz = (ElementDataIn[i_el].Pz((t[i_time]+t[i_time-1])/2)[1],0.)
+						My = (ElementDataIn[i_el].My((t[i_time]+t[i_time-1])/2)[1],0.)
+					elseif i_ke == length(E[i_el].P)	
+						Px = (0.,ElementDataIn[i_el].Px((t[i_time]+t[i_time-1])/2)[2])
+						Pz = (0.,ElementDataIn[i_el].Pz((t[i_time]+t[i_time-1])/2)[2])
+						My = (0.,ElementDataIn[i_el].My((t[i_time]+t[i_time-1])/2)[2])
+					else
+						Px = (0.,0.)
+						Pz = (0.,0.)
+						My = (0.,0.)
+					end
+
+
+					dlF,F = Tan_Res(E[i_el].xInt[i_ke],E[i_el].wInt[i_ke],M.ux[E[i_el].indx[i_ke],[i_time-1,i_time]],M.uz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.phi[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vx[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.Omg[E[i_el].indx[i_ke],[i_time-1,i_time]],E[i_el].P[i_ke],E[i_el].p0[i_ke],E[i_el].k0[i_ke],ElementDataIn[i_el].C,ElementDataIn[i_el].M, px, pz, my, Px, Pz, My,dt,E[i_el].pb[i_ke],E[i_el].kb[i_ke],E[i_el].L[i_ke],g)
 					
 
 					indx_dof = reshape(hcat(E[i_el].indx[i_ke]*3 .-2,E[i_el].indx[i_ke]*3 .-1, E[i_el].indx[i_ke]*3)',(3*length(E[i_el].indx[i_ke])))
@@ -139,7 +163,7 @@ begin
 			println("\t|Re| = ",norm(Re),"\n")
 
 
-			# Porpavek hitrosti
+			# Popavek hitrosti
 			M.vx[indxX,i_time] += Dv[1:3:end]*2.0
 			M.vz[indxZ,i_time] += Dv[2:3:end]*2.0
 			M.Omg[indxP,i_time]+= Dv[3:3:end]*2.0

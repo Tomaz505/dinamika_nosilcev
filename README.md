@@ -26,3 +26,4 @@ Skripte za račun nelinearne dinamike nosilcev.
 ## Spremembe
 - Podatke pomikov in hitrosti spravi v $3d$ matriko. Mogoče celo samo hitrosti.
 - Posplošitev določenih korakov v interacijskem računu, da bo omogočal različne metode.
+- Premisli kako bi podajal obtežbo za večje število KE in, da za ničelno obtežbo ni potrebno spreminjati velikosti matrike.

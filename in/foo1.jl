@@ -1,7 +1,7 @@
 #   K O O R D I N A T E   V O Z L I S C
 vozlisca::Array{Float64} = [
         0. 0.;
-	0. 1.
+	1. 0.
     ]
 
 
@@ -13,11 +13,17 @@ elementi::Array{Int64} = [
 
 
 #   P O D A T K I   R A Č U N A 
-const ti = 0.
-const tf =80.
-const dt = 1.0
+const ti::Float64 = 0.0
+const tf::Float64 = 0.04
+const dt::Float64 = 0.02
 const g = 0.0
-const Integracija = ["gauss","lobatto"][2] 
+
+#	K O N T R O L N I   P A R A M E T R I
+const Integracija::String 	= ["gauss","lobatto"][1] 
+const dv_norm_tol_exp::Int64	= -8
+const nwt_iter_max_count::Int64	= 4
+
+
 
 
 
@@ -38,9 +44,12 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 #	div2	- Vector{Int64} 	(n)		[4]
 #	nInt	- Vector{Int64}   	(n)		[20]
 #	Ci	- Bool			()		false
-#	pz	- Function		t->(nx2)	t->[0. 0.]
-#	px	- Function		t->(nx2)	t->[0. 0.]
-#	my	- Function		t->(nx2)	t->[0. 0.]
+#	pz	- Function		t->(nx2)	t->nothing
+#	px	- Function		t->(nx2)	t->nothing
+#	my	- Function		t->(nx2)	t->nothing
+#	Px	- Function		t->(1,2)	t->(0.,0.)
+#	Pz	- Function		t->(1,2)	t->(0.,0.)
+#	My	- Function		t->(1,2)	t->(0.,0.)
 #	Ib_geom	- Matrix{FLoat64}	(m,m)		[0.5 0.5; -0.5 0.5] == re_gramshchim([-1.;1.])
 #	Kb	- Matrix{Float64}	(m-2x2)		[]
 
@@ -67,19 +76,24 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 
-
+ 
 # E L E M E N T I
-@assignto :(ElementDataIn) [1] :( [10.0 10.0] ) :(M)
-@assignto :(ElementDataIn) [1] :( [21000. 0. 0.;0. 17500. 0.; 0. 0. 17500.] ) :(C)
+@assignto :(ElementDataIn) [1] :( [1.; 0.1] ) :(M)
+@assignto :(ElementDataIn) [1] :( [10^4 0. 0.;0. 10^4 0.; 0. 0. 10^3] ) :(C)
 
 
-#@assignto :(ElementDataIn) [1] :(t->[0.0 0.0; 0.0 0.0;0.0 0.0]) :(pz)
-#@assignto :(ElementDataIn) [1] :(t->[0.0 0.0; 0.0 0.0;0.0 0.0]) :(my)
-@assignto :(ElementDataIn) [1] :(t->[0.001 0.001]) :(my)
+#@assignto :(ElementDataIn) [1] :(t->[0.1 0.1]*t*Int(t<0.1)  ) :(px)
+@assignto :(ElementDataIn) [1] :(t->[0.0, 50.0]*t*Int(t<1.0) ) :(Px)
+#@assignto :(ElementDataIn) [1] :(t->[0. 0.]  ) :(pz)
+#@assignto :(ElementDataIn) [1] :(t->[0., 0]  ) :(Pz)
+#@assignto :(ElementDataIn) [1] :(t->[0. 0.]  ) :(my)
+#@assignto :(ElementDataIn) [1] :(t->[0., 50.]*t*Int(t<1.0)  ) :(My)
+
+
 
 @assignto :(ElementDataIn) [1] :( [-1.0; 1.0] ) :(div1)
-@assignto :(ElementDataIn) [1] :( [6] ) :(div2)
-@assignto :(ElementDataIn) [1] :([20] ) :(nInt) 
+@assignto :(ElementDataIn) [1] :( [2] ) :(div2)
+@assignto :(ElementDataIn) [1] :( [20] ) :(nInt) 
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 
 
@@ -88,7 +102,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 # V O Z L I Š Č A
-@assignto :(VozDataIn) [1] :( Bool[0, 0, 0 ] ) :(Supp)
+@assignto :(VozDataIn) [1] :( Bool[0, 0, 0] ) :(Supp)
 #@assignto :(VozDataIn) [1] :( pi/3. ) :(dir)
 
 
