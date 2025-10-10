@@ -7,7 +7,7 @@ module NonLinBeam
 	# E K S P O R T
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
 		datainit, dataprocess,
-		R, Integrate, QuadInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValue,
+		R, Integrate, QuadInt, re_gramschmid, Tan_Res, VarsAtX, VarsAtTX, InterpolValue,PolyValue,
 		plotbeams, adj_mat,randpermute,node_permute, Cuthill_McKee, plotmotion,plotVar
 	#
 	#
@@ -431,6 +431,15 @@ module NonLinBeam
 
 
 
+
+
+
+
+
+
+	
+
+
 	#Funkcija za račun količin v izbranih točkah nosilca
 	function VarsAtX(x::Float64,ux::Array{Float64},uz::Array{Float64},phi::Array{Float64},vx::Array{Float64},vz::Array{Float64},omg::Array{Float64},Ib::Matrix{Float64},p0::Float64,k0::Float64,C::Matrix{Float64})
 
@@ -452,6 +461,33 @@ module NonLinBeam
 	end
 	
 
+	
+	function VarsAtTX(x::Float64,t::Float64,vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},ux::Vector{Float64},uz::Vector{Float64},phi::Vector{Float64},Ibx::Matrix{Float64},Ibt::Matrix{Float64},p0::Float64,k0::Float64,C::Matrix{Float64})
+		Vx = map(qi->InterpolValue(x,qi,Ibx),[vx,vz,omg])
+		dVx = map(qi->InterpolValue(x,qi,Ibx;n=1),[vx,vz,omg])
+
+		Ux = map(qi->InterpolValue(x,qi,Ibx),[ux,uz,phi])
+		dUx = map(qi->InterpolValue(x,qi,Ibx),[ux,uz,phi];n=1)
+
+ 		V = map(qj->InterpolValue(t,Vqj,Ibt),Vx)
+		U = Ux+map(qj->InterpolValue(t,qj,Integrate(Ibt)),Vx)
+		D = dUx + map(qj->InterpolValue(t,qj,Integrate(Ibt)),dVx)
+		E = R(p0+U[3])*D-[-1.0;0.0;-k0]
+		N = C*E
+		R = R(p0+U[3])'*N
+	end
+	#
+	#
+	function delVarAtTX(x::Float64,t::Float64,Ibx::Matrix{Float64},Ibt::Matrix{Float64})
+		indx1 = CartesianIndex.(1:size(Ibx)[1],(1:size(Ibt)[1])9)
+		indx = Tuple.(reshape(indx1,prod(size(indx1))))
+
+		dlU = map( i-> Matrix{Float64},(I,3,3)*PolyValue(x,Ibx[:,i[1]])*PolyValue(t,Integrate(Ibt[:,i[2]])),indx)
+		dlD = map( i-> Matrix{Float64},(I,3,3)*PolyValue(x,Ibx[:,i[1]];n=1)*PolyValue(t,Integrate(Ibt[:,i[2]])),indx)
+		dlE = map(i->R(p0+U[3];n=1)*D*dlU[i][3,:] + R(p0+U[3])*dlD[i],eachindex(dlD))
+		dlN = map(i->C*dlE[i],eachindex(dlE))
+		dlR = map(i->R(p0+U[3];n=1)'*D*dlU[i][3,:] + R(p0+U[3])'*dlN[i],eachindex(dlN))
+	end
 
 
 	# Na KE
@@ -758,6 +794,11 @@ module NonLinBeam
 	end
 	#
 	#
+	function Integrate(P::Array{Float64,2})
+		return vcat(zeros(1,size(P)[2]),P.*(1.0./(1:size(P)[1])))
+	end
+	#
+	#
 	#
 	#
 	# I Z V R E D N O T E N J E   I N T E R P O L A C I J E
@@ -843,7 +884,7 @@ module NonLinBeam
 	function Cuthill_McKee(conn::Array{Int64,2},n::Int64)
 		indx_permute = collect(1:n)
 		indx = copy(indx_permute)
-
+	#=
 		Adj = adj_mat(conn,n)
 		deg = sum(Adj;dims = 2)[:,1]
 
@@ -866,7 +907,7 @@ module NonLinBeam
 			
 		end
 
-		
+	=#	
 
 
 		return indx_permute

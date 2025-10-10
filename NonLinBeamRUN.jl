@@ -50,7 +50,7 @@ end
 
 
 
-
+Ibtime = re_gramschmid(time_interpolation)
 t = collect(ti:dt:tf)
 n_time = length(t)
 M =  BeamMotion(zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time))
