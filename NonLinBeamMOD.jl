@@ -7,8 +7,8 @@ module NonLinBeam
 	# E K S P O R T
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
 		datainit, dataprocess,
-		R, QuadInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValue,
-		plotbeams, adj_mat,randpermute,node_permute,plotmotion,plotVar
+		R, Integrate, QuadInt, re_gramschmid, Tan_Res, VarsAtX,InterpolValue,PolyValue,
+		plotbeams, adj_mat,randpermute,node_permute, Cuthill_McKee, plotmotion,plotVar
 	#
 	#
 	#
@@ -687,7 +687,8 @@ module NonLinBeam
 	# I N T E G R A C I J A   Z   V O Z L I Š Č I   I N   U T E Ž M I
     	function QuadInt(n::Int64;mtd::String = "gauss")
 	
-		if mtd == "gauss"
+		if mtd == "gauss" 
+			# 2n-1
 			b = map( i-> (i+1)/(((2*i+1)*(2*i+3))^0.5 ),0:n-2)
 			
 			E = eigen(diagm(1=>b,-1=>b))
@@ -695,51 +696,81 @@ module NonLinBeam
 			xg = E.values
 			wg = E.vectors[1,:].^2*2
 
-		elseif mtd == "lobatto"
-			n = n-2
-			b = map( i1->  i1/(2*i1+3)*(i1+2)/(2*i1+1), 1:n-1).^0.5
-			E = eigen(diagm(1=>b,-1=>b))
-			xg = E.values
+		elseif mtd == "lobatto" 
+			# 2n-3
+			# 2(n+1)-3 = 2n-1
+			n += 1
+			if n == 2
+				xg = [-1.0,1.0]
+				wg = [1.0,1.0]
+			else
+				n = n-2
+				b = map( i1->  i1/(2*i1+3)*(i1+2)/(2*i1+1), 1:n-1).^0.5
+				E = eigen(diagm(1=>b,-1=>b))
+				xg = E.values
 
-			# Poiskusi optimizirat
-			P = [[1.0],[0.0,1.0]]
-			bI = map( i-> (i+1)^2.0/(((2*i+1)*(2*i+3)) ),0:n-1)
-			for i = 1:n
-				P = [P[2],vcat([0],P[2])-bI[i]*vcat(P[1],[0.0;0.0])]	
+				# Poiskusi optimizirat
+				P = [[1.0],[0.0,1.0]]
+				bI = map( i-> (i+1)^2.0/(((2*i+1)*(2*i+3)) ),0:n-1)
+				for i = 1:n
+					P = [P[2],vcat([0],P[2])-bI[i]*vcat(P[1],[0.0;0.0])]	
+				end
+				wg = 2.0./((n+2)*(n+1)*map(xi->sum(P[2].*(xi.^(0:(length(P[2])-1))))^2,xg))
+				wg = vcat(2.0/((n+1)*(n+2)),wg,2/((n+1)*(n+2)))
+				wg[2:end-1] = (2-2*wg[1])/sum(wg[2:end-1])*wg[2:end-1]
+				xg = vcat(-1.0,xg,1.0)
 			end
-			wg = 2.0./((n+2)*(n+1)*map(xi->sum(P[2].*(xi.^(0:(length(P[2])-1))))^2,xg))
-			wg = vcat(2.0/((n+1)*(n+2)),wg,2/((n+1)*(n+2)))
-			wg[2:end-1] = (2-2*wg[1])/sum(wg[2:end-1])*wg[2:end-1]
-			xg = vcat(-1.0,xg,1.0)
-		
 		end
-
 		return xg,wg
     	end
 	#
+	# I N T E G R A C I J A 
+	function Integrate(f::Function,a0::Float64,a1::Float64;n::Int64 = 30,mtd::String = "gauss")
+		xw = QuadInt(n;mtd = mtd)
+		I = Integrate(f::Function,a0::Float64,a1::Float64,xw::Tuple{Array{Float64,1},Array{Float64,1}})
+		return I
+	end
+	#
+	#
+	function Integrate(f::Function,a0::Float64,a1::Float64,xw::Tuple{Array{Float64,1},Array{Float64,1}})
+		I = xw[2]'*f.(xw[1]*(a1-a0)/2 .+(a1+a0)/2)*(a1-a0)/2
+		return I
+	end
+	#
+	#
+	function Integrate(f::Function,a0::Vector{Float64},a1::Vector{Float64};n=30,mtd = "gauss")
+		xw = QuadInt(n)
+		I = Integrate(f::Function,a0::Vector{Float64},a1::Vector{Float64},repeat([xw],length(a0))...)
+		return I
+	end
+	#
+	#
+	function Integrate(f::Function,a0::Vector{Float64},a1::Vector{Float64},xw::Tuple{Array{Float64,1},Array{Float64,1}}...)
+		
+		xtform = map(i -> (xw[i][1]*(a1[i]-a0[i])/2 .+ (a1[i]+a0[i])/2) , eachindex(a0))
+		wtform = map(i -> (xw[i][2]*(a1[i]-a0[i])/2),eachindex(a0))
+
+		indx = Tuple.(CartesianIndex.(map(i-> reshape(1:length(xtform[i]),vcat(ones(Int64,i-1),[length(xtform[i])])...), eachindex(a0))...))
+	
+		I = map(i -> prod(getindex.(wtform,indx[i]))*f(getindex.(xtform,indx[i])...),eachindex(indx)) |> sum
+		I = round.(I,digits = 12)
+		return I
+	end
 	#
 	#
 	#
 	#
 	# I Z V R E D N O T E N J E   I N T E R P O L A C I J E
-	function InterpolValue(x::Float64,Kb::Matrix{Float64},Ib::Matrix{Float64};n::Int64=0)::Vector{Float64}
-		Df = diagm(1 => 1. : size(Kb)[1]-1.)^n
-		f = (Df*Ib*Kb)'*x.^(0:size(Kb)[1]-1)
-		return f
-	end
-	#
-	# I Z V R E D N O T E N J E   I N T E R P O L A C I J E 
-	function InterpolValue(x::Float64,Kb::Vector{Float64},Ib::Matrix{Float64};n::Int64=0)::Float64
-		Df = diagm(1 => 1. : length(Kb)-1.)^n
-		f = (Df*Ib*Kb)'*x.^(0:length(Kb)-1)
+	function InterpolValue(x::Float64,Kb::Array{Float64},Ib::Matrix{Float64};n::Int64=0)
+		P = Ib*Kb
+		f = PolyValue(x::Float64,P::Array{Float64};n = n)
 		return f
 	end
 	#
 	# V R E D N O S T   P O L I N O M A 
-	function PolyValue(x::Float64,Ki::Vector{Float64};n::Int64 = 0)
-		m = length(Ki)
-		a = n
-		f = InterpolValue(x,Ki,Matrix{Float64}(I,(m,m)); n = a)
+	function PolyValue(x::Float64,Ki::Array{Float64};n::Int64 = 0)
+		dP = (diagm(1 => 1. : size(Ki)[1]-1.)^n)*Ki
+		f = dP'*x.^(0:size(Ki)[1]-1)
 		return f
 	end
 	#
@@ -748,8 +779,7 @@ module NonLinBeam
 	#
 	#
 	# S O S E D N O S T N A   M A T R I K A
-    	function adj_mat(conn::Matrix{Int64},nodes::Matrix{Float64})::Matrix{Int64}
-		n = size(nodes)[1]
+    	function adj_mat(conn::Matrix{Int64},n::Int64)::Matrix{Int64}
 		m = size(conn)[1]
 
 		A = zeros(Int64,(n,n))
@@ -775,20 +805,20 @@ module NonLinBeam
 	end
 	#
 	# M A N J Š A N J E   D I A G O N A L N E G A   P A S U
-	function node_permute(conn::Matrix{Int64},nodes::Matrix{Float64})
+	function node_permute(conn::Matrix{Int64},nodes::Matrix{Float64};rep = 10)
 		m = size(nodes)[1]
 		n = size(conn)[1]
 
-		A = adj_mat(conn,nodes)
+		A = adj_mat(conn,m)
 		P = Matrix(I,(m,m))
 		
 		indx = collect(1:m)
 		n_diag = maximum(map(ij-> A[ij] == 0 ? 0 : abs(ij[1]-ij[2]),CartesianIndex.((1:m)',1:m)))
 
 		c = 1
-	  	while c < 10
+	  	while c < rep
 			P2 = randpermute(m)
-			A2 = adj_mat((P2*indx)[conn],P2*nodes)
+			A2 = adj_mat((P2*indx)[conn],m)
 			n_diag2 = maximum(map(ij -> A2[ij] == 0 ? 0 : abs(ij[1]-ij[2]), CartesianIndex.((1:m)',1:m)))	
 		
 			if n_diag2 < n_diag
@@ -809,6 +839,38 @@ module NonLinBeam
 		
 		return conn,nodes
 	end
-	
+
+	function Cuthill_McKee(conn::Array{Int64,2},n::Int64)
+		indx_permute = collect(1:n)
+		indx = copy(indx_permute)
+
+		Adj = adj_mat(conn,n)
+		deg = sum(Adj;dims = 2)[:,1]
+
+		node_deg = getindex.(findall(deg .== collect(1:n)'),[1 2]) # Min degree > 0
+		
+		#indx_permute[1] = node_deg[1,1]
+
+		#Re indeksirane
+		R = [node_deg[1][1]]
+		re = 1
+		#Prvi sosedje
+		Q = findall(R .== findall(Adj[:,R].==1))
+		n_node = 2
+
+		while 
+			
+			Q = Q[getindex.(findall(Q[:,2] .== sort(Q[:,w])'),1),:]
+			#indx_permute[n_node.+1:size(Q)[1]] = Q[:,1]
+			push!(R,Q[:,1]	)
+			
+		end
+
+		
+
+
+		return indx_permute
+	end
+		
 
 end # module
