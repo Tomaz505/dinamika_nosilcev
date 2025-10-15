@@ -7,7 +7,8 @@ module NonLinBeam
 	# E K S P O R T
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion,
 		datainit, dataprocess,
-		R, Integrate, QuadInt, re_gramschmid, Tan_Res, VarsAtX, VarsAtTX, InterpolValue,PolyValue,
+		R, Integrate, QuadInt, re_gramschmid, Tan_Res, VarsAtX, VarsAtTX,delVarsAtTX,TanResAtTX,parResAtT,
+		InterpolValue,PolyValue,
 		plotbeams, adj_mat,randpermute,node_permute, Cuthill_McKee, plotmotion,plotVar
 	#
 	#
@@ -35,9 +36,9 @@ module NonLinBeam
 		px::Function = t->nothing 
 		pz::Function = t->nothing
 		my::Function = t->nothing
-		Px::Function = t->[0.,0.]
-		Pz::Function = t->[0.,0.]
-		My::Function = t->[0.,0.]
+		Px::Function = t->nothing
+		Pz::Function = t->nothing
+		My::Function = t->nothing
 		div1::Array{Float64} = [-1.;1.]
 		div2::Array{Int64} = [5]
 		nInt::Array{Int64} = [20]	
@@ -49,6 +50,7 @@ module NonLinBeam
 		L::Vector{Float64} 
 		p0::Vector{Vector{Float64}}
 		k0::Vector{Vector{Float64}}
+		ksi::Vector{Vector{Float64}}
 		P::Vector{Matrix{Float64}} #
 		pb::Vector{Vector{Float64}}
 		kb::Vector{Vector{Float64}}
@@ -152,7 +154,7 @@ module NonLinBeam
 		return n_elem,n_voz,element_data,voz_data
 	end #datainit
 
-	function dataprocess(elem_dat::BeamDataIn,node_dat::Array{NodeDataIn},n_nodes::Int64;intmtd::String = "gauss")::Tuple{BeamDataProcess,Int64}
+	function dataprocess(elem_dat::BeamDataIn,node_dat::Array{NodeDataIn},n_nodes::Int64;mtd::String = "gauss")::Tuple{BeamDataProcess,Int64}
 		
 		node1 = [node_dat[1].x node_dat[1].z]
 		node2 = [node_dat[2].x node_dat[2].z]
@@ -197,13 +199,17 @@ module NonLinBeam
 		#koeficienti razoja geometrije
 		geom_koeff = vcat(node1,node2,elem_dat.Kb)
 		#vektor koeficientov polinoma za x in y
-		f_geom = sum(map( i -> elem_dat.Ib_geom[:,i].*geom_koeff[i,:]',1:size(elem_dat.Ib_geom)[1]))
-		#diff operator za geometrijo	
-		Df_geom = diagm(1=>1:length(geom_koeff[:,1])-1)
+		Geom_Poly = elem_dat.Ib_geom*geom_koeff
+		
+
+
+
+
 		#koeficienti razoja geometrije
 		#
 		Ki = fill(Vector{Float64}([]),n_ke)
 		Pi = fill(Vector{Float64}([]),n_ke)
+		ksi=copy(Pi)
 		xg = fill(Vector{Float64}([]),n_ke)
 		wg = fill(Vector{Float64}([]),n_ke)
 		Li = fill(Float64(0.),n_ke)
@@ -225,7 +231,7 @@ module NonLinBeam
 			#kvadriraj
 			#seštej
 			#koreni
-			#množi z utežmi
+			#množi z utežm
 			#faktor transformacije koordinat (t1,t2)->(-1,1)
 
 
@@ -234,25 +240,44 @@ module NonLinBeam
 		#koeficienti razoja geometrije
 		for i = 1:n_ke
 
-			xg[i],wg[i] = QuadInt(elem_dat.nInt[i];mtd = intmtd)
+			xg[i],wg[i] = QuadInt(elem_dat.nInt[i];mtd = mtd)
+			
 
-			x_trans = vcat([elem_dat.div1[i] ; elem_dat.div1[i+1]],xg[i]/2. *(elem_dat.div1[i+1]-elem_dat.div1[i]).+(elem_dat.div1[i+1]+elem_dat.div1[i])/2.)
+			Li[i] = Integrate(x->norm(PolyValue(x,Geom_Poly;n=1)), [elem_dat.div1[i]], [elem_dat.div1[i+1]],(xg[i],wg[i]))
 
-			D1_vec = map(x->sum((Df_geom*f_geom).*(x.^(0:length(geom_koeff[:,1])-1)),dims = 1),x_trans)
-			#D1_vec = map(x-> InterpolValue(x,geom_koeff,elem_dat.Ib_geom;n=1),x_trans)
-			D2_vec =  map(x->sum(((Df_geom^2)*f_geom).*(x.^(0:length(geom_koeff[:,1])-1)),dims = 1),x_trans) 
-			#D2_vec = map(x-> InterpolValue(x,geom_koeff,elem_dat.Ib_geom;n=2),x_trans)
+			ksi[i]=range(elem_dat.div1[i],elem_dat.div1[i+1],length=length(xg[i])+2)
 
+			dksi = [1.0]
+			x0 = [-1.;xg[i];1.]
+			count=0
+			while norm(dksi)>10^-7 && count<20
+				dksi = map(j-> ((x0[j]+1.0)/2.0*Li[i] - Integrate(x->norm(PolyValue(x,Geom_Poly;n=1)),[elem_dat.div1[i]],[ksi[i][j]];n=60))/norm(PolyValue(ksi[i][j],Geom_Poly;n=1)),eachindex(ksi[i]))	
+				
+				ksi[i] += dksi
+				count+=1
+			end
+			round.(ksi[i],digits=7)
+			
+
+			
+			
+			D1_vec = map(x->PolyValue(x,Geom_Poly;n=1),ksi[i])
+			D2_vec = map(x->PolyValue(x,Geom_Poly;n=2),ksi[i]) 
+		
+			
 
 			Pi[i] = -map(v-> atan(v[2],v[1]),D1_vec)
-			Ki[i] = map((v1,v2)-> abs(det([v1;v2]))/norm(v1)^3,D1_vec,D2_vec)		
-			
-			Kb[i]= Ki[i][1:2]
-			Pb[i] = Pi[i][1:2]
+			Ki[i] = map((v1,v2)-> abs(det([v1;;v2]))/norm(v1)^3,D1_vec,D2_vec)		
+		
 
-			Ki[i] = Ki[i][3:end]
-			Pi[i] = Pi[i][3:end]
-			Li[i] = (sum(norm.(D1_vec[3:end]).*wg[i])*(elem_dat.div1[i+1]-elem_dat.div1[i])/2.)
+
+
+			Kb[i]= Ki[i][[1,end]]
+			Pb[i] = Pi[i][[1,end]]
+
+			Ki[i] = Ki[i][2:end-1]
+			Pi[i] = Pi[i][2:end-1]
+		
 
 		end
 	
@@ -265,7 +290,7 @@ module NonLinBeam
 		Ib = map(i -> (!elem_dat.Ci) ? re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i]))]) : (1<i<n_ke ? re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i])),[-1.,1.]]) : ( i==1 ? re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i])),[1.]]) : re_gramschmid([collect(range(-1.,1.,length = elem_dat.div2[i])),[-1.]]))),1:n_ke)
 
 
-		return BeamDataProcess(Li,Pi,Ki,Ib,Pb,Kb,xg,wg,indx), n_nodes	
+		return BeamDataProcess(Li,Pi,Ki,ksi,Ib,Pb,Kb,xg,wg,indx), n_nodes	
 	end
 
 
@@ -446,8 +471,8 @@ module NonLinBeam
 		U = map(qi -> InterpolValue(x,qi,Ib),[ux,uz,phi])	
 		V = map(qi -> InterpolValue(x,qi,Ib),[vx,vz,omg])
 		
-		dU = map(qi -> InterpolValue(x,qi,Ib;n=1),[ux,uz,phi])	
-		dV = map(qi -> InterpolValue(x,qi,Ib;n=1),[vx,vz,omg])
+		dU = map(qi -> InterpolValue(x,qi,Ib;n=1),[ux,uz,phi])*2/L	
+		dV = map(qi -> InterpolValue(x,qi,Ib;n=1),[vx,vz,omg])*2/L
 		
 
 		D = dU+[cos(p0); sin(p0); 0.0]
@@ -462,32 +487,99 @@ module NonLinBeam
 	
 
 	
-	function VarsAtTX(x::Float64,t::Float64,vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},ux::Vector{Float64},uz::Vector{Float64},phi::Vector{Float64},Ibx::Matrix{Float64},Ibt::Matrix{Float64},p0::Float64,k0::Float64,C::Matrix{Float64})
+	function VarsAtTX(x::Float64,t::Float64,vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},ux::Vector{Float64},uz::Vector{Float64},phi::Vector{Float64},Ibx::Matrix{Float64},Ibt::Matrix{Float64},p0::Float64,k0::Float64,C::Matrix{Float64},L::Float64,dt::Float64)
 		Vx = map(qi->InterpolValue(x,qi,Ibx),[vx,vz,omg])
-		dVx = map(qi->InterpolValue(x,qi,Ibx;n=1),[vx,vz,omg])
+		dVx = map(qi->InterpolValue(x,qi,Ibx;n=1),[vx,vz,omg])   *2.0/L
 
 		Ux = map(qi->InterpolValue(x,qi,Ibx),[ux,uz,phi])
-		dUx = map(qi->InterpolValue(x,qi,Ibx),[ux,uz,phi];n=1)
+		dUx = map(qi->InterpolValue(x,qi,Ibx;n=1),[ux,uz,phi])   *2.0/L
 
- 		V = map(qj->InterpolValue(t,Vqj,Ibt),Vx)
-		U = Ux+map(qj->InterpolValue(t,qj,Integrate(Ibt)),Vx)
-		D = dUx + map(qj->InterpolValue(t,qj,Integrate(Ibt)),dVx)
-		E = R(p0+U[3])*D-[-1.0;0.0;-k0]
+ 		V = map(qj->InterpolValue(t,qj,Ibt),Vx)
+		A = map(qj->InterpolValue(t,qj,Ibt;n=1),Vx)              *2.0/dt
+		U = Ux+map(qj->InterpolValue(t,qj,Integrate(Ibt))-InterpolValue(-1.0,qj,Integrate(Ibt)),Vx)    #*dt/2.0
+		D = dUx + map(qj->InterpolValue(t,qj,Integrate(Ibt))-InterpolValue(-1.0,qj,Integrate(Ibt)),dVx)#=*dt/2=# +[cos(p0);sin(p0);0.0]
+		E = R(p0+U[3])*D+[-1.0;0.0;-k0]
 		N = C*E
-		R = R(p0+U[3])'*N
+		Re = R(p0+U[3])'*N
+		X = [0,0,(D[1]*N[2]-D[2]*N[1])]
+
+		return U,V,A,D,E,N,Re,X
 	end
 	#
 	#
-	function delVarAtTX(x::Float64,t::Float64,Ibx::Matrix{Float64},Ibt::Matrix{Float64})
-		indx1 = CartesianIndex.(1:size(Ibx)[1],(1:size(Ibt)[1])9)
+	function delVarAtTX(x::Float64,t::Float64,vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},ux::Vector{Float64},uz::Vector{Float64},phi::Vector{Float64},Ibx::Matrix{Float64},Ibt::Matrix{Float64},p0::Float64,k0::Float64,C::Matrix{Float64},L::Float64,dt::Float64)		
+		indx1 = CartesianIndex.(1:size(Ibx)[1],(1:size(Ibt)[1])')
+		indx = Tuple.(reshape(indx1,prod(size(indx1))))
+		U,V,A,D,E,N,Re,X = VarsAtTX(x,t,vx,vz,omg,ux,uz,phi,Ibx,Ibt,p0,k0,C,L,dt)
+		# D
+		IbtI = Integrate(Ibt)
+		dlV = map( i-> Matrix{Float64}(I,3,3)*PolyValue(x,Ibx[:,i[1]])    *PolyValue(t,Ibt[:,i[2]])             ,indx)
+		dlA = map( i-> Matrix{Float64}(I,3,3)*PolyValue(x,Ibx[:,i[1]])    *PolyValue(t,Ibt[:,i[2]];n=1)         ,indx)*2.0/dt	
+		dlU = map( i-> Matrix{Float64}(I,3,3)*PolyValue(x,Ibx[:,i[1]])    *(PolyValue(t,IbtI[:,i[2]])-PolyValue(-1.0,IbtI[:,i[2]]))  ,indx)#*dt/2.0
+		dlD = map( i-> Matrix{Float64}(I,3,3)*PolyValue(x,Ibx[:,i[1]];n=1)*(PolyValue(t,IbtI[:,i[2]])-PolyValue(-1.0,IbtI[:,i[2]]))  ,indx)*2.0/L#*dt/L
+		dlE = map( i-> R(p0+U[3];n=1)*D*dlU[i][3,:]' + R(p0+U[3])*dlD[i]    ,eachindex(dlD))
+		dlN = map( i-> C*dlE[i]                                            ,eachindex(dlE))
+		dlR = map( i-> R(p0+U[3];n=1)'*N*dlU[i][3,:]' + R(p0+U[3])'*dlN[i]  ,eachindex(dlN))
+		dlX = map( i-> [0,0,1] * (dlD[i][1,:]*N[2] + D[1]*dlN[i][2,:] - dlD[i][2,:]*N[1] - D[2]*dlN[i][1,:])', eachindex(dlD))
+		
+		return U,dlU,V,dlV,A,dlA,D,dlD,E,dlE,N,dlN,Re,dlR,X,dlX
+	end
+	#
+	#
+	function TanResAtTX(x::Float64,t::Float64,vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},ux::Vector{Float64},uz::Vector{Float64},phi::Vector{Float64},Ibx::Matrix{Float64},Ibt::Matrix{Float64},p0::Float64,k0::Float64,C::Matrix{Float64},M::Vector{Float64},px::Float64,pz::Float64,my::Float64,L::Float64,dt::Float64)
+		indx1 = CartesianIndex.(1:size(Ibx)[1],(1:size(Ibt)[1])')
+		indx = Tuple.(reshape(indx1,prod(size(indx1))))
+		roAI = diagm([M[1],M[1],M[2]])
+
+		out = delVarAtTX(x,t,vx,vz,omg,ux,uz,phi,Ibx,Ibt,p0,k0,C,L,dt)
+
+		println("Količine")
+		display.(out)
+		println(x)
+		println(t)
+		
+		U,dlU,V,dlV,A,dlA,D,dlD,E,dlE,N,dlN,Re,dlR,X,dlX =out
+
+
+	
+		F = map( i->
+				-Re*PolyValue(x,Ibx[:,i[1]];n=1)*PolyValue(t,Ibt[:,i[2]])*2/L
+				+([px,pz,my]+X-roAI*A)*PolyValue(x,Ibx[:,i[1]])*PolyValue(t,Ibt[:,i[2]]),
+			indx)
+
+		dlF = map( ij->
+			  -2.0/L*dlR[ij[2]]*PolyValue(x,Ibx[:,indx[ij[1]][1]];n=1)*PolyValue(t,Ibt[:,indx[ij[1]][2]])
+			  +(-roAI*dlA[ij[2]]+dlX[ij[2]])*PolyValue(x,Ibx[:,indx[ij[1]][1]])*PolyValue(t,Ibt[:,indx[ij[1]][2]]),
+			  CartesianIndex.(eachindex(indx),eachindex(indx)'))
+
+		dlF = hvcat(length(F),dlF...)
+		F = vcat(F...)
+		
+		return hcat(dlF,F)
+	end
+	function parResAtT(t::Float64,vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},ux::Vector{Float64},uz::Vector{Float64},phi::Vector{Float64},Ibx::Matrix{Float64},Ibt::Matrix{Float64},pb::Vector{Float64},kb::Vector{Float64},C::Matrix{Float64},px::Vector{Float64},pz::Vector{Float64},my::Vector{Float64},L::Float64,dt::Float64)
+	
+		indx1 = CartesianIndex.(1:size(Ibx)[1],(1:size(Ibt)[1])')
 		indx = Tuple.(reshape(indx1,prod(size(indx1))))
 
-		dlU = map( i-> Matrix{Float64},(I,3,3)*PolyValue(x,Ibx[:,i[1]])*PolyValue(t,Integrate(Ibt[:,i[2]])),indx)
-		dlD = map( i-> Matrix{Float64},(I,3,3)*PolyValue(x,Ibx[:,i[1]];n=1)*PolyValue(t,Integrate(Ibt[:,i[2]])),indx)
-		dlE = map(i->R(p0+U[3];n=1)*D*dlU[i][3,:] + R(p0+U[3])*dlD[i],eachindex(dlD))
-		dlN = map(i->C*dlE[i],eachindex(dlE))
-		dlR = map(i->R(p0+U[3];n=1)'*D*dlU[i][3,:] + R(p0+U[3])'*dlN[i],eachindex(dlN))
+		P0 = [px[1],pz[1],my[1]]
+		P1 = [px[2],pz[2],my[2]]
+		
+		U,V,A,D,E,N,Re,X = VarsAtTX(1.0,t,vx,vz,omg,ux,uz,phi,Ibx,Ibt,pb[2],kb[2],C,L,dt)
+		parF = map( i->	(Re+P1)*PolyValue(1.0,Ibx[:,i[1]])*PolyValue(t,Ibt[:,i[2]]) ,indx)
+		
+		U,V,A,D,E,N,Re,X = VarsAtTX(-1.0,t,vx,vz,omg,ux,uz,phi,Ibx,Ibt,pb[1],kb[2],C,L,dt)
+		parF += map( i-> (-Re+P0)*PolyValue(-1.0,Ibx[:,i[1]])*PolyValue(t,Ibt[:,i[2]]) ,indx)
+		parF = vcat(parF...)
+		return parF
 	end
+
+
+
+
+
+
+
 
 
 	# Na KE
@@ -785,10 +877,8 @@ module NonLinBeam
 		
 		xtform = map(i -> (xw[i][1]*(a1[i]-a0[i])/2 .+ (a1[i]+a0[i])/2) , eachindex(a0))
 		wtform = map(i -> (xw[i][2]*(a1[i]-a0[i])/2),eachindex(a0))
-
 		indx = Tuple.(CartesianIndex.(map(i-> reshape(1:length(xtform[i]),vcat(ones(Int64,i-1),[length(xtform[i])])...), eachindex(a0))...))
-	
-		I = map(i -> prod(getindex.(wtform,indx[i]))*f(getindex.(xtform,indx[i])...),eachindex(indx)) |> sum
+		I = map(i -> prod(getindex.(wtform,i))*f(getindex.(xtform,i)...),indx) |> sum
 		I = round.(I,digits = 12)
 		return I
 	end

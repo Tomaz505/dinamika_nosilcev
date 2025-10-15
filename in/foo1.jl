@@ -22,6 +22,7 @@ const g = 0.0
 const Integracija::String 	= ["gauss","lobatto"][1] 
 const dv_norm_tol_exp::Int64	= -8
 const nwt_iter_max_count::Int64	= 4
+time_interpolation = [[-1.0,1.0]]
 
 
 
@@ -47,9 +48,9 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 #	pz	- Function		t->(nx2)	t->nothing
 #	px	- Function		t->(nx2)	t->nothing
 #	my	- Function		t->(nx2)	t->nothing
-#	Px	- Function		t->(1,2)	t->(0.,0.)
-#	Pz	- Function		t->(1,2)	t->(0.,0.)
-#	My	- Function		t->(1,2)	t->(0.,0.)
+#	Px	- Function		t->(n+1)	t->nothing
+#	Pz	- Function		t->(n+1)	t->nothing
+#	My	- Function		t->(n+1)	t->nothing
 #	Ib_geom	- Matrix{FLoat64}	(m,m)		[0.5 0.5; -0.5 0.5] == re_gramshchim([-1.;1.])
 #	Kb	- Matrix{Float64}	(m-2x2)		[]
 
@@ -82,18 +83,18 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 @assignto :(ElementDataIn) [1] :( [10^4 0. 0.;0. 10^4 0.; 0. 0. 10^3] ) :(C)
 
 
-#@assignto :(ElementDataIn) [1] :(t->[0.1 0.1]*t*Int(t<0.1)  ) :(px)
+#@assignto :(ElementDataIn) [1] :(t->[0.1, 0.1]*t*Int(t<0.1)  ) :(px)
 @assignto :(ElementDataIn) [1] :(t->[0.0, 50.0]*t*Int(t<1.0) ) :(Px)
-#@assignto :(ElementDataIn) [1] :(t->[0. 0.]  ) :(pz)
+#@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(pz)
 #@assignto :(ElementDataIn) [1] :(t->[0., 0]  ) :(Pz)
-#@assignto :(ElementDataIn) [1] :(t->[0. 0.]  ) :(my)
+#@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(my)
 #@assignto :(ElementDataIn) [1] :(t->[0., 50.]*t*Int(t<1.0)  ) :(My)
 
 
 
 @assignto :(ElementDataIn) [1] :( [-1.0; 1.0] ) :(div1)
 @assignto :(ElementDataIn) [1] :( [2] ) :(div2)
-@assignto :(ElementDataIn) [1] :( [20] ) :(nInt) 
+@assignto :(ElementDataIn) [1] :( [3] ) :(nInt) 
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 
 

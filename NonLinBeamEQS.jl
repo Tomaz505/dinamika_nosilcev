@@ -54,10 +54,10 @@ begin
 	dR = [cos(h/2*v[3]) sin(h/2*v[3]) 0; -sin(h/2*v[3]) cos(h/2*v[3]) 0; 0 0 1]
 	
 	Γ0 = R0*d0+e0
-	Γ = dR*(Γ0-e0)+e0+h/2*Rm*dx.(v)
+	Γ = dR*(Γ0-e0)+e0+h/2*Rm*dx.(v)*2/L
 	#Γ1 = Γ0+h*(Rm*dx.(v) + v[3]*[0. 1. 0.; -1. 0. 0.; 0. 0. 0.]*(Γ-e0))  
 	Γ1 = R1*d1+e0
-	Γm = Rm*dm+e0 	#(Γ1+Γ0)/2   #Rm*dm+e0
+	Γm = (Γ1+Γ0)/2   #Rm*dm+e0
 	
 	
 		
@@ -67,7 +67,7 @@ begin
 
 	#Prva komponenta je pod integralom druga pa so robne vrednosti
 	wF = (
-		-Re * dx(Pi)*h + (p*h - ρAI*Δv + Mpm*h)*Pi ,
+		-Re * dx(Pi)*h*2/L + (p*h - ρAI*Δv + Mpm*h)*Pi ,
 		   Re*Pi*h
 		 )
 	
@@ -108,8 +108,8 @@ begin
 		m => 1.0, Iy => 0.1,
 		h => 0.02,
 		px => 1., pz => 0.0, my => 0.0,
-		dx(vz) => 0.,dx(vx) => 0.00375*dx(Pbasis[2]), dx(Ω) => 0.,
-		vz => 0., vx => 0.00375*Pbasis[2], Ω => 0.,
+		dx(vz) => 0.,dx(vx) => 0.0, dx(Ω) => 0.,
+		vz => 0., vx => 0.0, Ω => 0.,
 		dx(ux) => 0., dx(uz) => 0., dx(φ) => 0.,
 		ux => 0., uz => 0., φ => 0.,
 		vx0 => 0., vz0=> 0., Ω0 => 0.,
