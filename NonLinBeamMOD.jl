@@ -481,8 +481,8 @@ module NonLinBeam
 			#   H I T R O S T I
 			V1 = map(vi->InterpolValue(xInt[i1],vi,Ib),[vx1,vz1,omg1])
 			V2 = map(vi->InterpolValue(xInt[i1],vi,Ib),[vx2,vz2,omg2])
-			dV1 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx1,vz1,omg1])#*2/L
-			dV2 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx2,vz2,omg2])#*2/L
+			dV1 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx1,vz1,omg1])*2/L
+			dV2 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx2,vz2,omg2])*2/L
 			
 			V = (V1 +V2) /2
 			dV= (dV1+dV2)/2
@@ -490,7 +490,7 @@ module NonLinBeam
 
 			#   P O M I K I
 			U1 = map(ui->InterpolValue(xInt[i1],ui,Ib),[ux1,uz1,phi1])
-			dU1 = map(ui->InterpolValue(xInt[i1],ui,Ib;n=1), [ux1,uz1,phi1])#*2/L
+			dU1 = map(ui->InterpolValue(xInt[i1],ui,Ib;n=1), [ux1,uz1,phi1])*2/L
 			U = U1+V*dt/2.0
 			U2 = U1+V*dt
 			
