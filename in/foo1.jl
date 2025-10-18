@@ -14,15 +14,19 @@ elementi::Array{Int64} = [
 
 #   P O D A T K I   R A Č U N A 
 const ti::Float64 = 0.0
-const tf::Float64 = 0.04
 const dt::Float64 = 0.02
+const tf::Float64 = 0.04
+
+const nt::Int64 = 2
+const it::Int64 = 4
+
 const g = 0.0
 
 #	K O N T R O L N I   P A R A M E T R I
 const Integracija::String 	= ["gauss","lobatto"][1] 
 const dv_norm_tol_exp::Int64	= -8
-const nwt_iter_max_count::Int64	= 4
-time_interpolation = [[-1.0,1.0]]
+const nwt_iter_max_count::Int64	= 10
+
 
 
 
@@ -94,7 +98,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 @assignto :(ElementDataIn) [1] :( [-1.0; 1.0] ) :(div1)
 @assignto :(ElementDataIn) [1] :( [2] ) :(div2)
-@assignto :(ElementDataIn) [1] :( [3] ) :(nInt) 
+@assignto :(ElementDataIn) [1] :( [5] ) :(nInt) 
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 
 
