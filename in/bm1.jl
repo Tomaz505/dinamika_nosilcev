@@ -14,8 +14,8 @@ elementi::Array{Int64} = [
 
 #   P O D A T K I   R A Č U N A 
 const ti::Float64 = 0.0
-const dt::Float64 = 0.02
-const tf::Float64 = 0.02
+const dt::Float64 = 0.002
+const tf::Float64 = 1.0
 const g::Vector{Float64}  = [0.; 0.]
 
 
@@ -26,8 +26,8 @@ tnodes                          = [0.;0.5;1.]
 Integracija::String 	       = ["gauss", "lobatto"][1]
 nt = 2
 
-const dv_norm_tol_exp::Int64	   = -13
-const nwt_iter_max_count::Int64	   = 100
+const dv_norm_tol_exp::Int64	   = -11
+const nwt_iter_max_count::Int64	   = 150
 
 
 
@@ -92,15 +92,15 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 #@assignto :(ElementDataIn) [1] :(t->[0.1, 0.1]*t) :(px)
 #@assignto :(ElementDataIn) [1] :(t->[0.;0.;0.;-10.]*t ) :(Px)
-#@assignto :(ElementDataIn) [1] :(t->[1.  1.]  ) :(pz)
-@assignto :(ElementDataIn) [1] :(t->[0.;50.0*t*Int(t<0.5)]) :(Pz)
+@assignto :(ElementDataIn) [1] :(t->[5.  5.]*t  ) :(pz)
+#@assignto :(ElementDataIn) [1] :(t->[0.;50.0*t*Int(t<0.5)]) :(Pz)
 #@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(my)
 #@assignto :(ElementDataIn) [1] :(t->[0.;50.]*t*Int(t<1.0)) :(My)
 
 
-#@assignto :(ElementDataIn) [1] :( [-1.;  1.] ) :(div1)
-@assignto :(ElementDataIn) [1] :( [2] ) :(div2)
-@assignto :(ElementDataIn) [1] :( [4] ) :(nInt)
+@assignto :(ElementDataIn) [1] :( [-1.;  1.] ) :(div1)
+@assignto :(ElementDataIn) [1] :( [5] ) :(div2)
+@assignto :(ElementDataIn) [1] :( [7] ) :(nInt)
 #ssignto :(ElementDataIn) [1] :( true ) :(Ci)
 
 
@@ -109,7 +109,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 # V O Z L I Š Č A
-@assignto :(VozDataIn) [1] :( Bool[0, 0, 0] ) :(Supp)
+@assignto :(VozDataIn) [1,2] :( Bool[0, 0, 1] ) :(Supp)
 #@assignto :(VozDataIn) [2] :( Bool[1, 0, 1] ) :(Supp)
 
 #@assignto :(VozDataIn) [1] :( pi/3. ) :(dir)
