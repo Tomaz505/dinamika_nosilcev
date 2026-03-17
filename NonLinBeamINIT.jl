@@ -1,10 +1,20 @@
 #iniciacija funkcij
 #   Moduli
 
+
 include("NonLinBeamMOD.jl");
-using .NonLinBeam, SparseArrays,LinearAlgebra
+#=
+import REPL
+using REPL.TerminalMenus
+options = ["Modal","Dynamic","Plot",...]
+analize = request(MultiSelectMenu(options))
+
+Uporaba Set
+=#
+
+using .NonLinBeam, SparseArrays,LinearAlgebra, Latexify
 using Plots
-theme(:dark)
+theme(:dao)
 
 #unicodeplots()
 # TILE NISO NUJNI ||
