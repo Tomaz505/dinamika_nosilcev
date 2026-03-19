@@ -35,17 +35,17 @@ end
 #   P L O T
 #
 
-#konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
-#display(konstr_img)
+konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
+display(konstr_img)
 
-#@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
+@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
 
-#println("\n Kako nadaljujem?")
-#println("0 -> prekini postopek")
-#println("Enter\t\t-> nadaljuj račun")
-#if (readline() == "0")
-	#error("Preklic")
-#end
+println("\n Kako nadaljujem?")
+println("0 → prekini postopek")
+println("↲ → nadaljuj račun")
+if (readline() == "0")
+	error("Preklic")
+end
 
 
 

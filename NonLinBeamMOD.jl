@@ -560,7 +560,6 @@ module NonLinBeam
 		indx2 = CartesianIndex.((1:size(Pval)[2]),(1:size(Pval)[2])')
 
 		D = [0.;1.;0.;;-1.0;0.0;0.0;;0.0;0.0;0.0]
-			   #-      +
 		Id = [1.0;0.0;0.0;;0.0;1.0;0.0;;0.0;0.0;1.0]
 		Mai = [M[1] 0.0 0.0; 0.0 M[1] 0.0; 0.0 0.0 M[2]]
 
@@ -571,8 +570,8 @@ module NonLinBeam
 			#   H I T R O S T I
 			V1 = map(vi->InterpolValue(xInt[i1],vi,Ib),[vx1,vz1,omg1])
 			V2 = map(vi->InterpolValue(xInt[i1],vi,Ib),[vx2,vz2,omg2])
-			dV1 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx1,vz1,omg1])*2/L
-			dV2 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx2,vz2,omg2])*2/L
+			dV1 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx1,vz1,omg1])#*2/L
+			dV2 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx2,vz2,omg2])#*2/L
 			
 			V = (V1 +V2) /2.0
 			dV= (dV1+dV2)/2.0
@@ -580,12 +579,7 @@ module NonLinBeam
 
 			#   P O M I K I
 			U1 = map(ui->InterpolValue(xInt[i1],ui,Ib),[ux1,uz1,phi1])
-<<<<<<< HEAD
-			dU1 = map(ui->InterpolValue(xInt[i1],ui,Ib;n=1), [ux1,uz1,phi1])*2/L
-=======
 			dU1 = map(ui->InterpolValue(xInt[i1],ui,Ib;n=1), [ux1,uz1,phi1])#*2/L
-
->>>>>>> workon
 			U = U1+V*dt/2.0
 			dU = dU1 +dV*dt/2.0
 
@@ -607,10 +601,8 @@ module NonLinBeam
 
 			#	N O T R A N J E   S I L E
 			N = C*(E1+E2)/2
-
 			#	N O T R A N J E   S I L E   F I K S N A
 			Re = Rm'*N
-
 			#	V E K T O R S K I   P R O D U K T
 			X = -[0.0;0.0;1.0]*dot(N,D,E_e)
 			   #-
@@ -618,19 +610,13 @@ module NonLinBeam
 			# 	L I N E A R I Z A C I J A
 			LR = (Id+dt/2*V[3]*D)
 
-
-
-			#dlE2 = C*dt*D*(e0)
 			dlRe= (dt/2*Rm'*(-D*N + C*D*(dt/2*Rm*dV + LR*E_e)), dt/2*Rm'*C*LR*Rm)
-							#-   +
 			dlX = ([0.0;0.0;dt/2.0]*(E_e'*D*(-D*N + C*D*(dt/2*Rm*dV + LR*E_e)))',
-											#-
 					[0.0;0.0;dt/2.0]*(D*Re + (E_e'*D*C*LR*Rm)' )')
-					#                  +
+
 
 			#OBTEŽBA  !!!POPRAVI INTERPOLACIJO!!!
-			p = map(pj -> PolyValue(xInt[i1],[1. 0.;-1.0/L  1.0/L]*reshape(pj,(2))),[Fpx,Fpz,-Fmy])
-						#                                                                    +
+			p = map(pj -> PolyValue(xInt[i1],[1. 0.;-1.0/L  1.0/L]*reshape(pj,(2))),[Fpx,Fpz,Fmy])
 
 			#POSPEŠEK
 
@@ -650,11 +636,10 @@ module NonLinBeam
 				indx2)*wInt[i1]
 
 		end
-		P = [Px[1];Pz[1];-My[1]]
-		#    			 +
+		P = [Px[1];Pz[1];My[1]]
 		F .+= map(i2 -> dt*P*PolyValue(0.0,Ib[:,i2]) ,1:length(Ib[:,1]))
-		P = [Px[2];Pz[2];-My[2]]
-		#    			 +
+
+		P = [Px[2];Pz[2];My[2]]
 		F .+= map(i2 -> dt*P*PolyValue(L,Ib[:,i2]) ,1:length(Ib[:,1]))
 
 		return dlF, F, gamma1plus1,gamma2plus1,gamma3plus1
