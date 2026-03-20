@@ -108,6 +108,7 @@ module NonLinBeam
 
 	struct MidPoint <: TimeIntegration
 		dt::Float64
+		nt::Int64
 	end
 
 	struct TimeElement <: TimeIntegration
@@ -541,7 +542,7 @@ module NonLinBeam
 
 
 	# Na KE
-	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},gamma1::Vector{Float64},gamma2::Vector{Float64},gamma3::Vector{Float64},Pval::Matrix{Float64},dPval::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64} ,Fmy::Vector{Float64},Px::Vector{Float64},Pz::Vector{Float64},My::Vector{Float64},dt::Float64,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Vector{Float64})
+	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},gamma1::Vector{Float64},gamma2::Vector{Float64},gamma3::Vector{Float64},Pval::Matrix{Float64},dPval::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64} ,Fmy::Vector{Float64},Px::Vector{Float64},Pz::Vector{Float64},My::Vector{Float64},dt::MidPoint,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Vector{Float64})
 
 		#dt = tInt.dt
 
@@ -654,36 +655,151 @@ module NonLinBeam
 		F .+= map(i2 -> dt*P*PolyValue(L,Ib[:,i2]) ,1:length(Ib[:,1]))
 
 		return dlF, F, gamma1plus1,gamma2plus1,gamma3plus1
+	end
+
+	# Na KE
+	function Tan_Res(xInt::Vector{Float64}, wInt::Vector{Float64}, ux::Matrix{Float64}, uz::Matrix{Float64}, phi::Matrix{Float64}, vx::Matrix{Float64}, vz::Matrix{Float64}, omg::Matrix{Float64}, gamma1::Vector{Float64}, gamma2::Vector{Float64}, gamma3::Vector{Float64}, Pval::Matrix{Float64}, dPval::Matrix{Float64}, Ib::Matrix{Float64}, p0::Vector{Float64}, k0::Vector{Float64}, C::Matrix{Float64}, M::Vector{Float64}, Fpx::Matrix{Float64}, Fpz::Matrix{Float64} , Fmy::Matrix{Float64}, Px::Matrix{Float64}, Pz::Matrix{Float64}, My::Matrix{Float64}, tInt::TimeElement, pb::Vector{Float64}, kb::Vector{Float64}, L::Float64, g::Vector{Float64})
+
+	#dt = tInt.dt
+	gamma1plus1 = copy(gamma1)
+	gamma2plus1 = copy(gamma2)
+	gamma3plus1 = copy(gamma3)
+
+	F = fill(Vector{Float64}([0.0;0.0;0.0]),size(vx))
+	dlF = fill(zeros(Float64,(3,3)),(length(vx),length(vx)))
+
+
+	indxF = CartesianIndex.((1:size(Pval)[2]),(1:size(tInt.Tvalue)[2])')
+	indx2 = CartesianIndex.((1:size(Pval)[2]),(1:size(Pval)[2])')
+
+	D = [0.;1.;0.;;-1.0;0.0;0.0;;0.0;0.0;0.0]
+	#-      +
+	Id = [1.0;0.0;0.0;;0.0;1.0;0.0;;0.0;0.0;1.0]
+	Mai = [M[1] 0.0 0.0; 0.0 M[1] 0.0; 0.0 0.0 M[2]]
+
+	#=
+	struct TimeElement <: TimeIntegration
+	dt::Float64
+	nodes::Vector{Float64}
+	basis::Matrix{Float64}
+	DTvalue::Matrix{Float64}
+	Tvalue::Matrix{Float64}
+	ITvalue::Matrix{Float64}
+	xInt::Vector{Float64}
+	wInt::Vector{Float64}
+	end
+	=#
+
+	for i1 = eachindex(xInt)
+		e0 = [-1.; 0.; -k0[i1]]
+
+		#   H I T R O S T I
+		V = vcat(map(vi->PolyValue(xInt[i1],Ib*vi),[vx1,vz1,omg1])...)
+		#  V = vcat(map(vi-> Pval[i1,:]*vi ,[vx1,vz1,omg1])...)
+		dV = vcat(map(vi->PolyValue(xInt[i1],Ib*vi;n=1),[vx1,vz1,omg1])...)#*2/L
+		# dV = vcat(map(vi-> dPval[i1,:]*vi ,[vx1,vz1,omg1])...)
+
+		#   P O M I K I
+		Un = map(ui->InterpolValue(xInt[i1],ui,Ib),[ux1[:,1],uz1[:,1],phi1[:,1]])
+		#  Un = map(ui-> Pval[i1,:]*ui ,[ux1[:,1],uz1[:,1],phi1[:,1]])
+		dUn = map(ui->InterpolValue(xInt[i1],ui,Ib;n=1), [ux1[:,1],uz1[:,1],phi1[:,1]])#*2/L
+		# dUn = map(ui-> dPval[i1,:]*ui ,[ux1[:,1],uz1[:,1],phi1[:,1]])
+
+		dqn = [cos(p0[i1]);-sin(p0[i1]);k0[i1]]+dUn
+
+		R0 = R(p0[i1])
+
+		for t1 = eachindex(tInt.wInt)
+
+			U = Un + V*tInt.ITvalue[t1,:]'
+			dU = dUn + dV*tInt.ITvalue[t1,:]'
+
+		#	D E F O R M A C I J E   F I K S N A   B A Z A
+
+			dq = dqn + dV*tInt.ITvalue[t1,:]'
+
+			Rst = R(U[3])*R0
+			E_e = Rst*dq
+
+			Est = E_e + e0
+			Nst = C*Est
+			Rst = Rst'*Nst
+			Xst = -[0.;0.;1.]*Nst'*D*E_e
+
+			tV = Mai*(V*tInt.DTvalue[t1,:]' + [g;0.])
+
+
+
+
+			#dlE2 = C*dt*D*(e0)
+
+			#-   +
+			dlX = ([0.0;0.0;dt/2.0]*(E_e'*D*(-D*N + C*D*(dt/2*Rm*dV + LR*E_e)))',
+				#-
+				[0.0;0.0;dt/2.0]*(D*Re + (E_e'*D*C*LR*Rm)' )')
+			#                  +
+
+
+			p = vcat(map(pj -> PolyValue(xInt[i1],[1. 0.;-1.0/L  1.0/L]*pj),[Fpx[:,t1],Fpz[:,t1],-Fmy[:,t1]])...)
+			#                                                                                    +
+
+
+			F .+= map(it2 ->  tInt.Tvalue[t1,it2[2]]*(-(dPval[i1,it2[1]]*Id + Pval[i1,it2[1]]*[0.;0.;1.0]*dq'*D)*Rst + Pval[i1,i2]*(p - tV ))   ,indxF) * wInt[i1]*tInt.wInt[t1]
+
+
+			dlF .+= map( ij ->
+					-dPval[i1,ij[1]]*(
+						Pval[i1,ij[2]]*[0.0;0.0;0.0;;0.0;0.0;0.0;;dlRe[1]*dt]
+						+dPval[i1,ij[2]]*dlRe[2]*dt)
+					+Pval[i1,ij[1]]*(
+						Pval[i1,ij[2]]*([0.0;0.0;0.0;;0.0;0.0;0.0;;dlX[1]*dt])
+						+dPval[i1,ij[2]]*dlX[2]*dt),
+					indx2)*wInt[i1]
+
+		end
+	end
+	P = vcat([Px[1,:];Pz[1,:];-My[1,:]]...)
+	#    			 +
+	for t1 = eachindex(tInt.wInt)
+		F .+= map(it2 -> P[:,t1]*PolyValue(0.0,Ib[:,it2[1]])*tInt.Tvalue[t1,it2[2]] ,indxF)*tInt.wInt[t1]
+	end
+	P = vcat([Px[2,:];Pz[2,:];-My[2,:]]...)
+	#    			 +
+	for t1 = eachindex(tInt.wInt)
+		F .+= map(it2 -> P[:,t1]*PolyValue(L,Ib[:,it2[1]])*tInt.Tvalue[t1,it2[2]] ,indxF)*tInt.wInt[t1]
+	end
+
+	return dlF, F, gamma1plus1,gamma2plus1,gamma3plus1
 
 	end
 
-	function iteracija(ux::Vector{Float64},uz::Vector{Float64},phi::Vector{Float64},vx::Vector{Float64},vz::Vector{Float64},Omg::Vector{Float64},Dvx::Vector{Float64},Dvz::Vector{Float64},DvOmg::Vector{Float64},tInt::MidPoint)
+	function iteracija(ux::Vector{Float64}, uz::Vector{Float64}, phi::Vector{Float64}, vx::Vector{Float64}, vz::Vector{Float64}, Omg::Vector{Float64}, Dvx::Vector{Float64}, Dvz::Vector{Float64}, DvOmg::Vector{Float64}, tInt::MidPoint)
 		dt = tInt.dt
 
 		vx += Dvx*2
 		vz += Dvz*2
 		Omg += DvOmg*2
 
-		ux += Dvx*dt
-		uz += Dvz*dt
-		phi += DvOmg*dt
+		ux += Dvx*tInt.dt
+		uz += Dvz*tInt.dt
+		phi += DvOmg*tInt.dt
 
 	return vx,vz,Omg,ux,uz,phi
 	end
 
-	function prediktor(ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},Omg::Matrix{Float64},tInt::MidPoint)
+	function prediktor(ux::Matrix{Float64}, uz::Matrix{Float64}, phi::Matrix{Float64}, vx::Matrix{Float64}, vz::Matrix{Float64}, Omg::Matrix{Float64}, tInt::MidPoint)
 		return vx[:,1],vz[:,1],Omg[:,1],ux[:,1]+vx[:,1]*dt, uz[:,1]+vz[:,1]*dt,phi[:,1]+Omg[:,1]*dt
 	end
 
 
-	function Mass(xInt::Vector{Float64}, wInt::Vector{Float64}, Pval::Matrix{Float64}, dPval::Matrix{Float64}, M::Vector{Float64})
-	Mass = fill(zeros(Float64,(3,3)),(size(Pval)[2],size(Pval)[2]))
-	indx2 = CartesianIndex.((1:size(Pval)[2]),(1:size(Pval)[2])')
-	Mai = diagm(M[[1,1,2]])
-	for i1 = eachindex(xInt)
-		Mass .+= map( ij -> Pval[i1,ij[1]]*Pval[i1,ij[2]]*(-2.0*Mai), indx2)*wInt[i1]
-	end
-	return Mass
+	function Mass(xInt::Vector{Float64}, wInt::Vector{Float64}, Pval::Matrix{Float64}, dPval::Matrix{Float64}, M::Vector{Float64},tInt::MidPoint)
+		Mass = fill(zeros(Float64,(3,3)),(size(Pval)[2],size(Pval)[2]))
+		indx2 = CartesianIndex.((1:size(Pval)[2]),(1:size(Pval)[2])')
+		Mai = diagm(M[[1,1,2]])
+		for i1 = eachindex(xInt)
+			Mass .+= map( ij -> Pval[i1,ij[1]]*Pval[i1,ij[2]]*(-2.0*Mai), indx2)*wInt[i1]
+		end
+		return Mass
 	end
 
 

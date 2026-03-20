@@ -64,7 +64,7 @@ M =  BeamMotion(zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time
 
 
 begin
-#=
+
 	if metoda_t_integracije == "timeelement"
 		Ibtime = trig_re_gramschmid([tnodes])
 		xt,wt = QuadInt(it)
@@ -73,10 +73,10 @@ begin
 		Tvals = TrigValue
 		tInt = TimeElement(dt,tnodes,Ibtime,)
 	elseif metoda_t_integracije == "midpoint"
-		tInt = MidPoint(dt)
+		tInt = MidPoint(dt,1)
 	end
 
-=#
+
 	#Komponente za razvoj interpolacije (vključuje odvod če je interpoliran)
 	#n_nodes = n_voz + sum(map(i -> .+(size.(E[i].P)...)[1]-2-(length(ElementDataIn[i].div2)-1)*(1+Int(ElementDataIn[i].Ci)),1:n_elem))
 
@@ -142,7 +142,7 @@ begin
 	mass_m = copy(Ja)
 	for i1 = eachindex(E)
 		for i2 = eachindex(E[i1].P)
-			mi = Mass(E[i1].xInt[i2],E[i1].wInt[i2],Pvalues[i1][i2],dPvalues[i1][i2],ElementDataIn[i1].M)
+			mi = Mass(E[i1].xInt[i2],E[i1].wInt[i2],Pvalues[i1][i2],dPvalues[i1][i2],ElementDataIn[i1].M,tInt)
 			mass_m[indx_dof[i1][i2],indx_dof[i1][i2]] = mass_m[indx_dof[i1][i2],indx_dof[i1][i2]]+hvcat(size(mi)[1],mi...)
 		end
 	end
