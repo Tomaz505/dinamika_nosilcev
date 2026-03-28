@@ -65,6 +65,18 @@ M =  BeamMotion(zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time
 
 begin
 
+	#Vsiljeno gibanje podprte prostostne stopnje
+	for i1 in eachindex(VozDataIn)
+		local U = hcat(VozDataIn[i1].mot.(time)...)
+		V = (U[:,2:end]-U[:,1:end-1])/dt
+		for i2 = 2:length(time)
+			M.vx[i1,i2] = -M.vx[i1,i2-1]+2*V[1,i2-1]
+			M.vz[i1,i2] = -M.vz[i1,i2-1]+2*V[2,i2-1]
+			M.Omg[i1,i2] = -M.Omg[i1,i2-1]+2*V[3,i2-1]
+		end
+	end
+
+	#Tip casovne integracije -> Multiple dispatch
 	if metoda_t_integracije == "timeelement"
 		Ibtime = trig_re_gramschmid([tnodes])
 		xt,wt = QuadInt(it)
@@ -155,18 +167,18 @@ begin
 
 		#Re = ones(Float64,3*n_nodes*nt,1)
 
-		print("\nit = ",i_time,"    \tt = ",time[i_time])
 
 
 		# Prediktor
+		#M.vx[indxX,i_time],M.vz[indxZ,i_time],M.Omg[indxP,i_time], M.ux[indxX,i_time],M.uz[indxZ,i_time],M.phi[indxP,i_time] = prediktor(M.ux[indxX,i_time.+(-1:0)], M.uz[indxZ,i_time.+(-1:0)], M.phi[indxP,i_time.+(-1:0)], M.vx[indxX,i_time.+(-1:0)], M.vz[indxZ,i_time.+(-1:0)], M.Omg[indxP,i_time.+(-1:0)],tInt)
 		begin
 			M.vx[indxX,i_time:i_time+nt-2] = repeat(M.vx[indxX,i_time-1],inner=(1,nt-1))
 			M.vz[indxZ,i_time:i_time+nt-2] =  repeat(M.vz[indxZ,i_time-1],inner=(1,nt-1))
 			M.Omg[indxP,i_time:i_time+nt-2]=  repeat(M.Omg[indxP,i_time-1],inner=(1,nt-1))
 
-			M.ux[indxX,i_time:i_time+nt-2] = repeat(M.ux[indxX,i_time-1] + M.vx[indxX,i_time:i_time+nt-2]*dt,inner=(1,nt-1))
-			M.uz[indxZ,i_time:i_time+nt-2] =  repeat(M.uz[indxZ,i_time-1] + M.vz[indxZ,i_time:i_time+nt-2]*dt,inner=(1,nt-1))
-			M.phi[indxP,i_time:i_time+nt-2]=  repeat(M.phi[indxP,i_time-1] + M.Omg[indxP,i_time:i_time+nt-2]*dt,inner=(1,nt-1))
+			M.ux[:,i_time:i_time+nt-2] = repeat(M.ux[:,i_time-1] + M.vx[:,i_time:i_time+nt-2]*dt,inner=(1,nt-1))
+			M.uz[:,i_time:i_time+nt-2] =  repeat(M.uz[:,i_time-1] + M.vz[:,i_time:i_time+nt-2]*dt,inner=(1,nt-1))
+			M.phi[:,i_time:i_time+nt-2]=  repeat(M.phi[:,i_time-1] + M.Omg[:,i_time:i_time+nt-2]*dt,inner=(1,nt-1))
 		end
 
 
@@ -193,7 +205,7 @@ begin
 						My = (isnothing(ElementDataIn[i_el].My(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].My((time[i_time]+time[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
 
 
-						dlF,F,M.gamma1[E[i_el].indx_int[i_ke],i_time],M.gamma2[E[i_el].indx_int[i_ke],i_time],M.gamma3[E[i_el].indx_int[i_ke],i_time] = Tan_Res(E[i_el].xInt[i_ke],E[i_el].wInt[i_ke],M.ux[E[i_el].indx[i_ke],[i_time-1,i_time]],M.uz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.phi[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vx[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.Omg[E[i_el].indx[i_ke],[i_time-1,i_time]], M.gamma1[E[i_el].indx_int[i_ke],i_time-1], M.gamma2[E[i_el].indx_int[i_ke],i_time-1], M.gamma3[E[i_el].indx_int[i_ke],i_time-1], Pvalues[i_el][i_ke], dPvalues[i_el][i_ke], E[i_el].P[i_ke], E[i_el].p0[i_ke], E[i_el].k0[i_ke], ElementDataIn[i_el].C, ElementDataIn[i_el].M, px, pz, my, Px, Pz, My, dt, E[i_el].pb[i_ke], E[i_el].kb[i_ke], E[i_el].L[i_ke], g)
+						dlF,F,M.gamma1[E[i_el].indx_int[i_ke],i_time],M.gamma2[E[i_el].indx_int[i_ke],i_time],M.gamma3[E[i_el].indx_int[i_ke],i_time] = Tan_Res(E[i_el].xInt[i_ke], E[i_el].wInt[i_ke], M.ux[E[i_el].indx[i_ke],[i_time-1,i_time]], M.uz[E[i_el].indx[i_ke],[i_time-1,i_time]], M.phi[E[i_el].indx[i_ke],[i_time-1,i_time]], M.vx[E[i_el].indx[i_ke],[i_time-1,i_time]], M.vz[E[i_el].indx[i_ke],[i_time-1,i_time]], M.Omg[E[i_el].indx[i_ke],[i_time-1,i_time]], M.gamma1[E[i_el].indx_int[i_ke],i_time-1], M.gamma2[E[i_el].indx_int[i_ke],i_time-1], M.gamma3[E[i_el].indx_int[i_ke],i_time-1], Pvalues[i_el][i_ke], dPvalues[i_el][i_ke], E[i_el].P[i_ke], E[i_el].p0[i_ke], E[i_el].k0[i_ke], ElementDataIn[i_el].C, ElementDataIn[i_el].M, px, pz, my, Px, Pz, My, tInt, E[i_el].pb[i_ke], E[i_el].kb[i_ke], E[i_el].L[i_ke], g)
 						
 						
 						Ja[indx_dof[i_el][i_ke],indx_dof[i_el][i_ke]] += hvcat(length(F),dlF...)
@@ -250,7 +262,8 @@ begin
 
 
 		end # while norm(Dv) > x
-		print("    \titr.cnt.=",count)
+		print("it = ",i_time,"    \tt = ",time[i_time])
+		print("    \titr.cnt.=",count,"\n")
 	end # i_time
 end
 println("[  Ok  ]  Račun")

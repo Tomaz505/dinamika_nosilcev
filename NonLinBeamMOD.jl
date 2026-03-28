@@ -76,6 +76,7 @@ module NonLinBeam
 		x::Float64 = 0.
 		z::Float64 = 0.
 		i::Int64 = 1
+		mot::Function = t-> [0.;0.;0.]
 		Supp::Array{Bool} = [1, 1, 1]
 		dir::Float64 = 0.
 		#mot::Function t-> [0.; 0.; 0.] #Prisiljeno gibanje vozlišča    
@@ -542,9 +543,9 @@ module NonLinBeam
 
 
 	# Na KE
-	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},gamma1::Vector{Float64},gamma2::Vector{Float64},gamma3::Vector{Float64},Pval::Matrix{Float64},dPval::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64} ,Fmy::Vector{Float64},Px::Vector{Float64},Pz::Vector{Float64},My::Vector{Float64},dt::MidPoint,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Vector{Float64})
+	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},gamma1::Vector{Float64},gamma2::Vector{Float64},gamma3::Vector{Float64},Pval::Matrix{Float64},dPval::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64} ,Fmy::Vector{Float64},Px::Vector{Float64},Pz::Vector{Float64},My::Vector{Float64},tInt::MidPoint,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Vector{Float64})
 
-		#dt = tInt.dt
+		dt = tInt.dt
 
 		ux1 = ux[:,1]; uz1 = uz[:,1]; phi1 = phi[:,1]; ux2 = ux[:,2]; uz2 = uz[:,2]; phi2 = phi[:,2];
 		vx1 = vx[:,1]; vz1 = vz[:,1]; omg1 = omg[:,1]; vx2 = vx[:,2]; vz2 = vz[:,2]; omg2 = omg[:,2]
@@ -619,14 +620,14 @@ module NonLinBeam
 
 			#dlE2 = C*dt*D*(e0)
 			dlRe= (dt/2*Rm'*(-D*N + C*D*(dt/2*Rm*dV + LR*E_e)), dt/2*Rm'*C*LR*Rm)
-							#-   +
 			dlX = ([0.0;0.0;dt/2.0]*(E_e'*D*(-D*N + C*D*(dt/2*Rm*dV + LR*E_e)))',
-											#-
-					[0.0;0.0;dt/2.0]*(D*Re + (E_e'*D*C*LR*Rm)' )')
-					#                  +
+					[0.0;0.0;dt/2.0]*(D*Re + (E_e'*D*C*LR*Rm)')')
+					# (E'*(C'*D-D*C)+e0'*D*C)dlE
+					# C11 == C22 prvi člen enak 0
+					# ? ? ?
 
 			#OBTEŽBA  !!!POPRAVI INTERPOLACIJO!!!
-			p = map(pj -> PolyValue(xInt[i1],[1. 0.;-1.0/L  1.0/L]*reshape(pj,(2))),[Fpx,Fpz,-Fmy])
+			p = map(pj -> PolyValue(xInt[i1],[1. 0.;-1.0/L  1.0/L]*reshape(pj,(2))),[Fpx,Fpz,Fmy])
 						#                                                                    +
 
 			#POSPEŠEK
@@ -647,15 +648,20 @@ module NonLinBeam
 				indx2)*wInt[i1]
 
 		end
-		P = [Px[1];Pz[1];-My[1]]
+		P = [Px[1];Pz[1];My[1]]
 		#    			 +
 		F .+= map(i2 -> dt*P*PolyValue(0.0,Ib[:,i2]) ,1:length(Ib[:,1]))
-		P = [Px[2];Pz[2];-My[2]]
+		P = [Px[2];Pz[2];My[2]]
 		#    			 +
 		F .+= map(i2 -> dt*P*PolyValue(L,Ib[:,i2]) ,1:length(Ib[:,1]))
 
 		return dlF, F, gamma1plus1,gamma2plus1,gamma3plus1
 	end
+
+
+
+
+
 
 	# Na KE
 	function Tan_Res(xInt::Vector{Float64}, wInt::Vector{Float64}, ux::Matrix{Float64}, uz::Matrix{Float64}, phi::Matrix{Float64}, vx::Matrix{Float64}, vz::Matrix{Float64}, omg::Matrix{Float64}, gamma1::Vector{Float64}, gamma2::Vector{Float64}, gamma3::Vector{Float64}, Pval::Matrix{Float64}, dPval::Matrix{Float64}, Ib::Matrix{Float64}, p0::Vector{Float64}, k0::Vector{Float64}, C::Matrix{Float64}, M::Vector{Float64}, Fpx::Matrix{Float64}, Fpz::Matrix{Float64} , Fmy::Matrix{Float64}, Px::Matrix{Float64}, Pz::Matrix{Float64}, My::Matrix{Float64}, tInt::TimeElement, pb::Vector{Float64}, kb::Vector{Float64}, L::Float64, g::Vector{Float64})
