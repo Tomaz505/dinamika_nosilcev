@@ -13,17 +13,14 @@ elementi::Array{Int64} = [
 
 
 #   P O D A T K I   R A Č U N A
-const ti::Float64 = 0.0
-const dt::Float64 = 0.01
-const tf::Float64 = 7.5
-const g::Vector{Float64}  = [0.; 0.]
+const ti::Float64        = 0.0
+const dt::Float64        = 0.01
+const tf::Float64        = 7.5
+const g::Vector{Float64} = [0.; 0.]
 
-
-#	K O N T R O L N I   P A R A M E T R I
-#1          #2
-metoda_t_integracije::String    = ["midpoint", "timeelement"][1]
+metoda_t_integracije::String    = ["midpoint", "timeelementP","timeelementT"][1]
 tnodes                          = [0.;0.5;1.]
-Integracija::String 	       = ["gauss", "lobatto"][1]
+Integracija::String 	        = ["gauss", "lobatto"][1]
 nt = 2
 
 const dv_norm_tol_exp::Int64	   = -12
@@ -50,6 +47,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 #	M 	    - Matrix{Float64} 	(nx2)
 #	div1	- Vector{Float64} 	(n+1)		[-1.; 1,]
 #	div2	- Vector{Int64} 	(n)		    [4]
+#   dist    - Symbol            ()          :unifom
 #	nInt	- Vector{Int64}   	(n)		    [20]
 #	Ci	    - Bool			    ()		    false
 #	pz	    - Function		    t->(nx2)	t->nothing
@@ -100,6 +98,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 @assignto :(ElementDataIn) [1] :( range(-1,1,length=11) |> collect ) :(div1)
 @assignto :(ElementDataIn) [1] :( repeat([3],10) ) :(div2)
+#@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
 @assignto :(ElementDataIn) [1] :( repeat([6],10) ) :(nInt)
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 

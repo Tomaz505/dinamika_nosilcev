@@ -18,7 +18,7 @@ module NonLinBeam
 	#
 	#
 	# M O D U L I
-	using LinearAlgebra, Plots
+	using LinearAlgebra, Plots, SpecialFunctions
     	#
 	#
 	#
@@ -43,6 +43,7 @@ module NonLinBeam
 		My::Function = t->nothing
 		div1::Array{Float64} = [-1.;1.]
 		div2::Array{Int64} = [4]
+		dist::Symbol = :uniform
 		nInt::Array{Int64} = [6]
 		Ci::Bool = false	#Zveznost odvodov
 	end 
@@ -121,6 +122,7 @@ module NonLinBeam
 		ITvalue::Matrix{Float64}
 		xInt::Vector{Float64}
 		wInt::Vector{Float64}
+		nt::Int64
 	end
 
 
@@ -327,7 +329,28 @@ module NonLinBeam
 
 		#koeficienti razoja geometrije
 		# Interpolacijska baza za vsak končni element
-		Ib = map(i -> (!elem_dat.Ci) ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i]))]) : (1<i<n_ke ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[0.0,Li[i]]]) : ( i==1 ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[Li[i]]]) : re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[0.0]]))),1:n_ke)
+		#=intrnode = if elem_dat.dist == :uniform || elem_dat.div2 == 2
+					range(0.0,Li[i],length = elem_dat.div2[i]) |> collect
+				else
+					(unique([-1.0; QuadInt(elem_dat.div2-2,mtd = string(elem_dat.dist))[1] ;1.0]).+1)/2*Li[i]
+				end
+				=#
+
+		Ib = map(i ->
+		   begin
+		   intrnode = if elem_dat.dist == :uniform || elem_dat.div2 == 2
+			   range(0.0,Li[i],length = elem_dat.div2[i]) |> collect
+			   elseif occursin.(["chebyshev","2"],string(elem_dat.dist))|> all
+			   ([-1.0; QuadInt(elem_dat.div2[i]-2,mtd = string(elem_dat.dist))[1] ;1.0].+1)/2*Li[i]
+				else
+			   ([-1.0; QuadInt(elem_dat.div2[i],mtd = string(elem_dat.dist))[1][2:end-1] ;1.0].+1)/2*Li[i]
+			   end;
+
+				(!elem_dat.Ci) ? re_gramschmid([intrnode]) : (1<i<n_ke ? re_gramschmid([intrnode,[0.0,Li[i]]]) : ( i==1 ? re_gramschmid([intrnode,[Li[i]]]) : re_gramschmid([intrnode,[0.0]])))
+			end
+		   ,1:n_ke)
+
+		#Ib = map(i -> (!elem_dat.Ci) ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i]))]) : (1<i<n_ke ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[0.0,Li[i]]]) : ( i==1 ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[Li[i]]]) : re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[0.0]]))),1:n_ke)
 
 
 		return BeamDataProcess(Li,Pi,Ki,ksi,Ib,Pb,Kb,xg,wg,indx,indx_int), n_nodes,n_int_nodes
@@ -368,7 +391,15 @@ module NonLinBeam
 			#POPRAVI POLOŽAJ cyan
 			for i2 = 1:nke[i1]
 
-				xl = range(0.,EP[i1].L[i2],length=ED[i1].div2[i2])
+				#xl = range(0.,EP[i1].L[i2],length=ED[i1].div2[i2])
+				xl = if ED[i1].dist == :uniform || ED[i1].div2[i2] == 2
+					range(0.0,EP[i1].L[i2],length = ED[i1].div2[i2]) |> collect
+				elseif occursin.(["chebyshev","2"],string(ED[i1].dist))|> all
+				([-1.0; QuadInt(ED[i1].div2[i2]-2,mtd = "chebyshev2")[1] ;1.0].+1)/2*EP[i1].L[i2]
+				else
+				([-1.0; QuadInt(ED[i1].div2[i2],mtd = string(ED[i1].dist))[1][2:end-1] ;1.0].+1)/2*EP[i1].L[i2]
+				end;
+
 				ksi = range(ED[i1].div1[i2],ED[i1].div1[i2+1],length=ED[i1].div2[i2])
 
 				dksi = [1.0]
@@ -384,7 +415,7 @@ module NonLinBeam
 
 				round.(ksi,digits=12)
 
-				r0 = hcat(map(j->PolyValue(ksi[j],Geom_Poly),eachindex(ksi))...)
+				r0 = PolyValue(ksi,Geom_Poly)'
 
 
 				#xs = range( ED[i1].div1[i2],ED[i1].div1[i2+1],length = ED[i1].div2[i2])
@@ -493,6 +524,13 @@ module NonLinBeam
 		for i2 = 1:length(EP[i1].P)
 
 			xl = (0:0.05:1)*EP[i1].L[i2] |> collect
+			#=
+			xl = if elem_dat.dist == :uniform || elem_dat.div2 == 2
+			range(0.0EP[i1].L[i2],length = ED[i1].div2[i2]) |> collect
+			else
+			(unique([-1.0; QuadInt(ED[i1].div2[i2]-2,mtd = string(ED[i1].dist))[1] ;1.0]).+1)/2*EP[i1].L[i2]
+			end;
+			=#
 
 			node1 = [VD[ED[i1].v[1]].x VD[ED[i1].v[1]].z]
 			node2 = [VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z]
@@ -676,10 +714,11 @@ module NonLinBeam
 
 
 	indxF = CartesianIndex.((1:size(Pval)[2]),(1:size(tInt.Tvalue)[2])')
-	indx2 = CartesianIndex.((1:size(Pval)[2]),(1:size(Pval)[2])')
+	indxdlF = CartesianIndex.((1:size(Pval)[2])|>collect,permutedims([1:size(Pval)[2];;],(2,1)),permutedims([1:size(tInt.Tvalue)[2];;;],(3,2,1)),permutedims([1:size(tInt.Tvalue)[2];;;;],(4,3,2,1)))
 
 	D = [0.;1.;0.;;-1.0;0.0;0.0;;0.0;0.0;0.0]
-	#-      +
+	DC = D*C
+	eps3 = [0.;; 0.;; 1.]
 	Id = [1.0;0.0;0.0;;0.0;1.0;0.0;;0.0;0.0;1.0]
 	Mai = [M[1] 0.0 0.0; 0.0 M[1] 0.0; 0.0 0.0 M[2]]
 
@@ -713,7 +752,7 @@ module NonLinBeam
 
 		dqn = [cos(p0[i1]);-sin(p0[i1]);k0[i1]]+dUn
 
-		R0 = R(p0[i1])
+		Q0 = R(p0[i1])
 
 		for t1 = eachindex(tInt.wInt)
 
@@ -724,53 +763,43 @@ module NonLinBeam
 
 			dq = dqn + dV*tInt.ITvalue[t1,:]'
 
-			Rst = R(U[3])*R0
-			E_e = Rst*dq
+			Qst = R(U[3])*Q0
+			E_e = Qst*dq
 
 			Est = E_e + e0
 			Nst = C*Est
-			Rst = Rst'*Nst
-			Xst = -[0.;0.;1.]*Nst'*D*E_e
+			Rst = Qst'*Nst
+			Xst = -[0.;0.;1.]*dot(Nst,D,E_e)
 
 			tV = Mai*(V*tInt.DTvalue[t1,:]' + [g;0.])
-
-
-
 
 			#dlE2 = C*dt*D*(e0)
 
 			#-   +
-			dlX = ([0.0;0.0;dt/2.0]*(E_e'*D*(-D*N + C*D*(dt/2*Rm*dV + LR*E_e)))',
-				#-
-				[0.0;0.0;dt/2.0]*(D*Re + (E_e'*D*C*LR*Rm)' )')
-			#                  +
+			dlR = (D*Rst*eps3+Qst'*C*D*Qst*dq*eps3, Qst'*C*Qst)
+			dlXs1 = -[0.0;0.0;1.0]*(Est'*(DC+DC')-e0*DC)
+			dlX = (dlXs1*D*Qst*dq*eps3, dlXs1*Qst)
 
 
-			p = vcat(map(pj -> PolyValue(xInt[i1],[1. 0.;-1.0/L  1.0/L]*pj),[Fpx[:,t1],Fpz[:,t1],-Fmy[:,t1]])...)
+			p = vcat(map(pj -> PolyValue(xInt[i1],[1. 0.;-1.0/L  1.0/L]*pj),[Fpx[:,t1],Fpz[:,t1],Fmy[:,t1]])...)
 			#                                                                                    +
 
 
 			F .+= map(it2 ->  tInt.Tvalue[t1,it2[2]]*(-(dPval[i1,it2[1]]*Id + Pval[i1,it2[1]]*[0.;0.;1.0]*dq'*D)*Rst + Pval[i1,i2]*(p - tV ))   ,indxF) * wInt[i1]*tInt.wInt[t1]
 
-
-			dlF .+= map( ij ->
-					-dPval[i1,ij[1]]*(
-						Pval[i1,ij[2]]*[0.0;0.0;0.0;;0.0;0.0;0.0;;dlRe[1]*dt]
-						+dPval[i1,ij[2]]*dlRe[2]*dt)
-					+Pval[i1,ij[1]]*(
-						Pval[i1,ij[2]]*([0.0;0.0;0.0;;0.0;0.0;0.0;;dlX[1]*dt])
-						+dPval[i1,ij[2]]*dlX[2]*dt),
-					indx2)*wInt[i1]
+			dlF .+= map(ikjl -> (
+							-dPval[i1,ikjl[1]]*(Pval[i1,ikjl[2]]*(tInt.Tvalue[t1,ikjl[4]]*dlR[1] + tInt.ITvalue[t1,ikjl[4]]*dlR[2]))
+							+Pval[i1,ikjl[1]]*(Pval[i1,ikjl[2]]*(tInt.Tvalue[t1,ikjl[4]]*dlX[1] + tInt.ITvalue[t1,ikjl[4]]*dlX[2]))
+						)*tInt.Tvalue[t1,ikjl[3]],
+					indxdlF)*wInt[i1]*tInt.wInt[t1]
 
 		end
 	end
-	P = vcat([Px[1,:];Pz[1,:];-My[1,:]]...)
-	#    			 +
+	P = vcat([Px[1,:];Pz[1,:];My[1,:]]...)
 	for t1 = eachindex(tInt.wInt)
 		F .+= map(it2 -> P[:,t1]*PolyValue(0.0,Ib[:,it2[1]])*tInt.Tvalue[t1,it2[2]] ,indxF)*tInt.wInt[t1]
 	end
-	P = vcat([Px[2,:];Pz[2,:];-My[2,:]]...)
-	#    			 +
+	P = vcat([Px[2,:];Pz[2,:];My[2,:]]...)
 	for t1 = eachindex(tInt.wInt)
 		F .+= map(it2 -> P[:,t1]*PolyValue(L,Ib[:,it2[1]])*tInt.Tvalue[t1,it2[2]] ,indxF)*tInt.wInt[t1]
 	end
@@ -888,30 +917,39 @@ module NonLinBeam
 	#
 	#
 	# I N T E G R A C I J A   Z   V O Z L I Š Č I   I N   U T E Ž M I
-	function QuadInt(n::Int64;mtd::String = "gauss")
 
-		if mtd == "gauss"
-			# 2n-1
-			b = map( i-> (i+1)/(((2*i+1)*(2*i+3))^0.5 ),0:n-2)
+	function QuadInt(n::Int64;mtd::String = "legendre",ja::Float64=1.0,jb::Float64=1.0)
 
-			E = eigen(diagm(1=>b,-1=>b))
-
+	x,w =  if mtd == "legendre"
+			#w(x) = 1
+			b = map( i-> i/(4*i^2-1)^0.5 ,1:n-1)
+			E = eigen(Symmetric(diagm(1=>b,-1=>b)))
+			b0 = 2.0
 			xg = E.values
-			wg = E.vectors[1,:].^2*2
-
+			wg = E.vectors[1,:].^2*b0
 			return xg,wg
-
+		elseif mtd == "hermite"
+			#w(x) = exp(-x^2/2)
+			b = (1:n).^0.5#map(i-> (i)^0.5,1:n)
+			E =eigen(Symmetric(diagm(1=>b,-1=>b)))
+			b0 = sqrt(pi/2.0)
+			xg = E.values
+			wg = E.vectors[1,:].^2*b0
+			return xg,wg
 		elseif mtd == "lobatto"
 			# 2n-3
 			# 2(n+1)-3 = 2n-1
-			n += 1
+
+			n = max(n,2)
 			if n == 2
 				xg = [-1.0,1.0]
 				wg = [1.0,1.0]
+				return xg,wg
+
 			else
 				n = n-2
 				b = map( i1->  i1/(2*i1+3)*(i1+2)/(2*i1+1), 1:n-1).^0.5
-				E = eigen(diagm(1=>b,-1=>b))
+				E = eigen(Symmetric(diagm(1=>b,-1=>b)))
 				xg = E.values
 
 				# Poiskusi optimizirat
@@ -925,10 +963,36 @@ module NonLinBeam
 				wg[2:end-1] = (2-2*wg[1])/sum(wg[2:end-1])*wg[2:end-1]
 				xg = vcat(-1.0,xg,1.0)
 				return xg,wg
+
 			end
+		elseif occursin.(["chebyshev","1"],mtd) |> all
+			#w(x) = (1-t^2)^(-0.5)
+			xg = cos.((2*(1:n).-1)*pi/(2*n)) |> sort
+			wg = pi/n*ones(Float64,n)
+			return  xg,wg
+		elseif occursin.(["chebyshev","2"],mtd) |> all
+			#w(x) = 1/(1-t^2)^0.5
+			xg = cos.((1:n)*pi/(n+1)) |> sort
+			wg = pi/(n+1)*sin.((1:n)/(n+1)*pi).^2
+			return  xg,wg
+		elseif mtd == "jacobi"
+			an = map(i->-(ja^2-jb^2)/((2*i+ja+jb)*(2*i+ja+jb-2)),2:n+1)
+			bn = map(i->2*((i+ja)*(i+jb)*(i)*(i+ja+jb))^0.5/((2*i+ja+jb-1)*(2*i+ja+jb+1))^0.5/(2*i+ja+jb)   ,1:n-1)
+
+			A = Symmetric(diagm(0=>an, 1=>bn, -1=>bn))
+			E = eigen(A)
+
+			b0 = 2.0^(1+ja+jb)*beta(1+ja,1+jb)
+
+			wg = E.vectors[1,:].^2*b0
+			xg = E.values
+
+			return  xg,wg
 		end
-		return xg,wg
+
+		return x,w
 	end
+
 	#
 	# I N T E G R A C I J A
 	function Integrate(f::Function,a0::Float64,a1::Float64;n::Int64 = 30,mtd::String = "gauss")
@@ -986,52 +1050,46 @@ module NonLinBeam
 		f = PolyValue(x::Float64,Ib*Kb::Array{Float64};n = n)
 		return f
 	end
+
+
 	#
 	# V R E D N O S T   P O L I N O M A 
 	function PolyValue(x::Float64,Ki::Array{Float64,1};n::Int64 = 0)
-		dP =reverse( (diagm(1 => 1. : size(Ki)[1]-1.)^n)[1:end-n,:]*Ki)
-		f = 0.0
-		for i in eachindex(dP)
-			f *= x
-			f += dP[i]
+		#dP =reverse( (diagm(1 => 1. : size(Ki)[1]-1.)^n)[1:end-n,:]*Ki)
+		f = 0.
+		dP = if n>0
+			reverse((diagm(1=> 1. : (size(Ki)[1]-1))^n)[1:end-n,:]*Ki)
+		elseif n<0
+			reverse((diagm(-1=> 1 ./(1. : (size(Ki)[1]-1-n)))^(-n))[:,1:end+n]*Ki)
+		else
+			reverse(Ki)
 		end
-		#f = dP'*x.^(0:size(Ki)[1]-1)
+		for i in eachindex(dP)
+			f = f*x +dP[i]
+			#f += dP[i]
+		end
 		return f
 	end
 	function PolyValue(x::Float64,Ki::Array{Float64,2};n::Int64 = 0)
-		dP =reverse( (diagm(1 => 1. : size(Ki)[1]-1.)^n)[1:end-n,:]*Ki,dims=1)
-		f = zeros(Float64,size(dP)[2])
-		for i in 1:size(dP)[1]
-			f *= x
-			f += dP[i,:]
+		f = zeros(1,size(Ki)[2])
+		for i in eachindex(f)
+			f[i] = PolyValue(x::Float64,Ki[:,i]::Array{Float64,1},n=n)
 		end
-		#f = dP'*x.^(0:size(Ki)[1]-1)
 		return f
 	end
-	function PolyValue(x::Array{Float64},Ki::Array{Float64,1};n::Int64 = 0)
-		dP =reverse( (diagm(1 => 1. : size(Ki)[1]-1.)^n)[1:end-n,:]*Ki)
-		f = copy(x)*0
-		for i1 in eachindex(f)
-			for i2 in eachindex(dP)
-				f[i1] *= x[i1]
-				f[i1] += dP[i2]
-			end
+	function PolyValue(x::Array{Float64,1},Ki::Array{Float64,1};n::Int64 = 0)
+		f = copy(x)*0.0
+		for i in eachindex(f)
+			f[i] = PolyValue(x[i]::Float64,Ki::Array{Float64,1},n=n)
 		end
-		#f = dP'*x.^(0:size(Ki)[1]-1)
 		return f
 	end
-
 	function PolyValue(x::Vector{Float64},Ki::Matrix{Float64};n::Int64 = 0)
-	dP =reverse( (diagm(1 => 1. : size(Ki)[1]-1.)^n)*Ki,dims=1)
-	f = zeros(length(x),size(dP)[2])
-	for i1 in eachindex(x)
-		for i2 in 1:size(dP)[2]
-			f[i1,:] *= x[i1]
-			f[i1,:] += dP[i2,:]
+		f = zeros(length(x),size(Ki)[2])
+		for i1 in eachindex(x), i2 in eachindex(Ki[1,:])
+			f[i1,i2] = PolyValue(x[i1]::Float64,Ki[:,i2]::Array{Float64,1},n=n)
 		end
-	end
-	#f = dP'*x.^(0:size(Ki)[1]-1)
-	return f
+		return f
 	end
 
 
@@ -1048,17 +1106,17 @@ module NonLinBeam
 	#
 	# O R T O G O N A L I Z A C I J A
 	function trig_re_gramschmid(DataIn::Vector{Vector{Float64}}; B0::Array{Float64} = zeros(Float64,2,2), rep::Int64 = 0)
-	na = sum(length.(DataIn))
-	n::Int64 = Int(ceil((sum(length.(DataIn)))/2))*2
-	nb = size(B0)[2]
+		na = sum(length.(DataIn))
+		n::Int64 = Int(ceil((sum(length.(DataIn)))/2))*2
+		nb = size(B0)[2]
 
-	#Standardna baza
-	Id = Matrix{Float64}(I,n,n);
+		#Standardna baza
+		Id = Matrix{Float64}(I,n,n);
 
-	#Re-ortogoanalizacija
-	if B0 == zeros(Float64,2,2)
-	B0::Array{Float64} = copy(Id)
-	nb = n
+		#Re-ortogoanalizacija
+		if B0 == zeros(Float64,2,2)
+			B0::Array{Float64} = copy(Id)
+			nb = n
 		end
 
 		#Diferencialni operator
@@ -1070,13 +1128,13 @@ module NonLinBeam
 
 		for i1 = 2:nb
 
-		c1 =ei[:,i1] - sum(trig_DotP(ei[:,i1],bi[:,1:i1-1],DataIn) .*bi[:,1:i1-1],dims=2)[:,1]
+			c1 =ei[:,i1] - sum(trig_DotP(ei[:,i1],bi[:,1:i1-1],DataIn) .*bi[:,1:i1-1],dims=2)[:,1]
 
-		if (a=sqrt(trig_DotP(c1,c1,DataIn)[1]))<10^-10 || any(isnan.(bi[:,i1]))
-		bi[:,i1] .= 0.0
-		else
-		bi[:,i1] = c1/a
-		end
+			if (a=sqrt(trig_DotP(c1,c1,DataIn)[1]))<10^-10 || any(isnan.(bi[:,i1]))
+				bi[:,i1] .= 0.0
+			else
+				bi[:,i1] = c1/a
+			end
 		end
 
 		#Interpolacija
@@ -1089,31 +1147,39 @@ module NonLinBeam
 		end
 
 		return Ib,bi
-		end
+	end
 
 	function TrigValue(x::Float64,ai::Matrix{Float64};n::Int64 = 0)
 		p = zeros(Float64,1,size(ai)[2])
-		if n>0
-		da = hcat([[i;0.] for i = 1:Int(size(ai)[1]/2)]...)
+		if n!=0
+			da = hcat([[i;0.] for i = 1:Int(size(ai)[1]/2)]...)
 			da = reshape(da,length(da))
-			Dp = diagm(1=>da,-1=>-da)[1:end-1,1:end-1]
-			ai = Dp^n * ai
+			Dp = if n>0
+					diagm(1=>-da,-1=>da)[1:end-1,1:end-1]
+				elseif n<0
+					inv(diagm(1=>-da,-1=>da)[1:end-1,1:end-1])
+				end
+			ai = Dp^abs(n) * ai
 		end
 		for i in 1:2:size(ai)[1]
-		p +=  [sin(i*x);; cos(i*x)] * ai[[i,i+1],:]
+			p +=  [sin(i*x);; cos(i*x)] * ai[[i,i+1],:]
 		end
 		return p
 	end
 	function TrigValue(x::Float64,ai::Vector{Float64};n::Int64 = 0)
 		p = 0.
-		if n>0
-		da = hcat([[i;0.] for i = 1:Int(size(ai)[1]/2)]...)
+		if n!=0
+			da = hcat([[i;0.] for i = 1:Int(size(ai)[1]/2)]...)
 			da = reshape(da,length(da))
-			Dp = diagm(1=>da,-1=>-da)[1:end-1,1:end-1]
+			Dp = if n>0
+					diagm(1=>-da,-1=>da)[1:end-1,1:end-1]
+				elseif n<0
+					diagm(1=>-da,-1=>da)[1:end-1,1:end-1] |> inv
+				end
 			ai = Dp^n * ai
 		end
 		for i in 1:2:size(ai)[1]
-		p +=  ([sin(i*x);; cos(i*x)] * ai[[i,i+1]] )[1]
+			p +=  ([sin(i*x);; cos(i*x)] * ai[[i,i+1]] )[1]
 		end
 		return p
 	end

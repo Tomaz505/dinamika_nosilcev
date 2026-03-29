@@ -1,15 +1,8 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
-
 println("Pot do datoteke z podatki")
 include("in/"*readline()*".jl")
 println()
 @info "Vnos podatkov\n\t\t[  Ok  ]"
-
-
-
-
-
-
 
 
 
@@ -25,30 +18,20 @@ end
 @info "Procesiranje podatkov\n\t\t[  Ok  ]"
 
 
-
-
-
-
-
-
-
 #   P L O T
 #
 
-#konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
-#display(konstr_img)
+konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
+display(konstr_img)
 
-#@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
+@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
 
-#println("\n Kako nadaljujem?")
-#println("0 -> prekini postopek")
-#println("Enter\t\t-> nadaljuj račun")
-#if (readline() == "0")
-	#error("Preklic")
-#end
-
-
-
+println("\n Kako nadaljujem?")
+println("0 → prekini postopek")
+println("↲ → nadaljuj račun")
+if (readline() == "0")
+	error("Preklic")
+end
 
 
 
@@ -77,13 +60,31 @@ begin
 	end
 
 	#Tip casovne integracije -> Multiple dispatch
-	if metoda_t_integracije == "timeelement"
-		Ibtime = trig_re_gramschmid([tnodes])
-		xt,wt = QuadInt(it)
-		xt = (xt.+1)*dt/2*(nt-1)
-		wt = wt*dt/2*(nt-1)
-		Tvals = TrigValue
-		tInt = TimeElement(dt,tnodes,Ibtime,)
+	if contains(metoda_t_integracije, "timeelement")
+
+		tInt = if contains(metoda_t_integracije, "T")
+				Ibtime = trig_re_gramschmid([tnodes])
+				xt,wt = QuadInt(it)
+				# !!
+				xt = (xt.+1)*dt/2*(nt-1)
+				wt = wt*dt/2*(nt-1)
+				DTvals = TrigValue(xt,Ibtime;n=1)
+				Tvals = TrigValue(xt,Ibtime)
+				ITvals = TrigValue(xt,Ibtime;n=-1) .- TrigValue(0.0,Ibtime;n=-1)
+
+				TimeElement(dt,tnodes,Ibtime,DTvals,Tvals,ITvals,xt,wt,nt)
+			elseif contains(metoda_t_integracije, "P")
+				Ibtime = re_gramschmid([tnodes])
+				xt,wt = QuadInt(it)
+				# !!
+				xt = (xt.+1)*dt/2*(nt-1)
+				wt = wt*dt/2*(nt-1)
+				DTvals = PolyValue(xt,Ibtime;n=1)
+				Tvals = PolyValue(xt,Ibtime)
+				ITvals = PolyValue(xt,Ibtime;n=-1)
+
+				TimeElement(dt,tnodes,Ibtime,DTvals,Tvals,ITvals,xt,wt,nt)
+			end
 	elseif metoda_t_integracije == "midpoint"
 		tInt = MidPoint(dt,1)
 	end
@@ -266,5 +267,5 @@ begin
 		print("    \titr.cnt.=",count,"\n")
 	end # i_time
 end
-println("[  Ok  ]  Račun")
+@info "Račun\n\t\t[  Ok  ]"
 
