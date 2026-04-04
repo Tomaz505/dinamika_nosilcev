@@ -1,7 +1,7 @@
 #   K O O R D I N A T E   V O Z L I S C
 vozlisca::Array{Float64} = [
-    0. -8.;
-    6. 0.;
+    0.0 -8.0;
+    6.0  0.0;
     ]# * [1 0; -0.005 1] imperfektnosti v x glede na z
 
 
@@ -14,8 +14,8 @@ elementi::Array{Int64} = [
 
 #   P O D A T K I   R A Č U N A
 const ti::Float64        = 0.0
-const dt::Float64        = 0.01
-const tf::Float64        = 7.5
+const dt::Float64        = 0.125/2
+const tf::Float64        = 12.5
 const g::Vector{Float64} = [0.; 0.]
 
 metoda_t_integracije::String    = ["midpoint", "timeelementP","timeelementT"][1]
@@ -23,8 +23,8 @@ tnodes                          = [0.;0.5;1.]
 Integracija::String 	        = ["gauss", "lobatto"][1]
 nt = 2
 
-const dv_norm_tol_exp::Int64	   = -12
-const nwt_iter_max_count::Int64	   = 150
+const dv_norm_tol_exp::Int64	   = -7
+const nwt_iter_max_count::Int64	   = 30
 
 
 
@@ -73,33 +73,23 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 
-
-
-
-
-
-
-
-
-
-
 # E L E M E N T I
 @assignto :(ElementDataIn) [1] :( [1.; 10.] ) :(M)
 @assignto :(ElementDataIn) [1] :( 10^4*[1. 0. 0.;0. 1. 0.; 0. 0. 0.01] ) :(C)
 
 
 #@assignto :(ElementDataIn) [1] :(t->[0.1, 0.1]*t) :(px)
-@assignto :(ElementDataIn) [1] :(t->[repeat([0.],19);8.]*Int(t<=2.5) ) :(Px)
+@assignto :(ElementDataIn) [1] :(t->[repeat([0.],19);8.0]*Int(t<=2.5) ) :(Px)
 #@assignto :(ElementDataIn) [1] :(t->[5.  5.]*t  ) :(pz)
-#@assignto :(ElementDataIn) [1] :(t->[0.;50.0*t*Int(t<0.5)]) :(Pz)
+#@assignto :(ElementDataIn) [1] :(t->[repeat([0.],1);8.0*8/10]*Int(t<=2.5)) :(Pz)
 #@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(my)
 @assignto :(ElementDataIn) [1] :(t->[repeat([0.],19);-80.]*Int(t<=2.5)) :(My)
 
 
 @assignto :(ElementDataIn) [1] :( range(-1,1,length=11) |> collect ) :(div1)
-@assignto :(ElementDataIn) [1] :( repeat([3],10) ) :(div2)
+@assignto :(ElementDataIn) [1] :( repeat([4],10) ) :(div2)
 #@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
-@assignto :(ElementDataIn) [1] :( repeat([6],10) ) :(nInt)
+@assignto :(ElementDataIn) [1] :( repeat([7],10) ) :(nInt)
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 
 

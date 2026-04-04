@@ -14,7 +14,7 @@ elementi::Array{Int64} = [
 
 #   P O D A T K I   R A Č U N A
 const ti::Float64 = 0.0
-const dt::Float64 = 0.01
+const dt::Float64 = 0.5
 const tf::Float64 = 9.0
 const g::Vector{Float64}  = [0.; 0.]
 
@@ -23,7 +23,7 @@ tnodes                          = [0.;0.5;1.]
 Integracija::String 	        = ["gauss", "lobatto"][1]
 nt = 2
 
-const dv_norm_tol_exp::Int64	   = -12
+const dv_norm_tol_exp::Int64	   = -7
 const nwt_iter_max_count::Int64	   = 150
 
 
@@ -96,10 +96,10 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 #@assignto :(ElementDataIn) [1] :(t->[repeat([0.],19);-80.]*Int(t<=2.5)) :(My)
 
 
-@assignto :(ElementDataIn) [1] :( range(-1,1,length=5) |> collect ) :(div1)
-@assignto :(ElementDataIn) [1] :( repeat([4],4) ) :(div2)
+@assignto :(ElementDataIn) [1] :( range(-1,1,length=11) |> collect ) :(div1)
+@assignto :(ElementDataIn) [1] :( repeat([2],10) ) :(div2)
 #@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
-@assignto :(ElementDataIn) [1] :( repeat([7],4) ) :(nInt)
+@assignto :(ElementDataIn) [1] :( repeat([5],10) ) :(nInt)
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 
 

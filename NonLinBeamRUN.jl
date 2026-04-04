@@ -1,12 +1,17 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
-println("Pot do datoteke z podatki")
-include("in/"*readline()*".jl")
+#
+begin
+println("Ime datoteke v ./in")
+file = readline()
+include("in/"*file*".jl")
 println()
 @info "Vnos podatkov\n\t\t[  Ok  ]"
-
+end
 
 
 #   P R E D P O C E S I R A N J E
+#
+begin
 E = Array{BeamDataProcess}(undef,n_elem)
 n_nodes = n_voz
 n_int_nodes = 0
@@ -16,29 +21,34 @@ for i = 1:n_elem
 	E[i], n_nodes,n_int_nodes = dataprocess(ElementDataIn[i],VozDataIn[ElementDataIn[i].v],n_nodes,n_int_nodes;mtd = Integracija)
 end
 @info "Procesiranje podatkov\n\t\t[  Ok  ]"
+end
 
 
 #   P L O T
 #
+begin
+	println("\n Kako nadaljujem?")
+	println("0 → prekini postopek")
+	println("1 → nariši konstrukcijo")
+	println("↲ → nadaljuj račun")
+	local elt = time()
+	local test = readline()
 
-konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
-display(konstr_img)
-
-@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
-
-println("\n Kako nadaljujem?")
-println("0 → prekini postopek")
-println("↲ → nadaljuj račun")
-if (readline() == "0")
-	error("Preklic")
+	if (test == "0")
+		error("Preklic")
+	elseif (test == "1")
+		plotbeams(E,ElementDataIn,VozDataIn)
+		#display(konstr_img)
+		@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
+	end
 end
 
 
 
 
 
-time = collect(ti:dt:tf)
-n_time = length(time)
+time_st = collect(ti:dt:tf)
+n_time = length(time_st)
 
 M =  BeamMotion(zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_int_nodes,n_time),zeros(n_int_nodes,n_time),zeros(n_int_nodes,n_time))
 
@@ -50,9 +60,9 @@ begin
 
 	#Vsiljeno gibanje podprte prostostne stopnje
 	for i1 in eachindex(VozDataIn)
-		local U = hcat(VozDataIn[i1].mot.(time)...)
+		local U = hcat(VozDataIn[i1].mot.(time_st)...)
 		V = (U[:,2:end]-U[:,1:end-1])/dt
-		for i2 = 2:length(time)
+		for i2 = 2:length(time_st)
 			M.vx[i1,i2] = -M.vx[i1,i2-1]+2*V[1,i2-1]
 			M.vz[i1,i2] = -M.vz[i1,i2-1]+2*V[2,i2-1]
 			M.Omg[i1,i2] = -M.Omg[i1,i2-1]+2*V[3,i2-1]
@@ -196,14 +206,14 @@ begin
 				for i_ke in eachindex(E[i_el].P)
 					
 						# Obtežba ov vemsnem času
-						px = (isnothing(ElementDataIn[i_el].px(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].px((time[i_time]+time[i_time-1])/2)[i_ke,:]) 	
-						pz = (isnothing(ElementDataIn[i_el].pz(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].pz((time[i_time]+time[i_time-1])/2)[i_ke,:]) 
-						my = (isnothing(ElementDataIn[i_el].my(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].my((time[i_time]+time[i_time-1])/2)[i_ke,:]) 
+						px = (isnothing(ElementDataIn[i_el].px(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].px((time_st[i_time]+time_st[i_time-1])/2)[i_ke,:])
+						pz = (isnothing(ElementDataIn[i_el].pz(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].pz((time_st[i_time]+time_st[i_time-1])/2)[i_ke,:])
+						my = (isnothing(ElementDataIn[i_el].my(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].my((time_st[i_time]+time_st[i_time-1])/2)[i_ke,:])
 
 
-						Px = (isnothing(ElementDataIn[i_el].Px(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].Px((time[i_time]+time[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
-						Pz = (isnothing(ElementDataIn[i_el].Pz(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].Pz((time[i_time]+time[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
-						My = (isnothing(ElementDataIn[i_el].My(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].My((time[i_time]+time[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
+						Px = (isnothing(ElementDataIn[i_el].Px(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].Px((time_st[i_time]+time_st[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
+						Pz = (isnothing(ElementDataIn[i_el].Pz(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].Pz((time_st[i_time]+time_st[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
+						My = (isnothing(ElementDataIn[i_el].My(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].My((time_st[i_time]+time_st[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
 
 
 						dlF,F,M.gamma1[E[i_el].indx_int[i_ke],i_time],M.gamma2[E[i_el].indx_int[i_ke],i_time],M.gamma3[E[i_el].indx_int[i_ke],i_time] = Tan_Res(E[i_el].xInt[i_ke], E[i_el].wInt[i_ke], M.ux[E[i_el].indx[i_ke],[i_time-1,i_time]], M.uz[E[i_el].indx[i_ke],[i_time-1,i_time]], M.phi[E[i_el].indx[i_ke],[i_time-1,i_time]], M.vx[E[i_el].indx[i_ke],[i_time-1,i_time]], M.vz[E[i_el].indx[i_ke],[i_time-1,i_time]], M.Omg[E[i_el].indx[i_ke],[i_time-1,i_time]], M.gamma1[E[i_el].indx_int[i_ke],i_time-1], M.gamma2[E[i_el].indx_int[i_ke],i_time-1], M.gamma3[E[i_el].indx_int[i_ke],i_time-1], Pvalues[i_el][i_ke], dPvalues[i_el][i_ke], E[i_el].P[i_ke], E[i_el].p0[i_ke], E[i_el].k0[i_ke], ElementDataIn[i_el].C, ElementDataIn[i_el].M, px, pz, my, Px, Pz, My, tInt, E[i_el].pb[i_ke], E[i_el].kb[i_ke], E[i_el].L[i_ke], g)
@@ -224,10 +234,11 @@ begin
 			#display(Re[indx_solve])
 			#display(Dv)
 			#display(norm(Dv))
+			#display(norm(Re[indx_solve]))
 			#println()
 
 			#println("\tDv->",norm(Dv))
-			#println("\tDv->",norm(Dv),"\tRe->",norm(Re[indx_solve]))
+			println("\tDv->",norm(Dv),"    \tRe->",norm(Re[indx_solve]))
 			#print(".")
 			#Dv = round.(Dv/dt,digits=12)
 
@@ -263,7 +274,7 @@ begin
 
 
 		end # while norm(Dv) > x
-		print("it = ",i_time,"    \tt = ",time[i_time])
+		print("it = ",i_time,"    \tt = ",time_st[i_time])
 		print("    \titr.cnt.=",count,"\n")
 	end # i_time
 end
