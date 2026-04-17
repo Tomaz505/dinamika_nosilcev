@@ -1,7 +1,7 @@
 #   K O O R D I N A T E   V O Z L I S C
 vozlisca::Array{Float64} = [
-    0. 0.;
-    10. 0.;
+    0. -8.;
+    6. 0.;
     ]# * [1 0; -0.005 1] imperfektnosti v x glede na z
 
 
@@ -15,7 +15,7 @@ elementi::Array{Int64} = [
 #   P O D A T K I   R A Č U N A
 const ti::Float64 = 0.0
 const dt::Float64 = 0.1
-const tf::Float64 = 70.0
+const tf::Float64 = 13.
 const g::Vector{Float64}  = [0.; 0.]
 
 metoda_t_integracije::String    = ["midpoint", "timeelementP","timeelementT"][1]
@@ -85,15 +85,15 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 # E L E M E N T I
 @assignto :(ElementDataIn) [1] :( [1.; 10.] ) :(M)
-@assignto :(ElementDataIn) [1] :( 10^4*[1. 0. 0.;0. 1. 0.; 0. 0. 0.1] ) :(C)
+@assignto :(ElementDataIn) [1] :( 10^4*[1. 0. 0.;0. 1. 0.; 0. 0. 0.05] ) :(C)
 
 
 #@assignto :(ElementDataIn) [1] :(t->[0.1, 0.1]*t) :(px)
-#@assignto :(ElementDataIn) [1] :(t->[repeat([0.],19);8.]*Int(t<=2.5) ) :(Px)
+@assignto :(ElementDataIn) [1] :(t->[repeat([0.],19);8.]*Int(t<=2.5) ) :(Px)
 #@assignto :(ElementDataIn) [1] :(t->[5.  5.]*t  ) :(pz)
 #@assignto :(ElementDataIn) [1] :(t->[0.;50.0*t*Int(t<0.5)]) :(Pz)
 #@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(my)
-#@assignto :(ElementDataIn) [1] :(t->[repeat([0.],19);-80.]*Int(t<=2.5)) :(My)
+@assignto :(ElementDataIn) [1] :(t->[repeat([0.],19);-80.]*Int(t<=2.5)) :(My)
 
 
 @assignto :(ElementDataIn) [1] :( range(-1,1,length=11) |> collect ) :(div1)
@@ -101,8 +101,6 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 #@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
 @assignto :(ElementDataIn) [1] :( repeat([5],10) ) :(nInt)
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
-#@assignto :(ElementDataIn) [1] :($(:(0.1))) :(beta)
-ElementDataIn[1].beta = 0.5
 
 
 #@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,1.,0.]])) :(Ib_geom)
@@ -110,8 +108,8 @@ ElementDataIn[1].beta = 0.5
 
 
 # V O Z L I Š Č A
-@assignto :(VozDataIn) [1] :( Bool[0, 0, 0] ) :(Supp)
-@assignto :(VozDataIn) [1] :( t->[0.; 0.; (t <= 5.0 ? 1.5/5.0*t : 1.5)] ) :(mot)
+#@assignto :(VozDataIn) [1] :( Bool[0, 0, 0] ) :(Supp)
+#@assignto :(VozDataIn) [1] :( t->[0.; 0.; (t <= 5.0 ? 1.5/5.0*t : 1.5)] ) :(mot)
 
 
 #@assignto :(VozDataIn) [2] :( Bool[1, 0, 1] ) :(Supp)

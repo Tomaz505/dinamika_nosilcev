@@ -6,11 +6,11 @@ module NonLinBeam
 
 	# E K S P O R T
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion, MidPoint, TimeElement,
-		datainit, dataprocess, iteracija, popravek,
+		datainit, dataprocess, iteracija, prediktor,
 		R, Tan_Res, Mass, energija,
 		Integrate, QuadInt, re_gramschmid,InterpolValue,PolyValue,
 		trig_re_gramschmid,TrigValue,
-		plotbeams, plotmotion,plotVar,plotVar2,plotVar3,plotVar3anim,
+		plotbeams, plotmotion,plotVar,plotVar2,plotVar3,plotVar3anim, plotModes,
 		adj_mat,randpermute,node_permute, Cuthill_McKee
 	#
 	#
@@ -31,8 +31,8 @@ module NonLinBeam
 	# V N E Š E N I   P O D A T K I   N O S I L C A
 	@kwdef mutable struct BeamDataIn <:Beam
 		v::Vector{Int64} = [1;2] # Vozlišča - krajna
-		C::Matrix{Float64} = [1. 0. 0.;0. 1. 0.;0. 0. 1.] #Materialna matrika
-		M::Vector{Float64} = [0.0; 0.0] #Vektor [ρA; ρI]
+		C::Matrix{Float64} = 10^4*[1. 0. 0.;0. 1. 0.;0. 0. 0.1] #Materialna matrika
+		M::Vector{Float64} = [1.0; 0.1] #Vektor [ρA; ρI]
 		Ib_geom::Matrix{Float64} = [0.5 0.5; -0.5 0.5] #re_gramschmid(DataIn::Vector{Vector{Float64}})
 		Kb::Matrix{Float64} = Array{Float64,2}(undef,(0,2))
 		px::Function = t->nothing 
@@ -46,10 +46,12 @@ module NonLinBeam
 		dist::Symbol = :uniform
 		nInt::Array{Int64} = [6]
 		Ci::Bool = false	#Zveznost odvodov
+		beta::Float64 = 0.0 #dušenje
+		relese::Tuple{Bool,Bool} = (false,false)
 	end 
 	#
 	# P R O C E S I R A N I   P O D A T K I  N O S I L C A
-	struct BeamDataProcess <:Beam
+	mutable struct BeamDataProcess <:Beam
 		L ::Vector{Float64}
 		p0::Vector{Vector{Float64}}
 		k0::Vector{Vector{Float64}}
@@ -60,6 +62,7 @@ module NonLinBeam
 		xInt::Vector{Vector{Float64}} # xInt v naravni parametrizaciji
 		wInt::Vector{Vector{Float64}}
 		indx::Vector{Vector{Int64}}
+		indxP::Vector{Vector{Int64}}
 		indx_int::Vector{Vector{Int64}}
 	end
 	#
@@ -72,7 +75,7 @@ module NonLinBeam
     	end
 	#
 	# V N E Š E N I   P O D A T K O I   V O Z L I Š Č A
-    	@kwdef mutable struct NodeDataIn <:Node
+	@kwdef mutable struct NodeDataIn <:Node
         # te poračuna algoritem
 		x::Float64 = 0.
 		z::Float64 = 0.
@@ -80,7 +83,6 @@ module NonLinBeam
 		mot::Function = t-> [0.;0.;0.]
 		Supp::Array{Bool} = [1, 1, 1]
 		dir::Float64 = 0.
-		#mot::Function t-> [0.; 0.; 0.] #Prisiljeno gibanje vozlišča    
 	end
 	#
 	#
@@ -353,7 +355,7 @@ module NonLinBeam
 		#Ib = map(i -> (!elem_dat.Ci) ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i]))]) : (1<i<n_ke ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[0.0,Li[i]]]) : ( i==1 ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[Li[i]]]) : re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[0.0]]))),1:n_ke)
 
 
-		return BeamDataProcess(Li,Pi,Ki,ksi,Ib,Pb,Kb,xg,wg,indx,indx_int), n_nodes,n_int_nodes
+		return BeamDataProcess(Li,Pi,Ki,ksi,Ib,Pb,Kb,xg,wg,indx,deepcopy(indx),indx_int), n_nodes,n_int_nodes
 	end
 
 
@@ -516,7 +518,7 @@ module NonLinBeam
 	end
 
 
-	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},tstep::Int64;p0 = nothing)
+	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},tstep::Int64;p0 = nothing,opt...)
 
 	if !isnothing(p0)
 		p = p0
@@ -560,29 +562,109 @@ module NonLinBeam
 			round.(ksi,digits=12)
 
 			r0 = hcat(map(j->PolyValue(ksi[j],Geom_Poly),eachindex(ksi))'...)
-
-			plot!(r0[1,:] + PolyValue(xl,EP[i1].P[i2]*M.ux[EP[i1].indx[i2],tstep]),r0[2,:]+PolyValue(xl,EP[i1].P[i2]*M.uz[EP[i1].indx[i2],tstep]))
 			if isnothing(p0)
-				plot!(r0[1,:],r0[2,:];linecolor = :black, aspect_ratio = :equal,legends = :none)
+			plot!(r0[1,:],r0[2,:];linecolor = :black, aspect_ratio = :equal,legends = :none)
 			end
+
+			plot!(r0[1,:] + PolyValue(xl,EP[i1].P[i2]*M.ux[EP[i1].indx[i2],tstep]),r0[2,:]+PolyValue(xl,EP[i1].P[i2]*M.uz[EP[i1].indx[i2],tstep]);opt...)
+
+
 		end
 	end
 
 	return p
 	end
-	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Vector{Int64})
-		p = plotVar3(M,EP,ED,VD,indx_step[1])
+	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Vector{Int64};opt...)
+		p = plotVar3(M,EP,ED,VD,indx_step[1];p0 = nothing, opt...)
 		for it in indx_step[2:end]
-			p = plotVar3(M,EP,ED,VD,it;p0 = p)
+			p = plotVar3(M,EP,ED,VD,it;p0 = p,opt...)
 		end
 		return p
 	end
-	function plotVar3anim(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Int64)
+	function plotVar3anim(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Int64;opt...)
 
 		anim = @animate for it = 1:indx_step:size(M.ux)[2]
-			plotVar3(M,EP,ED,VD,it)
+			plotVar3(M,EP,ED,VD,it;opt...)
 		end
 		return anim
+	end
+
+	function plotModes(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},massM::Matrix{Float64},nnod::Int64,nvoz::Int64,tInt::MidPoint,i_time::Int64,mode::Int64)
+
+		Ja = zeros(Float64,3*nnod,3*nnod)
+
+		Pvalues = map(i1-> map(i2 -> PolyValue(EP[i1].xInt[i2],EP[i1].P[i2]), eachindex(EP[i1].L)),eachindex(EP))
+
+		dPvalues = map(i1-> map(i2 -> PolyValue(EP[i1].xInt[i2],EP[i1].P[i2];n=1), eachindex(EP[i1].L)),eachindex(EP))
+
+		indx = setdiff(vcat(map(j->(VD[j].i .+[0;nnod;2*nnod]).*(-VD[j].Supp'.+1), 1:nvoz )...),[0])
+		indx = setdiff(1:3*nnod,indx)
+
+		local indxX = indx[findall(indx.<= nnod)]
+		local indxZ = indx[findall(nnod+1 .<= indx .<= 2*nnod)].-nnod
+		local indxP = indx[findall(2*nnod+1 .<=indx.<= 3*nnod)].-2*nnod
+
+		for i = eachindex(VD)
+			if VD[i].Supp[1]==1
+				push!(indxX,i)
+			end
+			if VD[i].Supp[2]==1
+				push!(indxZ,i)
+			end
+			if VD[i].Supp[3]==1
+				push!(indxP,i)
+			end
+		end
+
+		indxX = sort(unique(indxX))
+		indxZ = sort(unique(indxZ))
+		indxP = sort(unique(indxP))
+
+		indx_solve =  sort(vcat(3*indxX.-2,3*indxZ.-1,3*indxP))
+
+		indx_dof =  map(i_el->
+				  map(i_ke->
+		  reshape(hcat(EP[i_el].indx[i_ke]*3 .-2,EP[i_el].indx[i_ke]*3 .-1, EP[i_el].indx[i_ke]*3)',
+			(3*length(EP[i_el].indx[i_ke]))),
+		  eachindex(EP[i_el].P)),
+		  eachindex(EP))
+
+		  indxX_solve = map(i->findfirst(indx_solve.==(indxX[i]*3 .-2)),eachindex(indxX))
+		  indxZ_solve = map(i->findfirst(indx_solve.==(indxZ[i]*3 .-1)),eachindex(indxZ))
+		  indxP_solve = map(i->findfirst(indx_solve.==(indxP[i]*3)),eachindex(indxP))
+
+
+		  for i_el in eachindex(EP)
+		  for i_ke in eachindex(EP[i_el].P)
+			A = Tan_Res(EP[i_el].xInt[i_ke], EP[i_el].wInt[i_ke], M.ux[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.uz[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.phi[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.vx[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.vz[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.Omg[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.gamma1[EP[i_el].indx_int[i_ke],i_time-1], M.gamma2[EP[i_el].indx_int[i_ke],i_time-1], M.gamma3[EP[i_el].indx_int[i_ke],i_time-1], Pvalues[i_el][i_ke], dPvalues[i_el][i_ke], EP[i_el].P[i_ke], EP[i_el].p0[i_ke], EP[i_el].k0[i_ke], ED[i_el].C, ED[i_el].M, [0.;0.], [0.;0.], [0.;0.], [0.;0.], [0.;0.], [0.;0.], tInt, EP[i_el].pb[i_ke], EP[i_el].kb[i_ke], EP[i_el].L[i_ke], [0.;0.],ED[i_el].beta)
+
+
+		  Ja[indx_dof[i_el][i_ke],indx_dof[i_el][i_ke]] += hvcat(length(A[2]),A[1]...)
+
+
+		  end # i_ke
+		end
+
+		omg,ve = eigen(Ja[indx_solve,indx_solve]/tInt.dt,massM[indx_solve,indx_solve])
+		omg = real.(omg)
+		ve = real.(ve)
+		mod = BeamMotion(zeros(size(M.ux)[1],2),zeros(size(M.uz)[1],2),zeros(size(M.phi)[1],2),zeros(size(M.ux)[1],2),zeros(size(M.uz)[1],2),zeros(size(M.phi)[1],2),zeros(nnod,2),zeros(nnod,2),zeros(nnod,2))
+
+		scale = abs.(ve[[indxX_solve;indxZ_solve],mode]) |> maximum
+
+		mod.ux[:,1]= M.ux[:,i_time-1]
+		mod.uz[:,1]= M.uz[:,i_time-1]
+		mod.phi[:,1] = M.phi[:,i_time-1]
+
+		mod.ux[indxX,2] = mod.ux[indxX,1] +   ve[indxX_solve,mode]/scale
+		mod.uz[indxZ,2] = mod.uz[indxZ,1] +  ve[indxZ_solve,mode]/scale
+		mod.Omg[indxP,2] =mod.phi[indxP,1] +  ve[indxP_solve,mode]/scale
+
+
+		plotVar3(mod,EP,ED,VD,[1,2])
+
+		#return omg,ve
+
 	end
 
 
@@ -593,7 +675,7 @@ module NonLinBeam
 
 
 	# Na KE
-	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},gamma1::Vector{Float64},gamma2::Vector{Float64},gamma3::Vector{Float64},Pval::Matrix{Float64},dPval::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64} ,Fmy::Vector{Float64},Px::Vector{Float64},Pz::Vector{Float64},My::Vector{Float64},tInt::MidPoint,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Vector{Float64})
+	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},gamma1::Vector{Float64},gamma2::Vector{Float64},gamma3::Vector{Float64},Pval::Matrix{Float64},dPval::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64} ,Fmy::Vector{Float64},Px::Vector{Float64},Pz::Vector{Float64},My::Vector{Float64},tInt::MidPoint,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Vector{Float64},beta::Float64)
 
 		dt = tInt.dt
 
@@ -649,14 +731,15 @@ module NonLinBeam
 			E_e = Rm*dq
 			E   = E_e+e0
 			E2  = E1 +dt*(Rm*dV + V[3]*D*E_e)
-			N = C*(E1+E2)/2
+			N = C*(E2+E1)/2 + beta*C*(E2-E1)
+			#C*E2(1/2+beta)+C*E1(1/2-beta)
 			Re = Rm'*N
 			X = -[0.0;0.0;1.0]*dot(N,D,E_e)
 
 			# 	L I N E A R I Z A C I J A
 			dlE = (dt/2.0*D*E_e,dt/2.0*Rm)
 			dlE2 = (dt*D*(dt/2.0*Rm*dV+E_e+V[3]*dlE[1]),dt*(Rm+V[3]*D*dlE[2]))
-			dlN = (C*dlE2[1]/2.0,C*dlE2[2]/2.0)
+			dlN = (C*dlE2[1]*(1.0/2.0+beta),C*dlE2[2]*(1.0/2.0+beta))
 			dlRe = (Rm'*(-dt/2.0*D*N+dlN[1]),Rm'*dlN[2])
 			dlX = ([0.0;0.0;1.0]*(-N'*D*dlE[1]+E_e'*D*dlN[1]),
 		  [0.0;0.0;1.0]*(-N'*D*dlE[2]+E_e'*D*dlN[2]))
@@ -706,7 +789,7 @@ module NonLinBeam
 
 
 	indxF = CartesianIndex.((1:size(Pval)[2]),(1:size(tInt.Tvalue)[2])')
-	indxdlF = CartesianIndex.((1:size(Pval)[2])|>collect,permutedims([1:size(Pval)[2];;],(2,1)),permutedims([1:size(tInt.Tvalue)[2];;;],(3,2,1)),permutedims([1:size(tInt.Tvalue)[2];;;;],(4,3,2,1)))
+	indxdlF = CartesianIndex.((1:size(Pval)[2])|>collect,permutedims([1:size(tInt.Tvalue)[2];;],(2,1)),permutedims([1:size(Pval)[2];;;],(3,2,1)),permutedims([1:size(tInt.Tvalue)[2];;;;],(4,3,2,1)))
 
 	D = [0.;1.;0.;;-1.0;0.0;0.0;;0.0;0.0;0.0]
 	DC = D*C
@@ -781,16 +864,16 @@ module NonLinBeam
 
 			dlF .+= map(ikjl -> (
 				-dPval[i1,ikjl[1]]*(
-					Pval[i1,ikjl[2]]*( tInt.Tvalue[t1,ikjl[4]] * dlR[1] +
+					Pval[i1,ikjl[3]]*( tInt.Tvalue[t1,ikjl[4]] * dlR[1] +
 					   tInt.ITvalue[t1,ikjl[4]]*dlR[2]))
 				+Pval[i1,ikjl[1]]*(
-					Pval[i1,ikjl[2]]*(tInt.Tvalue[t1,ikjl[4]]*dlX[1] +
+					Pval[i1,ikjl[3]]*(tInt.Tvalue[t1,ikjl[4]]*dlX[1] +
 					   tInt.ITvalue[t1,ikjl[4]]*dlX[2]))
-					)*tInt.Tvalue[t1,ikjl[3]],
+					)*tInt.Tvalue[t1,ikjl[2]],
 				indxdlF)*wInt[i1]*tInt.wInt[t1]
-
 		end
 	end
+
 	P = vcat([Px[1,:];Pz[1,:];My[1,:]]...)
 	for t1 = eachindex(tInt.wInt)
 		F .+= map(it2 -> P[:,t1]*PolyValue(0.0,Ib[:,it2[1]])*tInt.Tvalue[t1,it2[2]] ,indxF)*tInt.wInt[t1]
@@ -799,6 +882,9 @@ module NonLinBeam
 	for t1 = eachindex(tInt.wInt)
 		F .+= map(it2 -> P[:,t1]*PolyValue(L,Ib[:,it2[1]])*tInt.Tvalue[t1,it2[2]] ,indxF)*tInt.wInt[t1]
 	end
+
+	dlF = reshape(dlF,(size(dlF)[1]*size(dlF)[2],size(dlF)[1]*size(dlF)[2]))
+	F = reshape(F,size(F)[1]*size(F)[2])
 
 	return dlF, F, gamma1plus1,gamma2plus1,gamma3plus1
 
@@ -833,22 +919,20 @@ module NonLinBeam
 	return E
 	end
 
-	function iteracija(ux::Vector{Float64}, uz::Vector{Float64}, phi::Vector{Float64}, vx::Vector{Float64}, vz::Vector{Float64}, Omg::Vector{Float64}, Dvx::Vector{Float64}, Dvz::Vector{Float64}, DvOmg::Vector{Float64}, tInt::MidPoint)
-		dt = tInt.dt
+	function iteracija(ux::Matrix{Float64}, uz::Matrix{Float64}, phi::Matrix{Float64}, vx::Matrix{Float64}, vz::Matrix{Float64}, Omg::Matrix{Float64}, Dvx::Vector{Float64}, Dvz::Vector{Float64}, DvOmg::Vector{Float64}, tInt::MidPoint)
 
-		vx += Dvx*2
-		vz += Dvz*2
-		Omg += DvOmg*2
+		vx[:,2] += Dvx*2
+		vz[:,2] += Dvz*2
+		Omg[:,2] += DvOmg*2
 
-		ux += Dvx*tInt.dt
-		uz += Dvz*tInt.dt
-		phi += DvOmg*tInt.dt
-
+		ux[:,2] = ux[:,1]+ sum(vx,dims=2)*tInt.dt/2.0
+		uz[:,2] = uz[:,1]+ sum(vz,dims=2)*tInt.dt/2.0
+		phi[:,2] = phi[:,1]+ sum(Omg,dims=2)*tInt.dt/2.0
 	return vx,vz,Omg,ux,uz,phi
 	end
 
 	function prediktor(ux::Matrix{Float64}, uz::Matrix{Float64}, phi::Matrix{Float64}, vx::Matrix{Float64}, vz::Matrix{Float64}, Omg::Matrix{Float64}, tInt::MidPoint)
-		return vx[:,1],vz[:,1],Omg[:,1],ux[:,1]+vx[:,1]*dt, uz[:,1]+vz[:,1]*dt,phi[:,1]+Omg[:,1]*dt
+		return vx[:,1],vz[:,1],Omg[:,1],ux[:,1]+vx[:,1]*tInt.dt, uz[:,1]+vz[:,1]*tInt.dt,phi[:,1]+Omg[:,1]*tInt.dt
 	end
 
 
@@ -1293,7 +1377,7 @@ module NonLinBeam
 	#
 	#
 	# S O S E D N O S T N A   M A T R I K A
-    	function adj_mat(conn::Matrix{Int64},n::Int64)::Matrix{Int64}
+	function adj_mat(conn::Matrix{Int64},n::Int64)::Matrix{Int64}
 		m = size(conn)[1]
 
 		A = zeros(Int64,(n,n))
@@ -1358,7 +1442,7 @@ module NonLinBeam
 		indx_permute = collect(1:n)
 		indx = copy(indx_permute)
 
-	#=
+
 		Adj = adj_mat(conn,n)
 		deg = sum(Adj;dims = 2)[:,1]
 
@@ -1368,21 +1452,21 @@ module NonLinBeam
 
 		#Re indeksirane
 		R = [node_deg[1][1]]
-		re = 1
-		#Prvi sosedje
-		Q = findall(R .== findall(Adj[:,R].==1))
-		n_node = 2
 
-		while
+		Q = findall(R .== findall(Adj[:,R].==1))
+
+		while length(Q)>0
+
+			if !all(findall(Q[i1] .== R))
+				push!(R,Q[i1])
+			end
+
 
 			Q = Q[getindex.(findall(Q[:,2] .== sort(Q[:,w])'),1),:]
 			#indx_permute[n_node.+1:size(Q)[1]] = Q[:,1]
 			push!(R,Q[:,1]	)
 
 		end
-
-	=#
-
 
 		return indx_permute
 	end

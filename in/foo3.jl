@@ -15,7 +15,7 @@ elementi::Array{Int64} = [
 #   P O D A T K I   R A Č U N A
 const ti::Float64        = 0.0
 const dt::Float64        = 0.01
-const tf::Float64        = 10.0
+const tf::Float64        = 1.
 const g::Vector{Float64} = [0.; 0.]
 
 metoda_t_integracije::String    = ["midpoint", "timeelementP","timeelementT"][1]
@@ -85,12 +85,12 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 # E L E M E N T I
 @assignto :(ElementDataIn) [1] :( [0.0; 0.0] ) :(M)
-@assignto :(ElementDataIn) [1] :( 10^4*[1. 0. 0.;0. 1. 0.; 0. 0. 0.1] ) :(C)
+@assignto :(ElementDataIn) [1] :( 10^4*[1. 0. 0.;0. 100. 0.; 0. 0. 0.1] ) :(C)
 
 
 #@assignto :(ElementDataIn) [1] :(t->[0.1, 0.1]*t) :(px)
 #@assignto :(ElementDataIn) [1] :(t->[repeat([0.],1);8.0]*Int(t<=2.5) ) :(Px)
-@assignto :(ElementDataIn) [1] :(t->[500.  500.]*t^2  ) :(pz)
+@assignto :(ElementDataIn) [1] :(t-> 50.0*ones(1,2)*t  ) :(pz)
 #@assignto :(ElementDataIn) [1] :(t->[0.0 ;0.2*t^2]) :(Pz)
 #@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(my)
 #@assignto :(ElementDataIn) [1] :(t->[repeat([0.],1);-80.]*Int(t<=2.5)) :(My)

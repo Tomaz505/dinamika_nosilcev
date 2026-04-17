@@ -84,22 +84,22 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 # E L E M E N T I
-@assignto :(ElementDataIn) [1] :( [1.; 10.] ) :(M)
+@assignto :(ElementDataIn) [1] :( [0.; 0.] ) :(M)
 @assignto :(ElementDataIn) [1] :( 10^4*[1. 0. 0.;0. 1. 0.; 0. 0. 0.01] ) :(C)
 
 
 #@assignto :(ElementDataIn) [1] :(t->[0.1, 0.1]*t) :(px)
 #@assignto :(ElementDataIn) [1] :(t->[repeat([0.],1);8.0]*Int(t<=2.5) ) :(Px)
-@assignto :(ElementDataIn) [1] :(t->[-500.  500.]*t  ) :(pz)
+@assignto :(ElementDataIn) [1] :(t->500.0*t*ones(3,2)  ) :(pz)
 #@assignto :(ElementDataIn) [1] :(t->[repeat([0.],1);8.0*8/10]*Int(t<=2.5)) :(Pz)
 #@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(my)
 #@assignto :(ElementDataIn) [1] :(t->[repeat([0.],1);-80.]*Int(t<=2.5)) :(My)
 
 
-@assignto :(ElementDataIn) [1] :( range(-1,1,length=2) |> collect ) :(div1)
-@assignto :(ElementDataIn) [1] :( repeat([5],1) ) :(div2)
+@assignto :(ElementDataIn) [1] :( range(-1,1,length=4) |> collect ) :(div1)
+@assignto :(ElementDataIn) [1] :( repeat([5],3) ) :(div2)
 @assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
-@assignto :(ElementDataIn) [1] :( repeat([7],1) ) :(nInt)
+@assignto :(ElementDataIn) [1] :( repeat([7],3) ) :(nInt)
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 
 
