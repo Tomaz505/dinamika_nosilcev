@@ -1,19 +1,17 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
-
-println("Pot do datoteke z podatki")
-include("in/"*readline()*".jl")
+#
+begin
+println("Ime datoteke v ./in")
+file = readline()
+include("in/"*file*".jl")
 println()
 @info "Vnos podatkov\n\t\t[  Ok  ]"
-
-
-
-
-
-
-
+end
 
 
 #   P R E D P O C E S I R A N J E
+#
+begin
 E = Array{BeamDataProcess}(undef,n_elem)
 n_nodes = n_voz
 n_int_nodes = 0
@@ -23,48 +21,60 @@ for i = 1:n_elem
 	E[i], n_nodes,n_int_nodes = dataprocess(ElementDataIn[i],VozDataIn[ElementDataIn[i].v],n_nodes,n_int_nodes;mtd = Integracija)
 end
 @info "Procesiranje podatkov\n\t\t[  Ok  ]"
-
-
-
-
-
-
-
+end
 
 
 #   P L O T
 #
 
-konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
-display(konstr_img)
+begin
+	println("\n Kako nadaljujem?")
+	println("0 → prekini postopek")
+	println("1 → nariši konstrukcijo in nadaljuj")
+	println("2 → nariši konstrukcijo in prekini")
+	println("↲ → nadaljuj račun")
+	local elt = time()
+	local test = readline()
 
-@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
-
-println("\n Kako nadaljujem?")
-println("0 → prekini postopek")
-println("↲ → nadaljuj račun")
-if (readline() == "0")
+	if (test == "0")
+		error("Preklic")
+	elseif (test == "1")
+		println("-> 1")
+		konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
+		display(konstr_img)
+		@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
+	elseif (test == "2")
+	println("-> 2")
+	konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
+	display(konstr_img)
+	@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
 	error("Preklic")
+	else
+		println("->")
+	end
 end
 
 
 
 
 
+time_st = collect(ti:dt:tf)
+n_time = length(time_st)
 
 
-
-time = collect(ti:dt:tf)
-n_time = length(time)
-
-M =  BeamMotion(zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_int_nodes,n_time),zeros(n_int_nodes,n_time),zeros(n_int_nodes,n_time))
+begin
+	for i in eachindex(ElementDataIn)
+		ElementDataIn[i].C = ElementDataIn[i].C*E[i].L[1]^2*diagm([1.0,1.0,0.4])
+		ElementDataIn[i].M = diagm([1.0,0.4])*ElementDataIn[i].M*E[i].L[1]
+	end
+end
 
 
 
 
 
 begin
-#=
+
 	if metoda_t_integracije == "timeelement"
 		Ibtime = trig_re_gramschmid([tnodes])
 		xt,wt = QuadInt(it)
@@ -76,7 +86,41 @@ begin
 		tInt = MidPoint(dt)
 	end
 
-=#
+
+
+
+
+	#Tip casovne integracije -> Multiple dispatch
+	if contains(metoda_t_integracije, "timeelement")
+
+		tInt = if contains(metoda_t_integracije, "T")
+				Ibtime = trig_re_gramschmid([tnodes])
+				xt,wt = QuadInt(it)
+				# !!
+				xt = (xt.+1)*dt/2*(nt-1)
+				wt = wt*dt/2*(nt-1)
+				DTvals = TrigValue(xt,Ibtime;n=1)
+				Tvals = TrigValue(xt,Ibtime)
+				ITvals = TrigValue(xt,Ibtime;n=-1) .- TrigValue(0.0,Ibtime;n=-1)
+
+				TimeElement(dt,tnodes,Ibtime,DTvals,Tvals,ITvals,xt,wt,nt)
+			elseif contains(metoda_t_integracije, "P")
+				Ibtime = re_gramschmid([tnodes])
+				xt,wt = QuadInt(it)
+				# !!
+				xt = (xt.+1)*dt/2*(nt-1)
+				wt = wt*dt/2*(nt-1)
+				DTvals = PolyValue(xt,Ibtime;n=1)
+				Tvals = PolyValue(xt,Ibtime)
+				ITvals = PolyValue(xt,Ibtime;n=-1)
+
+				TimeElement(dt,tnodes,Ibtime,DTvals,Tvals,ITvals,xt,wt,nt)
+			end
+	elseif metoda_t_integracije == "midpoint"
+		tInt = MidPoint(dt,1)
+	end
+
+
 	#Komponente za razvoj interpolacije (vključuje odvod če je interpoliran)
 	#n_nodes = n_voz + sum(map(i -> .+(size.(E[i].P)...)[1]-2-(length(ElementDataIn[i].div2)-1)*(1+Int(ElementDataIn[i].Ci)),1:n_elem))
 
@@ -115,13 +159,37 @@ begin
 	indxP_solve = map(i->findfirst(indx_solve.==(indxP[i]*3)),eachindex(indxP))
 
 
+	n_nodes2 = n_nodes*3
+	n_pnodes = maximum(indxP_solve)
+	dp_nodes = 0
+	for i1 = eachindex(E)
+		if ElementDataIn[i1].relese[1]
+			global n_nodes2 += 1
+			global n_pnodes +=1
+			global dp_nodes +=1
+			global indx_solve = [indx_solve; n_nodes2]
+			global indxP_solve = [indxP_solve;n_pnodes]
+			global E[i1].indxP[1][1] = n_nodes+dp_nodes
+		end
+		if ElementDataIn[i1].relese[2]
+			global n_nodes2 +=1
+			global n_pnodes +=1
+			global dp_nodes +=1
+			global indx_solve = [indx_solve; n_nodes2]
+			global indxP_solve = [indxP_solve;n_pnodes]
+			global E[i1].indxP[end][end] = n_nodes+dp_nodes
+		end
+	end
+
+
 
 	if metoda_t_integracije == "timeelement"
 		local Ja = zeros(Float64,3*n_nodes*nt,3*n_nodes*nt)
 		local Re0 = ones(Float64,3*n_nodes*nt,1)
 	elseif metoda_t_integracije == "midpoint"
-		local Ja = zeros(Float64,3*n_nodes,3*n_nodes)
-		local Re0 = ones(Float64,3*n_nodes)
+
+		local Ja = zeros(Float64,n_nodes2,n_nodes2)
+		local Re0 = ones(Float64,n_nodes2)
 	end
 
 	local Dv::Array{Float64}
@@ -131,20 +199,82 @@ begin
 	local Pvalues = map(i1-> map(i2 -> PolyValue(E[i1].xInt[i2],E[i1].P[i2]), eachindex(E[i1].L)),eachindex(E))
 	local dPvalues = map(i1-> map(i2 -> PolyValue(E[i1].xInt[i2],E[i1].P[i2];n=1), eachindex(E[i1].L)),eachindex(E))
 
+
+	n_nodes2 = n_nodes*3
 	indx_dof =  map(i_el->
 				 map(i_ke->
-					reshape(hcat(E[i_el].indx[i_ke]*3 .-2,E[i_el].indx[i_ke]*3 .-1, E[i_el].indx[i_ke]*3)',
-					(3*length(E[i_el].indx[i_ke]))),
+					begin
+
+						local indx1 = E[i_el].indx[i_ke]*3 .-2
+						local indx2 = E[i_el].indx[i_ke]*3 .-1
+						local indx3 = E[i_el].indx[i_ke]*3
+
+						if length(E[i_el].L) == 1
+							if ElementDataIn[i_el].relese[1] && ElementDataIn[i_el].relese[2]
+								global n_nodes2 +=2
+								indx3 = [n_nodes2-1;indx3[2:end-1];n_nodes2]
+							elseif ElementDataIn[i_el].relese[1]
+								global n_nodes2 +=1
+								indx3 = [n_nodes2;indx3[2:end]]
+							elseif ElementDataIn[i_el].relese[2]
+								global n_nodes2 +=1
+								indx3 = [indx3[1:end-1];n_nodes2]
+							end
+
+						else
+							if i_ke == 1 && ElementDataIn[i_el].relese[1]
+								global n_nodes2 +=1
+								indx3 = [n_nodes2;indx3[2:end]]
+							elseif i_ke == length(E[i_el].indx) && ElementDataIn[i_el].relese[2]
+								global n_nodes2 +=1
+								indx3 = [indx3[1:end-1];n_nodes2]
+							end
+						end
+						#display(indx1)
+						#display(indx2)
+						#display(indx3)
+
+						return reshape(hcat(indx1,indx2,indx3)',3*length(indx1))
+					end,
 				 eachindex(E[i_el].P)),
 				eachindex(E))
+
+	if dp_nodes >0
+		push!(indxP,(1:dp_nodes).+maximum(indxP) ...)
+	end
+
 
 
 	mass_m = copy(Ja)
 	for i1 = eachindex(E)
 		for i2 = eachindex(E[i1].P)
-			mi = Mass(E[i1].xInt[i2],E[i1].wInt[i2],Pvalues[i1][i2],dPvalues[i1][i2],ElementDataIn[i1].M)
+
+			mi = Mass(E[i1].xInt[i2],E[i1].wInt[i2],Pvalues[i1][i2],dPvalues[i1][i2],ElementDataIn[i1].M,tInt)
 			mass_m[indx_dof[i1][i2],indx_dof[i1][i2]] = mass_m[indx_dof[i1][i2],indx_dof[i1][i2]]+hvcat(size(mi)[1],mi...)
 		end
+	end
+
+	M =  BeamMotion(zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes+dp_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes,n_time),zeros(n_nodes+dp_nodes,n_time),zeros(n_int_nodes,n_time),zeros(n_int_nodes,n_time),zeros(n_int_nodes,n_time))
+
+
+
+	#Vsiljeno gibanje podprte prostostne stopnje
+	for i1 in eachindex(VozDataIn)
+		local V = (hcat(VozDataIn[i1].mot.(time_st)...)-hcat(VozDataIn[i1].mot.(time_st.-dt)...))/dt
+		local U = hcat(VozDataIn[i1].mot.(time_st)...)
+
+		M.vx[i1,:] = V[1,:]
+		M.vz[i1,:] = V[2,:]
+		M.Omg[i1,:] = V[3,:]
+		M.ux[i1,:] = U[1,:]
+		M.uz[i1,:] = U[2,:]
+		M.phi[i1,:] = U[3,:]
+
+	#=for i2 = 2:length(time_st)
+	M.vx[i1,i2] = -M.vx[i1,i2-1]+2*V[1,i2-1]
+	M.vz[i1,i2] = -M.vz[i1,i2-1]+2*V[2,i2-1]
+	M.Omg[i1,i2] = -M.Omg[i1,i2-1]+2*V[3,i2-1]
+	end=#
 	end
 
 	@info "Priprava na račun\n\t\t[  Ok  ] "
@@ -153,21 +283,10 @@ begin
 		Dv = [1.;1.]
 		Re = Re0
 
-		#Re = ones(Float64,3*n_nodes*nt,1)
-
-		print("\nit = ",i_time,"    \tt = ",time[i_time])
-
 
 		# Prediktor
-		begin
-			M.vx[indxX,i_time:i_time+nt-2] = repeat(M.vx[indxX,i_time-1],inner=(1,nt-1))
-			M.vz[indxZ,i_time:i_time+nt-2] =  repeat(M.vz[indxZ,i_time-1],inner=(1,nt-1))
-			M.Omg[indxP,i_time:i_time+nt-2]=  repeat(M.Omg[indxP,i_time-1],inner=(1,nt-1))
+		M.vx[indxX,i_time],M.vz[indxZ,i_time],M.Omg[indxP,i_time], M.ux[indxX,i_time],M.uz[indxZ,i_time],M.phi[indxP,i_time] = prediktor(M.ux[indxX,i_time.+(-1:0)], M.uz[indxZ,i_time.+(-1:0)], M.phi[indxP,i_time.+(-1:0)], M.vx[indxX,i_time.+(-1:0)], M.vz[indxZ,i_time.+(-1:0)], M.Omg[indxP,i_time.+(-1:0)],tInt)
 
-			M.ux[indxX,i_time:i_time+nt-2] = repeat(M.ux[indxX,i_time-1] + M.vx[indxX,i_time:i_time+nt-2]*dt,inner=(1,nt-1))
-			M.uz[indxZ,i_time:i_time+nt-2] =  repeat(M.uz[indxZ,i_time-1] + M.vz[indxZ,i_time:i_time+nt-2]*dt,inner=(1,nt-1))
-			M.phi[indxP,i_time:i_time+nt-2]=  repeat(M.phi[indxP,i_time-1] + M.Omg[indxP,i_time:i_time+nt-2]*dt,inner=(1,nt-1))
-		end
 
 
 
@@ -183,17 +302,18 @@ begin
 				for i_ke in eachindex(E[i_el].P)
 					
 						# Obtežba ov vemsnem času
-						px = (isnothing(ElementDataIn[i_el].px(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].px((time[i_time]+time[i_time-1])/2)[i_ke,:]) 	
-						pz = (isnothing(ElementDataIn[i_el].pz(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].pz((time[i_time]+time[i_time-1])/2)[i_ke,:]) 
-						my = (isnothing(ElementDataIn[i_el].my(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].my((time[i_time]+time[i_time-1])/2)[i_ke,:]) 
+
+						px = (isnothing(ElementDataIn[i_el].px(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].px((time_st[i_time]+time_st[i_time-1])/2)[i_ke,:])
+						pz = (isnothing(ElementDataIn[i_el].pz(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].pz((time_st[i_time]+time_st[i_time-1])/2)[i_ke,:])
+						my = (isnothing(ElementDataIn[i_el].my(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].my((time_st[i_time]+time_st[i_time-1])/2)[i_ke,:])
 
 
-						Px = (isnothing(ElementDataIn[i_el].Px(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].Px((time[i_time]+time[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
-						Pz = (isnothing(ElementDataIn[i_el].Pz(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].Pz((time[i_time]+time[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
-						My = (isnothing(ElementDataIn[i_el].My(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].My((time[i_time]+time[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
+						Px = (isnothing(ElementDataIn[i_el].Px(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].Px((time_st[i_time]+time_st[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
+						Pz = (isnothing(ElementDataIn[i_el].Pz(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].Pz((time_st[i_time]+time_st[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
+						My = (isnothing(ElementDataIn[i_el].My(0.0)) ? [0.0;0.0] : ElementDataIn[i_el].My((time_st[i_time]+time_st[i_time-1])/2)[[2*i_ke-1,2*i_ke]])
 
 
-						dlF,F,M.gamma1[E[i_el].indx_int[i_ke],i_time],M.gamma2[E[i_el].indx_int[i_ke],i_time],M.gamma3[E[i_el].indx_int[i_ke],i_time] = Tan_Res(E[i_el].xInt[i_ke],E[i_el].wInt[i_ke],M.ux[E[i_el].indx[i_ke],[i_time-1,i_time]],M.uz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.phi[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vx[E[i_el].indx[i_ke],[i_time-1,i_time]],M.vz[E[i_el].indx[i_ke],[i_time-1,i_time]],M.Omg[E[i_el].indx[i_ke],[i_time-1,i_time]], M.gamma1[E[i_el].indx_int[i_ke],i_time-1], M.gamma2[E[i_el].indx_int[i_ke],i_time-1], M.gamma3[E[i_el].indx_int[i_ke],i_time-1], Pvalues[i_el][i_ke], dPvalues[i_el][i_ke], E[i_el].P[i_ke], E[i_el].p0[i_ke], E[i_el].k0[i_ke], ElementDataIn[i_el].C, ElementDataIn[i_el].M, px, pz, my, Px, Pz, My, dt, E[i_el].pb[i_ke], E[i_el].kb[i_ke], E[i_el].L[i_ke], g)
+						dlF,F,M.gamma1[E[i_el].indx_int[i_ke],i_time],M.gamma2[E[i_el].indx_int[i_ke],i_time],M.gamma3[E[i_el].indx_int[i_ke],i_time] = Tan_Res(E[i_el].xInt[i_ke], E[i_el].wInt[i_ke], M.ux[E[i_el].indx[i_ke],[i_time-1,i_time]], M.uz[E[i_el].indx[i_ke],[i_time-1,i_time]], M.phi[E[i_el].indxP[i_ke],[i_time-1,i_time]], M.vx[E[i_el].indx[i_ke],[i_time-1,i_time]], M.vz[E[i_el].indx[i_ke],[i_time-1,i_time]], M.Omg[E[i_el].indxP[i_ke],[i_time-1,i_time]], M.gamma1[E[i_el].indx_int[i_ke],i_time-1], M.gamma2[E[i_el].indx_int[i_ke],i_time-1], M.gamma3[E[i_el].indx_int[i_ke],i_time-1], Pvalues[i_el][i_ke], dPvalues[i_el][i_ke], E[i_el].P[i_ke], E[i_el].p0[i_ke], E[i_el].k0[i_ke], ElementDataIn[i_el].C, ElementDataIn[i_el].M, px, pz, my, Px, Pz, My, tInt, E[i_el].pb[i_ke], E[i_el].kb[i_ke], E[i_el].L[i_ke], g, ElementDataIn[i_el].beta)
 						
 						
 						Ja[indx_dof[i_el][i_ke],indx_dof[i_el][i_ke]] += hvcat(length(F),dlF...)
@@ -205,53 +325,35 @@ begin
 
 			Ja = Ja+mass_m
 
+
+			#display(sparse(Ja[indx_solve,indx_solve]))
+
 			Dv = -(Ja[indx_solve,indx_solve]\Re[indx_solve])	
 			Dv = reshape(Dv,(Int(length(Dv)/(nt-1)),nt-1))
-			#display(Ja[indx_solve,indx_solve])
+			#display(Dv)
 			#display(Re[indx_solve])
 			#display(Dv)
 			#display(norm(Dv))
+			#display(norm(Re[indx_solve]))
 			#println()
 
 			#println("\tDv->",norm(Dv))
-			#println("\tDv->",norm(Dv),"\tRe->",norm(Re[indx_solve]))
+			#println("\tDv->",norm(Dv),"    \tRe->",norm(Re[indx_solve]))
 			#print(".")
 			#Dv = round.(Dv/dt,digits=12)
 
 
 			# Popavek hitrost
 
-			if metoda_t_integracije == "timeelement"
 
-				M.vx[indxX,i_time:i_time+nt-2] += Dv[1:3:end,:]
-				M.vz[indxZ,i_time:i_time+nt-2] += Dv[2:3:end,:]
-				M.Omg[indxP,i_time:i_time+nt-2] += Dv[3:3:end,:]
+			M.vx[indxX,i_time-1:i_time], M.vz[indxZ,i_time-1:i_time], M.Omg[indxP,i_time-1:i_time], M.ux[indxX,i_time-1:i_time], M.uz[indxZ,i_time-1:i_time], M.phi[indxP,i_time-1:i_time] = iteracija(M.ux[indxX,i_time-1:i_time], M.uz[indxZ,i_time-1:i_time], M.phi[indxP,i_time-1:i_time], M.vx[indxX,i_time-1:i_time], M.vz[indxZ,i_time-1:i_time], M.Omg[indxP,i_time-1:i_time], Dv[indxX_solve],Dv[indxZ_solve],Dv[indxP_solve],tInt)
 
-
-				for i in 1:nt-1
-					M.ux[indxX,i_time+i-1] += Integrate(t->PolyValue(t,Ibtime*hcat(M.vx[indxX,i_time-1],Dv[1:3:end,:] )'),0.0,i*dt)
-					M.uz[indxZ,i_time+i-1] += Integrate(t->PolyValue(t,Ibtime*hcat(M.vz[indxZ,i_time-1],Dv[2:3:end,:] )'),0.0,i*dt)
-					M.phi[indxP,i_time+i-1] += Integrate(t->PolyValue(t,Ibtime*hcat(M.Omg[indxP,i_time-1],Dv[3:3:end,:] )'),0.0,i*dt)
-
-				end
-
-			elseif metoda_t_integracije == "midpoint"
-
-				M.vx[indxX,i_time] += Dv[indxX_solve]*2
-				M.vz[indxZ,i_time] += Dv[indxZ_solve]*2
-				M.Omg[indxP,i_time]+= Dv[indxP_solve]*2
-
-
-				# Popravek pomikov
-				M.ux[indxX,i_time] =  M.ux[indxX,i_time-1] + #=Dv[indxX]*dt=# sum(M.vx[indxX,i_time-1:i_time],dims=2)*dt/2
-				M.uz[indxZ,i_time] =  M.uz[indxZ,i_time-1] + #=Dv[indxZ]*dt=# sum(M.vz[indxZ,i_time-1:i_time],dims=2)*dt/2
-				M.phi[indxP,i_time]=  M.phi[indxP,i_time-1]+ #=Dv[indxP]*dt=# sum(M.Omg[indxP,i_time-1:i_time],dims=2)*dt/2
-			end
 
 
 		end # while norm(Dv) > x
-		print("    \titr.cnt.=",count)
+		print("it = ",i_time,"    \tt = ",time_st[i_time])
+		print("    \titr.cnt.=",count,"\n")
 	end # i_time
 end
-println("[  Ok  ]  Račun")
+@info "Račun\n\t\t[  Ok  ]"
 

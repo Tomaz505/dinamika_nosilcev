@@ -6,19 +6,20 @@ module NonLinBeam
 
 	# E K S P O R T
 	export Beam, BeamDataIn, BeamDataProcess, Node, NodeDataIn,Motion, BeamMotion, MidPoint, TimeElement,
-		datainit, dataprocess, iteracija, popravek,
-		R, Tan_Res, Mass,
+		datainit, dataprocess, iteracija, prediktor,
+		R, Tan_Res, Mass, energija,
 		Integrate, QuadInt, re_gramschmid,InterpolValue,PolyValue,
 		trig_re_gramschmid,TrigValue,
-		plotbeams, plotmotion,plotVar,plotVar2,plotVar3,plotVar3anim,
-		adj_mat,randpermute,node_permute, Cuthill_McKee
+		plotbeams, plotmotion,plotVar,plotVar2,plotVar3,plotVar3anim, plotModes,
+		adj_mat,randpermute,node_permute, Cuthill_McKee, tree_gen
 	#
 	#
 	#
 	#
 	#
 	# M O D U L I
-	using LinearAlgebra, Plots
+
+	using LinearAlgebra, Plots, SpecialFunctions
     	#
 	#
 	#
@@ -31,8 +32,8 @@ module NonLinBeam
 	# V N E Š E N I   P O D A T K I   N O S I L C A
 	@kwdef mutable struct BeamDataIn <:Beam
 		v::Vector{Int64} = [1;2] # Vozlišča - krajna
-		C::Matrix{Float64} = [1. 0. 0.;0. 1. 0.;0. 0. 1.] #Materialna matrika
-		M::Vector{Float64} = [0.0; 0.0] #Vektor [ρA; ρI]
+		C::Matrix{Float64} = 10^4*[1. 0. 0.;0. 1. 0.;0. 0. 0.1] #Materialna matrika
+		M::Vector{Float64} = [1.0; 0.1] #Vektor [ρA; ρI]
 		Ib_geom::Matrix{Float64} = [0.5 0.5; -0.5 0.5] #re_gramschmid(DataIn::Vector{Vector{Float64}})
 		Kb::Matrix{Float64} = Array{Float64,2}(undef,(0,2))
 		px::Function = t->nothing 
@@ -43,12 +44,15 @@ module NonLinBeam
 		My::Function = t->nothing
 		div1::Array{Float64} = [-1.;1.]
 		div2::Array{Int64} = [4]
+		dist::Symbol = :uniform
 		nInt::Array{Int64} = [6]
-		Ci::Bool = false	#Zveznost odvodov
+		Ci::Int64 = 0	#Zveznost odvodov
+		beta::Float64 = 0.0 #dušenje
+		relese::Tuple{Bool,Bool} = (false,false)
 	end 
 	#
 	# P R O C E S I R A N I   P O D A T K I  N O S I L C A
-	struct BeamDataProcess <:Beam
+	mutable struct BeamDataProcess <:Beam
 		L ::Vector{Float64}
 		p0::Vector{Vector{Float64}}
 		k0::Vector{Vector{Float64}}
@@ -59,6 +63,7 @@ module NonLinBeam
 		xInt::Vector{Vector{Float64}} # xInt v naravni parametrizaciji
 		wInt::Vector{Vector{Float64}}
 		indx::Vector{Vector{Int64}}
+		indxP::Vector{Vector{Int64}}
 		indx_int::Vector{Vector{Int64}}
 	end
 	#
@@ -71,14 +76,14 @@ module NonLinBeam
     	end
 	#
 	# V N E Š E N I   P O D A T K O I   V O Z L I Š Č A
-    	@kwdef mutable struct NodeDataIn <:Node
+	@kwdef mutable struct NodeDataIn <:Node
         # te poračuna algoritem
 		x::Float64 = 0.
 		z::Float64 = 0.
 		i::Int64 = 1
+		mot::Function = t-> [0.;0.;0.]
 		Supp::Array{Bool} = [1, 1, 1]
 		dir::Float64 = 0.
-		#mot::Function t-> [0.; 0.; 0.] #Prisiljeno gibanje vozlišča    
 	end
 	#
 	#
@@ -108,6 +113,7 @@ module NonLinBeam
 
 	struct MidPoint <: TimeIntegration
 		dt::Float64
+		nt::Int64
 	end
 
 	struct TimeElement <: TimeIntegration
@@ -119,6 +125,7 @@ module NonLinBeam
 		ITvalue::Matrix{Float64}
 		xInt::Vector{Float64}
 		wInt::Vector{Float64}
+		nt::Int64
 	end
 
 
@@ -194,8 +201,10 @@ module NonLinBeam
 		elseif n_ke == 2
 			indx[1] = vcat([elem_dat.v[1]],(n_nodes+1):(n_nodes+elem_dat.div2[1]-1+Int(elem_dat.Ci)))
 			n_nodes = maximum(indx[1])
-			if elem_dat.Ci
-				indx[2] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes-2+elem_dat.div2[2]),[elem_dat.v[2]],[n_nodes])		
+			#indx[2] = vcat((n_nodes+1-elem_dat.Ci):(n_nodes+elem_dat.div2[1]-1),[elem_dat.v[2]])
+			#n_nodes=maximum(indx[2])
+			if elem_dat.Ci>0
+				indx[2] = vcat([n_nodes.-elem_dat.Ci:-1:1],collect(n_nodes+#=1=#elem_dat.Ci:n_nodes-2+elem_dat.div2[2]),[elem_dat.v[2]],[n_nodes-#=0=#1+elem_dat.Ci])
 				n_nodes = maximum(indx[2])
 			else 
 				indx[2] = vcat(collect(n_nodes:n_nodes+elem_dat.div2[2]-2),[elem_dat.v[2]])
@@ -205,12 +214,13 @@ module NonLinBeam
 
 			indx[1] = vcat([elem_dat.v[1]],(n_nodes+1):(n_nodes-1+elem_dat.div2[1]+Int(elem_dat.Ci)))
 			n_nodes = maximum(indx[1]) 
-			if elem_dat.Ci
+			if elem_dat.Ci>0
 				for i = 2:n_ke-1
-					indx[i] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div2[i]-1),[n_nodes;n_nodes+elem_dat.div2[i]])
+					supp = vcat(collect(n_nodes-elem_dat.Ci:n_nodes)', collect(n_nodes+elem_dat.div2[i]-1:n_nodes+elem_dat.div2[i]-1+elem_dat.Ci)')
+					indx[i] = vcat(collect(n_nodes+1:n_nodes+elem_dat.div2[i]-2),supp[1:end])
 					n_nodes = maximum(indx[i])
 				end
-				indx[n_ke] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div2[n_ke]-2),[elem_dat.v[2]],[n_nodes])
+				indx[n_ke] = vcat([n_nodes-elem_dat.Ci],collect(n_nodes+1:n_nodes+elem_dat.div2[n_ke]-2),[elem_dat.v[2]],collect(n_nodes-elem_dat.Ci+1:n_nodes))
 				n_nodes = maximum(indx[n_ke])
 
 			else
@@ -325,10 +335,34 @@ module NonLinBeam
 
 		#koeficienti razoja geometrije
 		# Interpolacijska baza za vsak končni element
-		Ib = map(i -> (!elem_dat.Ci) ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i]))]) : (1<i<n_ke ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[0.0,Li[i]]]) : ( i==1 ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[Li[i]]]) : re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[0.0]]))),1:n_ke)
+		#=intrnode = if elem_dat.dist == :uniform || elem_dat.div2 == 2
+					range(0.0,Li[i],length = elem_dat.div2[i]) |> collect
+				else
+					(unique([-1.0; QuadInt(elem_dat.div2-2,mtd = string(elem_dat.dist))[1] ;1.0]).+1)/2*Li[i]
+				end
+				=#
+
+		Ib = map(i ->
+		   begin
+		   intrnode = if elem_dat.dist == :uniform || elem_dat.div2 == 2
+			   range(0.0,Li[i],length = elem_dat.div2[i]) |> collect
+			   elseif occursin.(["chebyshev","2"],string(elem_dat.dist))|> all
+			   ([-1.0; QuadInt(elem_dat.div2[i]-2,mtd = string(elem_dat.dist))[1] ;1.0].+1)/2*Li[i]
+				else
+			   ([-1.0; QuadInt(elem_dat.div2[i],mtd = string(elem_dat.dist))[1][2:end-1] ;1.0].+1)/2*Li[i]
+			   end;
+
+				#=
+				(!elem_dat.Ci ) ? re_gramschmid([intrnode]) : (1<i<n_ke ? re_gramschmid([intrnode,[0.0,Li[i]]]) : ( i==1 ? re_gramschmid([intrnode,[Li[i]]]) : re_gramschmid([intrnode,[0.0]])))
+				=#
+				(elem_dat.Ci == 0 ) ? re_gramschmid([intrnode]) : (1<i<n_ke ? re_gramschmid([intrnode,map(a-> [0.0,Li[i]],1:elem_dat.Ci)...]) : ( i==1 ? re_gramschmid([intrnode,map(a-> [Li[i]],1:elem_dat.Ci)...]) : re_gramschmid([intrnode,map(a-> [0.0],1:elem_dat.Ci)...])))
+			end
+		   ,1:n_ke)
+
+		#Ib = map(i -> (!elem_dat.Ci) ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i]))]) : (1<i<n_ke ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[0.0,Li[i]]]) : ( i==1 ? re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[Li[i]]]) : re_gramschmid([collect(range(0.0,Li[i],length = elem_dat.div2[i])),[0.0]]))),1:n_ke)
 
 
-		return BeamDataProcess(Li,Pi,Ki,ksi,Ib,Pb,Kb,xg,wg,indx,indx_int), n_nodes,n_int_nodes
+		return BeamDataProcess(Li,Pi,Ki,ksi,Ib,Pb,Kb,xg,wg,indx,deepcopy(indx),indx_int), n_nodes,n_int_nodes
 	end
 
 
@@ -366,7 +400,15 @@ module NonLinBeam
 			#POPRAVI POLOŽAJ cyan
 			for i2 = 1:nke[i1]
 
-				xl = range(0.,EP[i1].L[i2],length=ED[i1].div2[i2])
+				#xl = range(0.,EP[i1].L[i2],length=ED[i1].div2[i2])
+				xl = if ED[i1].dist == :uniform || ED[i1].div2[i2] == 2
+					range(0.0,EP[i1].L[i2],length = ED[i1].div2[i2]) |> collect
+				elseif occursin.(["chebyshev","2"],string(ED[i1].dist))|> all
+				([-1.0; QuadInt(ED[i1].div2[i2]-2,mtd = "chebyshev2")[1] ;1.0].+1)/2*EP[i1].L[i2]
+				else
+				([-1.0; QuadInt(ED[i1].div2[i2],mtd = string(ED[i1].dist))[1][2:end-1] ;1.0].+1)/2*EP[i1].L[i2]
+				end;
+
 				ksi = range(ED[i1].div1[i2],ED[i1].div1[i2+1],length=ED[i1].div2[i2])
 
 				dksi = [1.0]
@@ -382,7 +424,7 @@ module NonLinBeam
 
 				round.(ksi,digits=12)
 
-				r0 = hcat(map(j->PolyValue(ksi[j],Geom_Poly),eachindex(ksi))...)
+				r0 = PolyValue(ksi,Geom_Poly)'
 
 
 				#xs = range( ED[i1].div1[i2],ED[i1].div1[i2+1],length = ED[i1].div2[i2])
@@ -483,14 +525,26 @@ module NonLinBeam
 	end
 
 
-	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},tstep::Int64)
+	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},tstep::Int64;init_konf::Bool = true,p0 = nothing,opt...)
 
-	p = plot(;yflip = true)
+	if !isnothing(p0)
+		p = p0
+	else
+		p = plot(;yflip = true)
+	end
 
 	for i1 = 1:length(EP)
 		for i2 = 1:length(EP[i1].P)
 
 			xl = (0:0.05:1)*EP[i1].L[i2] |> collect
+
+			#=
+			xl = if elem_dat.dist == :uniform || elem_dat.div2 == 2
+			range(0.0EP[i1].L[i2],length = ED[i1].div2[i2]) |> collect
+			else
+			(unique([-1.0; QuadInt(ED[i1].div2[i2]-2,mtd = string(ED[i1].dist))[1] ;1.0]).+1)/2*EP[i1].L[i2]
+			end;
+			=#
 
 			node1 = [VD[ED[i1].v[1]].x VD[ED[i1].v[1]].z]
 			node2 = [VD[ED[i1].v[2]].x VD[ED[i1].v[2]].z]
@@ -507,10 +561,70 @@ module NonLinBeam
 			count=0
 			xwint = QuadInt(60)
 
-			while norm(dksi)>10^-7 && count<20
+			while norm(dksi)>10^-10 && count<20
 				dksi = map(j-> (xl[j] - Integrate(x->norm(PolyValue(x,Geom_Poly;n=1)),[ED[i1].div1[i2]],[ksi[j]],xwint))/norm(PolyValue(ksi[j],Geom_Poly;n=1)),eachindex(ksi))
 			ksi += dksi
 			count+=1
+			end
+
+			round.(ksi,digits=12)
+
+			r0 = hcat(map(j->PolyValue(ksi[j],Geom_Poly),eachindex(ksi))'...)
+			if isnothing(p0) && init_konf
+			plot!(r0[1,:],r0[2,:];linecolor = :black, aspect_ratio = :equal,legends = :none)
+			end
+
+			plot!(p,r0[1,:] + PolyValue(xl,EP[i1].P[i2]*M.ux[EP[i1].indx[i2],tstep]),r0[2,:]+PolyValue(xl,EP[i1].P[i2]*M.uz[EP[i1].indx[i2],tstep]);opt...)
+
+
+		end
+	end
+
+	return p
+	end
+	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Vector{Int64};init_konf::Bool = true,opt...)
+		if init_konf
+			p = plotVar3(M,EP,ED,VD,indx_step[1];p0 = nothing, opt...)
+		else
+			p = plot()
+		end
+		for it in indx_step[2:end]
+			p = plotVar3(M,EP,ED,VD,it;p0 = p, init_konf = init_konf,opt...)
+		end
+		return p
+	end
+	function plotVar3anim(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Int64;init_konf::Bool = true,opt...)
+
+		anim = @animate for it = 1:indx_step:size(M.ux)[2]
+			plotVar3(M,EP,ED,VD,it;init_konf = init_konf, opt...)
+		end
+		return anim
+	end
+
+	function plotModes(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},massM::Matrix{Float64},nnod::Int64,nvoz::Int64,tInt::MidPoint,i_time::Int64,mode::Int64;init_konf::Bool=false,def_konf::Bool=false, opt...)
+
+		Ja = zeros(Float64,3*nnod,3*nnod)
+
+		Pvalues = map(i1-> map(i2 -> PolyValue(EP[i1].xInt[i2],EP[i1].P[i2]), eachindex(EP[i1].L)),eachindex(EP))
+
+		dPvalues = map(i1-> map(i2 -> PolyValue(EP[i1].xInt[i2],EP[i1].P[i2];n=1), eachindex(EP[i1].L)),eachindex(EP))
+
+		indx = setdiff(vcat(map(j->(VD[j].i .+[0;nnod;2*nnod]).*(-VD[j].Supp'.+1), 1:nvoz )...),[0])
+		indx = setdiff(1:3*nnod,indx)
+
+		local indxX = indx[findall(indx.<= nnod)]
+		local indxZ = indx[findall(nnod+1 .<= indx .<= 2*nnod)].-nnod
+		local indxP = indx[findall(2*nnod+1 .<=indx.<= 3*nnod)].-2*nnod
+
+		for i = eachindex(VD)
+			if VD[i].Supp[1]==1
+				push!(indxX,i)
+			end
+			if VD[i].Supp[2]==1
+				push!(indxZ,i)
+			end
+			if VD[i].Supp[3]==1
+				push!(indxP,i)
 			end
 
 			round.(ksi,digits=12)
@@ -520,17 +634,61 @@ module NonLinBeam
 			plot!(r0[1,:] + PolyValue(xl,EP[i1].P[i2]*M.ux[EP[i1].indx[i2],tstep]),r0[2,:]+PolyValue(xl,EP[i1].P[i2]*M.uz[EP[i1].indx[i2],tstep]))
 			plot!(r0[1,:],r0[2,:];linecolor = :black, aspect_ratio = :equal,legends = :none)
 		end
-	end
 
-	return p
-	end
 
-	function plotVar3anim(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Int64)
+		indxX = sort(unique(indxX))
+		indxZ = sort(unique(indxZ))
+		indxP = sort(unique(indxP))
 
-		anim = @animate for it = 1:indx_step:size(M.ux)[2]
-			plotVar3(M,EP,ED,VD,it)
+		indx_solve =  sort(vcat(3*indxX.-2,3*indxZ.-1,3*indxP))
+
+		indx_dof =  map(i_el->
+				  map(i_ke->
+		  reshape(hcat(EP[i_el].indx[i_ke]*3 .-2,EP[i_el].indx[i_ke]*3 .-1, EP[i_el].indx[i_ke]*3)',
+			(3*length(EP[i_el].indx[i_ke]))),
+		  eachindex(EP[i_el].P)),
+		  eachindex(EP))
+
+		  indxX_solve = map(i->findfirst(indx_solve.==(indxX[i]*3 .-2)),eachindex(indxX))
+		  indxZ_solve = map(i->findfirst(indx_solve.==(indxZ[i]*3 .-1)),eachindex(indxZ))
+		  indxP_solve = map(i->findfirst(indx_solve.==(indxP[i]*3)),eachindex(indxP))
+
+
+		  for i_el in eachindex(EP)
+		  for i_ke in eachindex(EP[i_el].P)
+			A = Tan_Res(EP[i_el].xInt[i_ke], EP[i_el].wInt[i_ke], M.ux[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.uz[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.phi[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.vx[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.vz[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.Omg[EP[i_el].indx[i_ke],[i_time-1,i_time]], M.gamma1[EP[i_el].indx_int[i_ke],i_time-1], M.gamma2[EP[i_el].indx_int[i_ke],i_time-1], M.gamma3[EP[i_el].indx_int[i_ke],i_time-1], Pvalues[i_el][i_ke], dPvalues[i_el][i_ke], EP[i_el].P[i_ke], EP[i_el].p0[i_ke], EP[i_el].k0[i_ke], ED[i_el].C, ED[i_el].M, [0.;0.], [0.;0.], [0.;0.], [0.;0.], [0.;0.], [0.;0.], tInt, EP[i_el].pb[i_ke], EP[i_el].kb[i_ke], EP[i_el].L[i_ke], [0.;0.],ED[i_el].beta)
+
+
+		  Ja[indx_dof[i_el][i_ke],indx_dof[i_el][i_ke]] += hvcat(length(A[2]),A[1]...)
+
+
+		  end # i_ke
 		end
-		return anim
+
+		omg,ve = eigen(Ja[indx_solve,indx_solve]/tInt.dt,massM[indx_solve,indx_solve])
+		omg = real.(omg)
+		ve = real.(ve)
+		mod = BeamMotion(zeros(size(M.ux)[1],2),zeros(size(M.uz)[1],2),zeros(size(M.phi)[1],2),zeros(size(M.ux)[1],2),zeros(size(M.uz)[1],2),zeros(size(M.phi)[1],2),zeros(nnod,2),zeros(nnod,2),zeros(nnod,2))
+
+		println("T = ",2*pi/omg[mode])
+
+		scale = abs.(ve[[indxX_solve;indxZ_solve],mode]) |> maximum
+
+		if def_konf
+		mod.ux[:,1]= M.ux[:,i_time-1]
+		mod.uz[:,1]= M.uz[:,i_time-1]
+		mod.phi[:,1] = M.phi[:,i_time-1]
+		end
+
+		mod.ux[indxX,2] = mod.ux[indxX,1] +   ve[indxX_solve,mode]/scale
+		mod.uz[indxZ,2] = mod.uz[indxZ,1] +  ve[indxZ_solve,mode]/scale
+		mod.Omg[indxP,2] =mod.phi[indxP,1] +  ve[indxP_solve,mode]/scale
+
+
+		plotVar3(mod,EP,ED,VD,[1,2];init_konf=init_konf,opt...)
+
+		#return omg,ve
+
 	end
 
 
@@ -541,9 +699,10 @@ module NonLinBeam
 
 
 	# Na KE
-	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},gamma1::Vector{Float64},gamma2::Vector{Float64},gamma3::Vector{Float64},Pval::Matrix{Float64},dPval::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64} ,Fmy::Vector{Float64},Px::Vector{Float64},Pz::Vector{Float64},My::Vector{Float64},dt::Float64,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Vector{Float64})
 
-		#dt = tInt.dt
+	function Tan_Res(xInt::Vector{Float64},wInt::Vector{Float64},ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},omg::Matrix{Float64},gamma1::Vector{Float64},gamma2::Vector{Float64},gamma3::Vector{Float64},Pval::Matrix{Float64},dPval::Matrix{Float64},Ib::Matrix{Float64},p0::Vector{Float64},k0::Vector{Float64},C::Matrix{Float64},M::Vector{Float64},Fpx::Vector{Float64},Fpz::Vector{Float64} ,Fmy::Vector{Float64},Px::Vector{Float64},Pz::Vector{Float64},My::Vector{Float64},tInt::MidPoint,pb::Vector{Float64},kb::Vector{Float64},L::Float64,g::Vector{Float64},beta::Float64)
+
+		dt = tInt.dt
 
 		ux1 = ux[:,1]; uz1 = uz[:,1]; phi1 = phi[:,1]; ux2 = ux[:,2]; uz2 = uz[:,2]; phi2 = phi[:,2];
 		vx1 = vx[:,1]; vz1 = vz[:,1]; omg1 = omg[:,1]; vx2 = vx[:,2]; vz2 = vz[:,2]; omg2 = omg[:,2]
@@ -563,6 +722,8 @@ module NonLinBeam
 		Id = [1.0;0.0;0.0;;0.0;1.0;0.0;;0.0;0.0;1.0]
 		Mai = [M[1] 0.0 0.0; 0.0 M[1] 0.0; 0.0 0.0 M[2]]
 
+		eps3 = [0.0;; 0.0;; 1.0]
+
 		for i1 = eachindex(xInt)
 
 			e0 = [-1.; 0.; -k0[i1]]
@@ -572,7 +733,7 @@ module NonLinBeam
 			V2 = map(vi->InterpolValue(xInt[i1],vi,Ib),[vx2,vz2,omg2])
 			dV1 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx1,vz1,omg1])#*2/L
 			dV2 = map(vi->InterpolValue(xInt[i1],vi,Ib;n=1),[vx2,vz2,omg2])#*2/L
-			
+
 			V = (V1 +V2) /2.0
 			dV= (dV1+dV2)/2.0
 
@@ -590,33 +751,32 @@ module NonLinBeam
 
 			Rm = R(U[3]+p0[i1])
 
-			#	D E F O R M A C I J E
+			LR = (Id+dt/2*V[3]*D)
+
 			E1  = [gamma1[i1],gamma2[i1],gamma3[i1]]
 			E_e = Rm*dq
 			E   = E_e+e0
 			E2  = E1 +dt*(Rm*dV + V[3]*D*E_e)
-			gamma1plus1[i1] = E2[1]
-			gamma2plus1[i1] = E2[2]
-			gamma3plus1[i1] = E2[3]
 
-			#	N O T R A N J E   S I L E
-			N = C*(E1+E2)/2
-			#	N O T R A N J E   S I L E   F I K S N A
+			N = C*(E2+E1)/2 + beta*C*(E2-E1)
+			#C*E2(1/2+beta)+C*E1(1/2-beta)
 			Re = Rm'*N
-			#	V E K T O R S K I   P R O D U K T
 			X = -[0.0;0.0;1.0]*dot(N,D,E_e)
-			   #-
 
 			# 	L I N E A R I Z A C I J A
-			LR = (Id+dt/2*V[3]*D)
-
-			dlRe= (dt/2*Rm'*(-D*N + C*D*(dt/2*Rm*dV + LR*E_e)), dt/2*Rm'*C*LR*Rm)
-			dlX = ([0.0;0.0;dt/2.0]*(E_e'*D*(-D*N + C*D*(dt/2*Rm*dV + LR*E_e)))',
-					[0.0;0.0;dt/2.0]*(D*Re + (E_e'*D*C*LR*Rm)' )')
+			dlE = (dt/2.0*D*E_e,dt/2.0*Rm)
+			dlE2 = (dt*D*(dt/2.0*Rm*dV+E_e+V[3]*dlE[1]),dt*(Rm+V[3]*D*dlE[2]))
+ 			#dlE2 = (dt^2/2.0*D*Rm*dV+(2.0*Id+dt*V[3]*D)*dlE[1],(2.0*Id+dt*V[3]*D)*dlE[2])
+			dlN = (C*dlE2[1]*(1.0/2.0+beta),C*dlE2[2]*(1.0/2.0+beta))
+			dlRe = (Rm'*(-dt/2.0*D*N+dlN[1]),Rm'*dlN[2])
+			dlX = ([0.0;0.0;1.0]*(-N'*D*dlE[1]+E_e'*D*dlN[1]),
+		  [0.0;0.0;1.0]*(-N'*D*dlE[2]+E_e'*D*dlN[2]))
 
 
 			#OBTEŽBA  !!!POPRAVI INTERPOLACIJO!!!
 			p = map(pj -> PolyValue(xInt[i1],[1. 0.;-1.0/L  1.0/L]*reshape(pj,(2))),[Fpx,Fpz,Fmy])
+
+			#p = PolyValue(xInt[i1],[1. 0.;-1.0/L  1.0/L]*[Fpx;;Fpz;;Fmy])
 
 			#POSPEŠEK
 
@@ -627,52 +787,196 @@ module NonLinBeam
 
 
 			dlF .+= map( ij ->
-				-dPval[i1,ij[1]]*(
-					Pval[i1,ij[2]]*[0.0;0.0;0.0;;0.0;0.0;0.0;;dlRe[1]*dt]
-					+dPval[i1,ij[2]]*dlRe[2]*dt)
-				+Pval[i1,ij[1]]*(
-					Pval[i1,ij[2]]*([0.0;0.0;0.0;;0.0;0.0;0.0;;dlX[1]*dt])
-					+dPval[i1,ij[2]]*dlX[2]*dt),
+
+				-dPval[i1,ij[2]]*(
+					Pval[i1,ij[1]]*dlRe[1]*eps3*dt
+					+dPval[i1,ij[1]]*dlRe[2]*dt)
+				+Pval[i1,ij[2]]*(
+					Pval[i1,ij[1]]*dlX[1]*eps3*dt
+					+dPval[i1,ij[1]]*dlX[2]*dt),
 				indx2)*wInt[i1]
 
+			gamma1plus1[i1] = E2[1]
+			gamma2plus1[i1] = E2[2]
+			gamma3plus1[i1] = E2[3]
 		end
 		P = [Px[1];Pz[1];My[1]]
 		F .+= map(i2 -> dt*P*PolyValue(0.0,Ib[:,i2]) ,1:length(Ib[:,1]))
 
-		P = [Px[2];Pz[2];My[2]]
-		F .+= map(i2 -> dt*P*PolyValue(L,Ib[:,i2]) ,1:length(Ib[:,1]))
+
+		F .+= map(i2 -> dt*[Px;;Pz;;My]'*PolyValue([0.0;L],Ib[:,i2]) ,1:length(Ib[:,1]))
 
 		return dlF, F, gamma1plus1,gamma2plus1,gamma3plus1
+	end
+
+	# Na KE
+	function Tan_Res(xInt::Vector{Float64}, wInt::Vector{Float64}, ux::Matrix{Float64}, uz::Matrix{Float64}, phi::Matrix{Float64}, vx::Matrix{Float64}, vz::Matrix{Float64}, omg::Matrix{Float64}, gamma1::Vector{Float64}, gamma2::Vector{Float64}, gamma3::Vector{Float64}, Pval::Matrix{Float64}, dPval::Matrix{Float64}, Ib::Matrix{Float64}, p0::Vector{Float64}, k0::Vector{Float64}, C::Matrix{Float64}, M::Vector{Float64}, Fpx::Matrix{Float64}, Fpz::Matrix{Float64} , Fmy::Matrix{Float64}, Px::Matrix{Float64}, Pz::Matrix{Float64}, My::Matrix{Float64}, tInt::TimeElement, pb::Vector{Float64}, kb::Vector{Float64}, L::Float64, g::Vector{Float64})
+
+	#dt = tInt.dt
+	gamma1plus1 = copy(gamma1)
+	gamma2plus1 = copy(gamma2)
+	gamma3plus1 = copy(gamma3)
+
+	F = fill(Vector{Float64}([0.0;0.0;0.0]),size(vx))
+	dlF = fill(zeros(Float64,(3,3)),(length(vx),length(vx)))
+
+
+	indxF = CartesianIndex.((1:size(Pval)[2]),(1:size(tInt.Tvalue)[2])')
+	indxdlF = CartesianIndex.((1:size(Pval)[2])|>collect,permutedims([1:size(tInt.Tvalue)[2];;],(2,1)),permutedims([1:size(Pval)[2];;;],(3,2,1)),permutedims([1:size(tInt.Tvalue)[2];;;;],(4,3,2,1)))
+
+	D = [0.;1.;0.;;-1.0;0.0;0.0;;0.0;0.0;0.0]
+	DC = D*C
+	eps3 = [0.;; 0.;; 1.]
+	Id = [1.0;0.0;0.0;;0.0;1.0;0.0;;0.0;0.0;1.0]
+	Mai = [M[1] 0.0 0.0; 0.0 M[1] 0.0; 0.0 0.0 M[2]]
+
+	#=
+	struct TimeElement <: TimeIntegration
+	dt::Float64
+	nodes::Vector{Float64}
+	basis::Matrix{Float64}
+	DTvalue::Matrix{Float64}
+	Tvalue::Matrix{Float64}
+	ITvalue::Matrix{Float64}
+	xInt::Vector{Float64}
+	wInt::Vector{Float64}
+	end
+	=#
+
+	for i1 = eachindex(xInt)
+		e0 = [-1.; 0.; -k0[i1]]
+
+		#   H I T R O S T I
+		V = vcat(map(vi->PolyValue(xInt[i1],Ib*vi),[vx1,vz1,omg1])...)
+		#  V = vcat(map(vi-> Pval[i1,:]*vi ,[vx1,vz1,omg1])...)
+		dV = vcat(map(vi->PolyValue(xInt[i1],Ib*vi;n=1),[vx1,vz1,omg1])...)#*2/L
+		# dV = vcat(map(vi-> dPval[i1,:]*vi ,[vx1,vz1,omg1])...)
+
+		#   P O M I K I
+		Un = map(ui->InterpolValue(xInt[i1],ui,Ib),[ux1[:,1],uz1[:,1],phi1[:,1]])
+		#  Un = map(ui-> Pval[i1,:]*ui ,[ux1[:,1],uz1[:,1],phi1[:,1]])
+		dUn = map(ui->InterpolValue(xInt[i1],ui,Ib;n=1), [ux1[:,1],uz1[:,1],phi1[:,1]])#*2/L
+		# dUn = map(ui-> dPval[i1,:]*ui ,[ux1[:,1],uz1[:,1],phi1[:,1]])
+
+		dqn = [cos(p0[i1]);-sin(p0[i1]);k0[i1]]+dUn
+
+		Q0 = R(p0[i1])
+
+		for t1 = eachindex(tInt.wInt)
+
+			U = Un + V*tInt.ITvalue[t1,:]'
+			dU = dUn + dV*tInt.ITvalue[t1,:]'
+
+		#	D E F O R M A C I J E   F I K S N A   B A Z A
+
+			dq = dqn + dV*tInt.ITvalue[t1,:]'
+
+			Qst = R(U[3])*Q0
+			E_e = Qst*dq
+
+			Est = E_e + e0
+			Nst = C*Est
+			Rst = Qst'*Nst
+			Xst = -[0.;0.;1.]*dot(Nst,D,E_e)
+
+			tV = Mai*(V*tInt.DTvalue[t1,:]' + [g;0.])
+
+			#dlE2 = C*dt*D*(e0)
+
+			#-   +
+			dlR = (D*Rst*eps3+Qst'*C*D*Qst*dq*eps3, Qst'*C*Qst)
+			dlXs1 = -[0.0;0.0;1.0]*(Est'*(DC+DC')-e0*DC)
+			dlX = (dlXs1*D*Qst*dq*eps3, dlXs1*Qst)
+
+
+			p = vcat(map(pj -> PolyValue(xInt[i1],[1. 0.;-1.0/L  1.0/L]*pj),[Fpx[:,t1],Fpz[:,t1],Fmy[:,t1]])...)
+			#                                                                                    +
+
+
+			F .+= map(it2 ->  tInt.Tvalue[t1,it2[2]]*(-(dPval[i1,it2[1]]*Id + Pval[i1,it2[1]]*[0.;0.;1.0]*dq'*D)*Rst + Pval[i1,i2]*(p - tV ))   ,indxF) * wInt[i1]*tInt.wInt[t1]
+
+			dlF .+= map(ikjl -> (
+				-dPval[i1,ikjl[1]]*(
+					Pval[i1,ikjl[3]]*( tInt.Tvalue[t1,ikjl[4]] * dlR[1] +
+					   tInt.ITvalue[t1,ikjl[4]]*dlR[2]))
+				+Pval[i1,ikjl[1]]*(
+					Pval[i1,ikjl[3]]*(tInt.Tvalue[t1,ikjl[4]]*dlX[1] +
+					   tInt.ITvalue[t1,ikjl[4]]*dlX[2]))
+					)*tInt.Tvalue[t1,ikjl[2]],
+				indxdlF)*wInt[i1]*tInt.wInt[t1]
+		end
+	end
+
+	P = vcat([Px[1,:];Pz[1,:];My[1,:]]...)
+	for t1 = eachindex(tInt.wInt)
+		F .+= map(it2 -> P[:,t1]*PolyValue(0.0,Ib[:,it2[1]])*tInt.Tvalue[t1,it2[2]] ,indxF)*tInt.wInt[t1]
+	end
+	P = vcat([Px[2,:];Pz[2,:];My[2,:]]...)
+	for t1 = eachindex(tInt.wInt)
+		F .+= map(it2 -> P[:,t1]*PolyValue(L,Ib[:,it2[1]])*tInt.Tvalue[t1,it2[2]] ,indxF)*tInt.wInt[t1]
+	end
+
+	dlF = reshape(dlF,(size(dlF)[1]*size(dlF)[2],size(dlF)[1]*size(dlF)[2]))
+	F = reshape(F,size(F)[1]*size(F)[2])
+
+	return dlF, F, gamma1plus1,gamma2plus1,gamma3plus1
 
 	end
 
-	function iteracija(ux::Vector{Float64},uz::Vector{Float64},phi::Vector{Float64},vx::Vector{Float64},vz::Vector{Float64},Omg::Vector{Float64},Dvx::Vector{Float64},Dvz::Vector{Float64},DvOmg::Vector{Float64},tInt::MidPoint)
-		dt = tInt.dt
+	function energija(M::BeamMotion, ED::Array{BeamDataIn},EP::Array{BeamDataProcess},VD::Array{NodeDataIn})
 
-		vx += Dvx*2
-		vz += Dvz*2
-		Omg += DvOmg*2
+	E = zeros(Float64,size(M.ux)[2])
 
-		ux += Dvx*dt
-		uz += Dvz*dt
-		phi += DvOmg*dt
+	for i1 in eachindex(E)
+		for i_el in eachindex(EP)
+			mAI = diagm([ED[i_el].M[1],ED[i_el].M[1],ED[i_el].M[2]])
 
+			for i_ke in eachindex(EP[i_el].P)
+				V = [M.vx[EP[i_el].indx[i_ke],i1];;
+					M.vz[EP[i_el].indx[i_ke],i1];;
+					M.Omg[EP[i_el].indx[i_ke],i1]]
+				Ei = [M.gamma1[EP[i_el].indx_int[i_ke],i1];;
+					M.gamma2[EP[i_el].indx_int[i_ke],i1];;
+					M.gamma3[EP[i_el].indx_int[i_ke],i1]]
+
+				Pval = PolyValue(EP[i_el].xInt[i_ke],EP[i_el].P[i_ke])
+
+				Ek = EP[i_el].wInt[i_ke]'*((Pval*V)*mAI*(Pval*V)')[CartesianIndex.(1:size(Pval)[1],1:size(Pval)[1])]
+				Ed = EP[i_el].wInt[i_ke]'*(Ei*ED[i_el].C*Ei')[CartesianIndex.(1:size(Pval)[1],1:size(Pval)[1])]
+
+				E[i1] = E[i1] + Ek/2.0 + Ed/2.0
+			end
+		end
+ 	end
+
+	return E
+	end
+
+	function iteracija(ux::Matrix{Float64}, uz::Matrix{Float64}, phi::Matrix{Float64}, vx::Matrix{Float64}, vz::Matrix{Float64}, Omg::Matrix{Float64}, Dvx::Vector{Float64}, Dvz::Vector{Float64}, DvOmg::Vector{Float64}, tInt::MidPoint)
+
+		vx[:,2] += Dvx*2
+		vz[:,2] += Dvz*2
+		Omg[:,2] += DvOmg*2
+
+		ux[:,2] = ux[:,1]+ sum(vx,dims=2)*tInt.dt/2.0
+		uz[:,2] = uz[:,1]+ sum(vz,dims=2)*tInt.dt/2.0
+		phi[:,2] = phi[:,1]+ sum(Omg,dims=2)*tInt.dt/2.0
 	return vx,vz,Omg,ux,uz,phi
 	end
 
-	function prediktor(ux::Matrix{Float64},uz::Matrix{Float64},phi::Matrix{Float64},vx::Matrix{Float64},vz::Matrix{Float64},Omg::Matrix{Float64},tInt::MidPoint)
-		return vx[:,1],vz[:,1],Omg[:,1],ux[:,1]+vx[:,1]*dt, uz[:,1]+vz[:,1]*dt,phi[:,1]+Omg[:,1]*dt
+	function prediktor(ux::Matrix{Float64}, uz::Matrix{Float64}, phi::Matrix{Float64}, vx::Matrix{Float64}, vz::Matrix{Float64}, Omg::Matrix{Float64}, tInt::MidPoint)
+		return vx[:,1],vz[:,1],Omg[:,1],ux[:,1]+vx[:,1]*tInt.dt, uz[:,1]+vz[:,1]*tInt.dt,phi[:,1]+Omg[:,1]*tInt.dt
 	end
 
 
-	function Mass(xInt::Vector{Float64}, wInt::Vector{Float64}, Pval::Matrix{Float64}, dPval::Matrix{Float64}, M::Vector{Float64})
-	Mass = fill(zeros(Float64,(3,3)),(size(Pval)[2],size(Pval)[2]))
-	indx2 = CartesianIndex.((1:size(Pval)[2]),(1:size(Pval)[2])')
-	Mai = diagm(M[[1,1,2]])
-	for i1 = eachindex(xInt)
-		Mass .+= map( ij -> Pval[i1,ij[1]]*Pval[i1,ij[2]]*(-2.0*Mai), indx2)*wInt[i1]
-	end
-	return Mass
+	function Mass(xInt::Vector{Float64}, wInt::Vector{Float64}, Pval::Matrix{Float64}, dPval::Matrix{Float64}, M::Vector{Float64},tInt::MidPoint)
+		Mass = fill(zeros(Float64,(3,3)),(size(Pval)[2],size(Pval)[2]))
+		indx2 = CartesianIndex.((1:size(Pval)[2]),(1:size(Pval)[2])')
+		Mai = diagm(M[[1,1,2]])
+		for i1 = eachindex(xInt)
+			Mass .+= map( ij -> Pval[i1,ij[1]]*Pval[i1,ij[2]]*(-2.0*Mai), indx2)*wInt[i1]
+		end
+		return Mass
 	end
 
 
@@ -755,30 +1059,105 @@ module NonLinBeam
 	#
 	#
 	# I N T E G R A C I J A   Z   V O Z L I Š Č I   I N   U T E Ž M I
+
 	function QuadInt(n::Int64;mtd::String = "gauss")
 
-		if mtd == "gauss"
-			# 2n-1
-			b = map( i-> (i+1)/(((2*i+1)*(2*i+3))^0.5 ),0:n-2)
+	if mtd == "gauss"
+		# 2n-1
+		b = map( i-> (i+1)/(((2*i+1)*(2*i+3))^0.5 ),0:n-2)
+		E = eigen(diagm(1=>b,-1=>b))
+		xg = E.values
+		wg = E.vectors[1,:].^2*2
+		return xg,wg
+	elseif mtd == "lobatto" && n<=2
+		xg = [-1.0,1.0]
+		wg = [1.0,1.0]
+		return xg,wg
+	elseif mtd == "lobatto" && n>2
+		n = n-2
+		b = map( i1->  i1/(2*i1+3)*(i1+2)/(2*i1+1), 1:n-1).^0.5
+		E = eigen(diagm(1=>b,-1=>b))
+		xg = E.values
 
-			E = eigen(diagm(1=>b,-1=>b))
+		# Poiskusi optimizirat
+		P = [[1.0],[0.0,1.0]]
+		bI = map( i-> (i+1)^2.0/(((2*i+1)*(2*i+3)) ),0:n-1)
+		for i = 1:n
+		P = [P[2],vcat([0],P[2])-bI[i]*vcat(P[1],[0.0;0.0])]
+		end
+		wg = 2.0./((n+2)*(n+1)*map(xi->sum(P[2].*(xi.^(0:(length(P[2])-1))))^2,xg))
+		wg = vcat(2.0/((n+1)*(n+2)),wg,2/((n+1)*(n+2)))
+		wg[2:end-1] = (2-2*wg[1])/sum(wg[2:end-1])*wg[2:end-1]
+		xg = vcat(-1.0,xg,1.0)
+		return xg,wg
+	elseif mtd == "hermite"
+		#w(x) = exp(-x^2/2)
+		b = (1:n).^0.5#map(i-> (i)^0.5,1:n)
+		E =eigen(Symmetric(diagm(1=>b,-1=>b)))
+		b0 = sqrt(pi/2.0)
+		xg = E.values
+		wg = E.vectors[1,:].^2*b0
+		return xg,wg
+	elseif occursin.(["chebyshev","1"],mtd) |> all
+		#w(x) = (1-t^2)^(-0.5)
+		xg = cos.((2*(1:n).-1)*pi/(2*n)) |> sort
+		wg = pi/n*ones(Float64,n)
+		return  xg,wg
+	elseif occursin.(["chebyshev","2"],mtd) |> all
+		#w(x) = 1/(1-t^2)^0.5
+		xg = cos.((1:n)/(n+1)*pi) |> sort
+		wg = pi/(n+1)*sin.((1:n)/(n+1)*pi).^2
+		return  xg,wg
+	elseif mtd == "jacobi"
+		an = map(i->-(ja^2-jb^2)/((2*i+ja+jb)*(2*i+ja+jb-2)),2:n+1)
+		bn = map(i->2*((i+ja)*(i+jb)*(i)*(i+ja+jb))^0.5/((2*i+ja+jb-1)*(2*i+ja+jb+1))^0.5/(2*i+ja+jb)   ,1:n-1)
 
+		A = diagm(0=>an, 1=>bn, -1=>bn)
+		E = eigen(A)
+
+		b0 = 2.0^(1+ja+jb)*beta(1+ja,1+jb)
+
+		wg = E.vectors[1,:].^2*b0
+		xg = E.values
+
+		return  xg,wg
+	end
+
+	end
+
+	#=
+	function QuadInt(n::Int64;mtd::String = "legendre",ja::Float64=1.0,jb::Float64=1.0)
+
+	x,w =  if mtd == "legendre"
+			#w(x) = 1
+			b = map( i-> i/(4*i^2-1)^0.5 ,1:n-1)
+			E = eigen(Symmetric(diagm(1=>b,-1=>b)))
+			b0 = 2.0
 			xg = E.values
-			wg = E.vectors[1,:].^2*2
-
+			wg = E.vectors[1,:].^2*b0
 			return xg,wg
-
+		elseif mtd == "hermite"
+			#w(x) = exp(-x^2/2)
+			b = (1:n).^0.5#map(i-> (i)^0.5,1:n)
+			E =eigen(Symmetric(diagm(1=>b,-1=>b)))
+			b0 = sqrt(pi/2.0)
+			xg = E.values
+			wg = E.vectors[1,:].^2*b0
+			return xg,wg
 		elseif mtd == "lobatto"
 			# 2n-3
 			# 2(n+1)-3 = 2n-1
-			n += 1
+
+			n = max(n,2)
 			if n == 2
 				xg = [-1.0,1.0]
 				wg = [1.0,1.0]
+				return xg,wg
+
 			else
 				n = n-2
 				b = map( i1->  i1/(2*i1+3)*(i1+2)/(2*i1+1), 1:n-1).^0.5
-				E = eigen(diagm(1=>b,-1=>b))
+				E = eigen(Symmetric(diagm(1=>b,-1=>b)))
 				xg = E.values
 
 				# Poiskusi optimizirat
@@ -792,10 +1171,39 @@ module NonLinBeam
 				wg[2:end-1] = (2-2*wg[1])/sum(wg[2:end-1])*wg[2:end-1]
 				xg = vcat(-1.0,xg,1.0)
 				return xg,wg
+
 			end
+		elseif occursin.(["chebyshev","1"],mtd) |> all
+			#w(x) = (1-t^2)^(-0.5)
+			xg = cos.((2*(1:n).-1)*pi/(2*n)) |> sort
+			wg = pi/n*ones(Float64,n)
+			return  xg,wg
+		elseif occursin.(["chebyshev","2"],mtd) |> all
+			#w(x) = 1/(1-t^2)^0.5
+			xg = cos.((1:n)*pi/(n+1)) |> sort
+			wg = pi/(n+1)*sin.((1:n)/(n+1)*pi).^2
+			return  xg,wg
+		elseif mtd == "jacobi"
+			an = map(i->-(ja^2-jb^2)/((2*i+ja+jb)*(2*i+ja+jb-2)),2:n+1)
+			bn = map(i->2*((i+ja)*(i+jb)*(i)*(i+ja+jb))^0.5/((2*i+ja+jb-1)*(2*i+ja+jb+1))^0.5/(2*i+ja+jb)   ,1:n-1)
+
+			A = Symmetric(diagm(0=>an, 1=>bn, -1=>bn))
+			E = eigen(A)
+
+			b0 = 2.0^(1+ja+jb)*beta(1+ja,1+jb)
+
+			wg = E.vectors[1,:].^2*b0
+			xg = E.values
+
+			return  xg,wg
 		end
-		return xg,wg
+
+
+		return x,w
 	end
+
+	=#
+
 	#
 	# I N T E G R A C I J A
 	function Integrate(f::Function,a0::Float64,a1::Float64;n::Int64 = 30,mtd::String = "gauss")
@@ -853,52 +1261,47 @@ module NonLinBeam
 		f = PolyValue(x::Float64,Ib*Kb::Array{Float64};n = n)
 		return f
 	end
+
+
 	#
 	# V R E D N O S T   P O L I N O M A 
 	function PolyValue(x::Float64,Ki::Array{Float64,1};n::Int64 = 0)
-		dP =reverse( (diagm(1 => 1. : size(Ki)[1]-1.)^n)[1:end-n,:]*Ki)
-		f = 0.0
-		for i in eachindex(dP)
-			f *= x
-			f += dP[i]
+
+		#dP =reverse( (diagm(1 => 1. : size(Ki)[1]-1.)^n)[1:end-n,:]*Ki)
+		f = 0.
+		dP = if n>0
+			reverse((diagm(1=> 1. : (size(Ki)[1]-1))^n)[1:end-n,:]*Ki)
+		elseif n<0
+			reverse((diagm(-1=> 1 ./(1. : (size(Ki)[1]-1-n)))^(-n))[:,1:end+n]*Ki)
+		else
+			reverse(Ki)
 		end
-		#f = dP'*x.^(0:size(Ki)[1]-1)
+		for i in eachindex(dP)
+			f = f*x +dP[i]
+			#f += dP[i]
+		end
 		return f
 	end
 	function PolyValue(x::Float64,Ki::Array{Float64,2};n::Int64 = 0)
-		dP =reverse( (diagm(1 => 1. : size(Ki)[1]-1.)^n)[1:end-n,:]*Ki,dims=1)
-		f = zeros(Float64,size(dP)[2])
-		for i in 1:size(dP)[1]
-			f *= x
-			f += dP[i,:]
+		f = zeros(1,size(Ki)[2])
+		for i in eachindex(f)
+			f[i] = PolyValue(x::Float64,Ki[:,i]::Array{Float64,1},n=n)
 		end
-		#f = dP'*x.^(0:size(Ki)[1]-1)
 		return f
 	end
-	function PolyValue(x::Array{Float64},Ki::Array{Float64,1};n::Int64 = 0)
-		dP =reverse( (diagm(1 => 1. : size(Ki)[1]-1.)^n)[1:end-n,:]*Ki)
-		f = copy(x)*0
-		for i1 in eachindex(f)
-			for i2 in eachindex(dP)
-				f[i1] *= x[i1]
-				f[i1] += dP[i2]
-			end
+	function PolyValue(x::Array{Float64,1},Ki::Array{Float64,1};n::Int64 = 0)
+		f = copy(x)*0.0
+		for i in eachindex(f)
+			f[i] = PolyValue(x[i]::Float64,Ki::Array{Float64,1},n=n)
 		end
-		#f = dP'*x.^(0:size(Ki)[1]-1)
 		return f
 	end
-
 	function PolyValue(x::Vector{Float64},Ki::Matrix{Float64};n::Int64 = 0)
-	dP =reverse( (diagm(1 => 1. : size(Ki)[1]-1.)^n)*Ki,dims=1)
-	f = zeros(length(x),size(dP)[2])
-	for i1 in eachindex(x)
-		for i2 in 1:size(dP)[2]
-			f[i1,:] *= x[i1]
-			f[i1,:] += dP[i2,:]
+		f = zeros(length(x),size(Ki)[2])
+		for i1 in eachindex(x), i2 in eachindex(Ki[1,:])
+			f[i1,i2] = PolyValue(x[i1]::Float64,Ki[:,i2]::Array{Float64,1},n=n)
 		end
-	end
-	#f = dP'*x.^(0:size(Ki)[1]-1)
-	return f
+		return f
 	end
 
 
@@ -915,17 +1318,18 @@ module NonLinBeam
 	#
 	# O R T O G O N A L I Z A C I J A
 	function trig_re_gramschmid(DataIn::Vector{Vector{Float64}}; B0::Array{Float64} = zeros(Float64,2,2), rep::Int64 = 0)
-	na = sum(length.(DataIn))
-	n::Int64 = Int(ceil((sum(length.(DataIn)))/2))*2
-	nb = size(B0)[2]
 
-	#Standardna baza
-	Id = Matrix{Float64}(I,n,n);
+		na = sum(length.(DataIn))
+		n::Int64 = Int(ceil((sum(length.(DataIn)))/2))*2
+		nb = size(B0)[2]
 
-	#Re-ortogoanalizacija
-	if B0 == zeros(Float64,2,2)
-	B0::Array{Float64} = copy(Id)
-	nb = n
+		#Standardna baza
+		Id = Matrix{Float64}(I,n,n);
+
+		#Re-ortogoanalizacija
+		if B0 == zeros(Float64,2,2)
+			B0::Array{Float64} = copy(Id)
+			nb = n
 		end
 
 		#Diferencialni operator
@@ -937,13 +1341,14 @@ module NonLinBeam
 
 		for i1 = 2:nb
 
-		c1 =ei[:,i1] - sum(trig_DotP(ei[:,i1],bi[:,1:i1-1],DataIn) .*bi[:,1:i1-1],dims=2)[:,1]
 
-		if (a=sqrt(trig_DotP(c1,c1,DataIn)[1]))<10^-10 || any(isnan.(bi[:,i1]))
-		bi[:,i1] .= 0.0
-		else
-		bi[:,i1] = c1/a
-		end
+			c1 =ei[:,i1] - sum(trig_DotP(ei[:,i1],bi[:,1:i1-1],DataIn) .*bi[:,1:i1-1],dims=2)[:,1]
+
+			if (a=sqrt(trig_DotP(c1,c1,DataIn)[1]))<10^-10 || any(isnan.(bi[:,i1]))
+				bi[:,i1] .= 0.0
+			else
+				bi[:,i1] = c1/a
+			end
 		end
 
 		#Interpolacija
@@ -956,31 +1361,41 @@ module NonLinBeam
 		end
 
 		return Ib,bi
-		end
+
+	end
 
 	function TrigValue(x::Float64,ai::Matrix{Float64};n::Int64 = 0)
 		p = zeros(Float64,1,size(ai)[2])
-		if n>0
-		da = hcat([[i;0.] for i = 1:Int(size(ai)[1]/2)]...)
+		if n!=0
+			da = hcat([[i;0.] for i = 1:Int(size(ai)[1]/2)]...)
 			da = reshape(da,length(da))
-			Dp = diagm(1=>da,-1=>-da)[1:end-1,1:end-1]
-			ai = Dp^n * ai
+			Dp = if n>0
+					diagm(1=>-da,-1=>da)[1:end-1,1:end-1]
+				elseif n<0
+					inv(diagm(1=>-da,-1=>da)[1:end-1,1:end-1])
+				end
+			ai = Dp^abs(n) * ai
 		end
 		for i in 1:2:size(ai)[1]
-		p +=  [sin(i*x);; cos(i*x)] * ai[[i,i+1],:]
+			p +=  [sin(i*x);; cos(i*x)] * ai[[i,i+1],:]
 		end
 		return p
 	end
 	function TrigValue(x::Float64,ai::Vector{Float64};n::Int64 = 0)
 		p = 0.
-		if n>0
-		da = hcat([[i;0.] for i = 1:Int(size(ai)[1]/2)]...)
+
+		if n!=0
+			da = hcat([[i;0.] for i = 1:Int(size(ai)[1]/2)]...)
 			da = reshape(da,length(da))
-			Dp = diagm(1=>da,-1=>-da)[1:end-1,1:end-1]
+			Dp = if n>0
+					diagm(1=>-da,-1=>da)[1:end-1,1:end-1]
+				elseif n<0
+					diagm(1=>-da,-1=>da)[1:end-1,1:end-1] |> inv
+				end
 			ai = Dp^n * ai
 		end
 		for i in 1:2:size(ai)[1]
-		p +=  ([sin(i*x);; cos(i*x)] * ai[[i,i+1]] )[1]
+			p +=  ([sin(i*x);; cos(i*x)] * ai[[i,i+1]] )[1]
 		end
 		return p
 	end
@@ -1001,7 +1416,7 @@ module NonLinBeam
 	#
 	#
 	# S O S E D N O S T N A   M A T R I K A
-    	function adj_mat(conn::Matrix{Int64},n::Int64)::Matrix{Int64}
+	function adj_mat(conn::Matrix{Int64},n::Int64)::Matrix{Int64}
 		m = size(conn)[1]
 
 		A = zeros(Int64,(n,n))
@@ -1066,7 +1481,7 @@ module NonLinBeam
 		indx_permute = collect(1:n)
 		indx = copy(indx_permute)
 
-	#=
+
 		Adj = adj_mat(conn,n)
 		deg = sum(Adj;dims = 2)[:,1]
 
@@ -1076,12 +1491,15 @@ module NonLinBeam
 
 		#Re indeksirane
 		R = [node_deg[1][1]]
-		re = 1
-		#Prvi sosedje
-		Q = findall(R .== findall(Adj[:,R].==1))
-		n_node = 2
 
-		while
+		Q = findall(R .== findall(Adj[:,R].==1))
+
+		while length(Q)>0
+
+			if !all(findall(Q[i1] .== R))
+				push!(R,Q[i1])
+			end
+
 
 			Q = Q[getindex.(findall(Q[:,2] .== sort(Q[:,w])'),1),:]
 			#indx_permute[n_node.+1:size(Q)[1]] = Q[:,1]
@@ -1089,10 +1507,80 @@ module NonLinBeam
 
 		end
 
-	=#
-
 
 		return indx_permute
+	end
+
+
+	function tree_gen(cr::Matrix{Float64},cn::Matrix{Int64},stm::Int64,br::Vector{Int64},rep::Int64)
+	tr_cr = copy(cr)
+	tr_cn = copy(cn)
+	l0 = norm(cr[cn[stm,1],:]-cr[cn[stm,2],:])
+	a0 = atan(cr[cn[stm,2],2]-cr[cn[stm,1],2],cr[cn[stm,2],1]-cr[cn[stm,1],1])
+
+	cr = cr/l0*[cos(a0) -sin(a0);sin(a0) cos(a0)]
+
+
+	uniq_indx = setdiff(1:size(cn)[1],cn[stm])
+	cr_uniq_indx = setdiff(1:size(cr)[1],cn[stm,:])
+
+	n_br = size(cn)[1]
+	end_indx_br =  (1:n_br)[br]
+	indx_rpl = map(i->findall(cn[uniq_indx,1].==cn[br[i],1]), eachindex(br))
+
+	#display(indx_rpl)
+
+
+
+
+	#display(l0)
+	#display(a0)
+
+
+	for i1 in 1:rep
+	#println("i1 = ",i1)
+	br1::Vector{Int64} = []
+
+	for i2 in eachindex(br)
+	#println("   i2 = ",i2)
+
+	l = norm(tr_cr[tr_cn[br[i2],1],:]-tr_cr[tr_cn[br[i2],2],:])
+	a = atan(tr_cr[tr_cn[br[i2],2],2]-tr_cr[tr_cn[br[i2],1],2],tr_cr[tr_cn[br[i2],2],1]-tr_cr[tr_cn[br[i2],1],1])
+
+	maxindx = maximum(tr_cn)
+
+	ad_cr = cr[cr_uniq_indx,:]*l*[cos(a) sin(a);-sin(a) cos(a)]
+	ad_cn = cn[uniq_indx,:].-minimum(cn[uniq_indx,:]).+maxindx
+
+	#display(mod(i2-1,length(end_indx_br))+1)
+	#display(indx_rpl[mod(i2-1,length(end_indx_br))+1])
+	ad_cn[indx_rpl[1],1] .= tr_cn[br[i2],2]
+	#display(tr_cn[br[i2],1])
+	#display(ad_cn)
+	#ad_cn[:,1] = replace(ad_cn[:,1], tr_cn[br[i2],1].-minimum(cn[uniq_indx]).+maxindx.+1 .-i2 => tr_cn[br[i2],2])
+	#display(ad_cn)
+
+
+
+	#display(l)
+	#display(a)
+
+
+	ad_cr[:,1] = ad_cr[:,1] .+ tr_cr[tr_cn[br[i2],1],1]
+	ad_cr[:,2] = ad_cr[:,2] .+ tr_cr[tr_cn[br[i2],1],2]
+
+
+	tr_cr = vcat(tr_cr,ad_cr)
+	tr_cn = vcat(tr_cn,ad_cn)
+
+	br1 = vcat(br1,end_indx_br.+(-minimum(cn[uniq_indx,:])+maxindx))
+	end
+	br = br1
+	#display(br1)
+	end
+
+	return tr_cr,tr_cn
+
 	end
 		
 
