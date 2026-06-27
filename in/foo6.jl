@@ -48,7 +48,7 @@ metoda_t_integracije::String    = ["midpoint", "timeelement"][1]
 Integracija::String 	        = ["gauss", "lobatto"][1]
 nt = 2
 
-const dv_norm_tol_exp::Int64	   = -6
+const dv_norm_tol_exp::Int64	   = -7
 const nwt_iter_max_count::Int64	   = 170
 
 
@@ -114,7 +114,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 @assignto :(ElementDataIn) [8,11] :( 7.85*[0.00227; 3.745e-6] ) :(M)
 @assignto :(ElementDataIn) [9,12] :( 7.85*[0.001226; 1.453e-6] ) :(M)
 
-@assignto :(ElementDataIn) [13,14,15] :( 7.85*[1.0; 0.0000194] ) :(M)
+@assignto :(ElementDataIn) [13,14,15] :(10^4* 7.85*[1.0; 0.0000194] ) :(M)
 
 
 @assignto :(ElementDataIn) [1,2,3,4,5,6] :( 210*10^6*[0.0131 0. 0.;0. 0.0131/2.6 0.; 0. 0. 0.0001927] ) :(C)
@@ -150,9 +150,9 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 @assignto :(VozDataIn) [2,3,4,6,7,8] :( Bool[0, 1, 1] ) :(Supp)
 
 #@assignto :(VozDataIn) [2] :( Bool[1, 0, 0] ) :(Supp)
-@assignto :(VozDataIn) [2,6] :( t->[2.0/12*5/5.0*t;0.;0.] ) :(mot)
-@assignto :(VozDataIn) [3,7] :( t->[2.0/12*8.5/5.0*t;0.;0.] ) :(mot)
-@assignto :(VozDataIn) [4,8] :( t->[2.0/5.0*t;0.;0.] ) :(mot)
+@assignto :(VozDataIn) [2,6] :( t->[4*0.00642*t;0.;0.] ) :(mot)
+@assignto :(VozDataIn) [3,7] :( t->[4*0.01222*t;0.;0.] ) :(mot)
+@assignto :(VozDataIn) [4,8] :( t->[4*0.0185*t;0.;0.] ) :(mot)
 #@assignto :(VozDataIn) [1,5] :( t->[0.2*sin(pi*15*t);0.;0.] ) :(mot)
 
 #@assignto :(VozDataIn) [1] :( pi/3. ) :(dir)

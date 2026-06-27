@@ -15,7 +15,7 @@ elementi::Array{Int64} = [
 #   P O D A T K I   R A Č U N A
 const ti::Float64 = 0.0
 const dt::Float64 = 0.1
-const tf::Float64 = 70.0
+const tf::Float64 = 9.0
 const g::Vector{Float64}  = [0.; 0.]
 
 metoda_t_integracije::String    = ["midpoint", "timeelementP","timeelementT"][1]
@@ -102,7 +102,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 @assignto :(ElementDataIn) [1] :( repeat([5],10) ) :(nInt)
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 #@assignto :(ElementDataIn) [1] :($(:(0.1))) :(beta)
-ElementDataIn[1].beta = 0.5
+#ElementDataIn[1].beta = 0.5
 
 
 #@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,1.,0.]])) :(Ib_geom)

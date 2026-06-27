@@ -38,14 +38,18 @@ begin
 	if (test == "0")
 		error("Preklic")
 	elseif (test == "1")
+		println("-> 1")
 		konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
 		display(konstr_img)
 		@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
 	elseif (test == "2")
+	println("-> 2")
 	konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
 	display(konstr_img)
 	@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
 	error("Preklic")
+	else
+		println("->")
 	end
 end
 
@@ -57,6 +61,12 @@ time_st = collect(ti:dt:tf)
 n_time = length(time_st)
 
 
+begin
+	for i in eachindex(ElementDataIn)
+		ElementDataIn[i].C = ElementDataIn[i].C*E[i].L[1]^2*diagm([1.0,1.0,0.4])
+		ElementDataIn[i].M = diagm([1.0,0.4])*ElementDataIn[i].M*E[i].L[1]
+	end
+end
 
 
 

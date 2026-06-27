@@ -20,7 +20,7 @@ const g::Vector{Float64} = [0.; 0.]
 
 metoda_t_integracije::String    = ["midpoint", "timeelementP","timeelementT"][1]
 tnodes                          = [0.;0.5;1.]
-Integracija::String 	        = ["gauss", "lobatto"][1]
+Integracija::String 	        = ["gauss", "lobatto"][2]
 nt = 2
 
 const dv_norm_tol_exp::Int64	   = -7
@@ -90,17 +90,17 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 #@assignto :(ElementDataIn) [1] :(t->[0.1, 0.1]*t) :(px)
 #@assignto :(ElementDataIn) [1] :(t->[repeat([0.],1);8.0]*Int(t<=2.5) ) :(Px)
-@assignto :(ElementDataIn) [1] :(t-> 50.0*ones(1,2)*t  ) :(pz)
+#@assignto :(ElementDataIn) [1] :(t-> 50.0*ones(1,2)*t  ) :(pz)
 #@assignto :(ElementDataIn) [1] :(t->[0.0 ;0.2*t^2]) :(Pz)
 #@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(my)
 #@assignto :(ElementDataIn) [1] :(t->[repeat([0.],1);-80.]*Int(t<=2.5)) :(My)
 
 
-@assignto :(ElementDataIn) [1] :( range(-1,1,length=2) |> collect ) :(div1)
-@assignto :(ElementDataIn) [1] :( repeat([5],1) ) :(div2)
+@assignto :(ElementDataIn) [1] :( range(-1,1,length=5) |> collect ) :(div1)
+@assignto :(ElementDataIn) [1] :( [3,2,2,4] ) :(div2)
 #@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
-@assignto :(ElementDataIn) [1] :( repeat([7],1) ) :(nInt)
-#@assignto :(ElementDataIn) [1] :( true ) :(Ci)
+@assignto :(ElementDataIn) [1] :( repeat([7],4) ) :(nInt)
+@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 
 
 #@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,1.,0.]])) :(Ib_geom)
@@ -109,7 +109,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 # V O Z L I Š Č A
 @assignto :(VozDataIn) [1,2] :( Bool[0, 0, 1] ) :(Supp)
-#@assignto :(VozDataIn) [1] :( t->[0, 0, 0] ) :(mot)
+@assignto :(VozDataIn) [2] :( t->[t*0.1, 0, 0] ) :(mot)
 
 #@assignto :(VozDataIn) [2] :( Bool[1, 0, 1] ) :(Supp)
 

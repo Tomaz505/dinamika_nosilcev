@@ -1,7 +1,7 @@
 #   K O O R D I N A T E   V O Z L I S C
 vozlisca::Array{Float64} = [
     0. 0.;
-    3. -0.2
+    3. 0.
     ]# * [1 0; -0.005 1]# imperfektnosti v x glede na z
 
 
@@ -14,8 +14,8 @@ elementi::Array{Int64} = [
 
 #   P O D A T K I   R A Č U N A
 const ti::Float64 = 0.0
-const dt::Float64 = 0.1
-const tf::Float64 = 10.0
+const dt::Float64 = 0.0001
+const tf::Float64 = 1.5
 const g::Vector{Float64}  = [0.; 0.]
 
 metoda_t_integracije::String    = ["midpoint", "timeelementP","timeelementT"][1]
@@ -65,34 +65,34 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 # E L E M E N T I
-@assignto :(ElementDataIn) [1] :( [0.; 0.] ) :(M)
+@assignto :(ElementDataIn) [1] :( [0.1; 0.1] ) :(M)
 @assignto :(ElementDataIn) [1] :( 10^7*[1. 0. 0.;0. 1. 0.; 0. 0. 0.01] ) :(C)
 
 
 #@assignto :(ElementDataIn) [1] :(t->[0.1, 0.1]*t) :(px)
 #@assignto :(ElementDataIn) [1] :(t->[repeat([0.],5);-8000.0*t] ) :(Px)
 #@assignto :(ElementDataIn) [2] :(t-> 50.0*ones(3,2)  ) :(pz)
-@assignto :(ElementDataIn) [1] :(t->[repeat([0.],5);100.0*t]) :(Pz)
+#@assignto :(ElementDataIn) [1] :(t->[repeat([0.],5);100.0*t]) :(Pz)
 #@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(my)
 #@assignto :(ElementDataIn) [1] :(t->[repeat([0.],19);-80.]*Int(t<=2.5)) :(My)
 
 
-@assignto :(ElementDataIn) [1] :( range(-1,1,length=4) |> collect ) :(div1)
-@assignto :(ElementDataIn) [1] :( repeat([4],3) ) :(div2)
-#@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
-@assignto :(ElementDataIn) [1] :( repeat([10],3) ) :(nInt)
+@assignto :(ElementDataIn) [1] :( range(-1,1,length=8) |> collect ) :(div1)
+@assignto :(ElementDataIn) [1] :( repeat([5],7) ) :(div2)
+@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
+@assignto :(ElementDataIn) [1] :( repeat([7],7) ) :(nInt)
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 
-#@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,1.,0.]])) :(Ib_geom)
-#@assignto :(ElementDataIn) [1] :( [1.5 -0.15] ) :(Kb)
+@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,1.,0.]])) :(Ib_geom)
+@assignto :(ElementDataIn) [1] :( [1.5 -0.5] ) :(Kb)
 
 
 # V O Z L I Š Č A
-@assignto :(VozDataIn) [1] :( Bool[0, 0, 1] ) :(Supp)
-@assignto :(VozDataIn) [2] :( Bool[0, 1, 1] ) :(Supp)
+@assignto :(VozDataIn) [1] :( Bool[0, 0, 0] ) :(Supp)
+@assignto :(VozDataIn) [2] :( Bool[0, 0, 0] ) :(Supp)
 
-#@assignto :(VozDataIn) [1] :( t->[sin(pi*t); 0.; 0.] ) :(mot)
-#@assignto :(VozDataIn) [3] :( t->[ t/9.0 ; 0.; 0.] ) :(mot)
+@assignto :(VozDataIn) [2] :( t->[0.; 0.; t] ) :(mot)
+@assignto :(VozDataIn) [1] :( t->[ 0 ; 0.; -t] ) :(mot)
 #@assignto :(VozDataIn) [2] :( t->[ -t/9.0 ; 0.; 0.] ) :(mot)
 
 

@@ -22,7 +22,7 @@ const g::Vector{Float64}  = [0.; 0.]
 
 metoda_t_integracije::String    = ["midpoint", "timeelementP","timeelementT"][1]
 tnodes                          = [0.;0.5;1.]
-Integracija::String 	        = ["gauss", "lobatto"][1]
+Integracija::String 	        = ["gauss", "lobatto"][2]
 nt = 2
 
 const dv_norm_tol_exp::Int64	   = -8
@@ -87,7 +87,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 # E L E M E N T I
 @assignto :(ElementDataIn) [1] :( 7850*[0.087; 0.003562] ) :(M)
-@assignto :(ElementDataIn) [1] :( 210000000000.0*[0.087 0. 0.;0. 0.087/2.6 0.; 0. 0. 0.003562] ) :(C)
+@assignto :(ElementDataIn) [1] :( 210000000000.0*[0.087 0. 0.;0. 0.087/1.6 0.; 0. 0. 0.003562] ) :(C)
 
 
 #@assignto :(ElementDataIn) [1] :(t->[0.1, 0.1]*t) :(px)
@@ -99,11 +99,13 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 @assignto :(ElementDataIn) [1] :( range(-1,1,length=9) |> collect ) :(div1)
-@assignto :(ElementDataIn) [1] :( repeat([4],8) ) :(div2)
-#@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
-@assignto :(ElementDataIn) [1] :( repeat([8],8) ) :(nInt)
-#@assignto :(ElementDataIn) [1] :( true ) :(Ci)
+@assignto :(ElementDataIn) [1] :( [3,2,2,2,2,2,2,3] ) :(div2)
+#@assignto :(ElementDataIn) [1] :( repeat([5],8) ) :(div2)
 
+#@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
+@assignto :(ElementDataIn) [1] :( repeat([15],8) ) :(nInt)
+#@assignto :(ElementDataIn) [1] :( true ) :(Ci)
+ElementDataIn[1].Ci =2
 
 @assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,1.,-2/3,-1/3,1/3,2/3]])) :(Ib_geom)
 @assignto :(ElementDataIn) [1] :( [-10*sin(pi/9) -10*cos(pi/9)+sqrt(75); -10*sin(pi/18) -10*cos(pi/18)+sqrt(75) ;10*sin(pi/18) -10*cos(pi/18)+sqrt(75);10*sin(pi/9) -10*cos(pi/9)+sqrt(75) ] ) :(Kb)
@@ -117,5 +119,16 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 
+#= OUTPUT
+
+2x
+plot(time_st,(M.gamma3[20,:]-M.gamma3[21,:]);linecolor = :black, legend = :none,xlabel = latexify("t"),tickfontsize=16,xguidefontsize=16,yguidefontsize=16,size=(800,400))
+
+uz1=M.uz[14,:]
+uz2=M.uz[10,:]
+plot(time_st,(uz1-uz2);linecolor = :black, legend = :none,xlabel = latexify("t"),tickfontsize=16,xguidefontsize=16,yguidefontsize=16,size=(800,400))
+
+plot(time_st,M.uz[14,:];linecolor = :black, legend = :none,xlabel = latexify("t"),tickfontsize=16,xguidefontsize=16,yguidefontsize=16,size=(800,400))
+=#
 
 

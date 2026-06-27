@@ -11,7 +11,7 @@ module NonLinBeam
 		Integrate, QuadInt, re_gramschmid,InterpolValue,PolyValue,
 		trig_re_gramschmid,TrigValue,
 		plotbeams, plotmotion,plotVar,plotVar2,plotVar3,plotVar3anim, plotModes,
-		adj_mat,randpermute,node_permute, Cuthill_McKee
+		adj_mat,randpermute,node_permute, Cuthill_McKee, tree_gen
 	#
 	#
 	#
@@ -45,7 +45,7 @@ module NonLinBeam
 		div2::Array{Int64} = [4]
 		dist::Symbol = :uniform
 		nInt::Array{Int64} = [6]
-		Ci::Bool = false	#Zveznost odvodov
+		Ci::Int64 = 0	#Zveznost odvodov
 		beta::Float64 = 0.0 #dušenje
 		relese::Tuple{Bool,Bool} = (false,false)
 	end 
@@ -200,8 +200,10 @@ module NonLinBeam
 		elseif n_ke == 2
 			indx[1] = vcat([elem_dat.v[1]],(n_nodes+1):(n_nodes+elem_dat.div2[1]-1+Int(elem_dat.Ci)))
 			n_nodes = maximum(indx[1])
-			if elem_dat.Ci
-				indx[2] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes-2+elem_dat.div2[2]),[elem_dat.v[2]],[n_nodes])		
+			#indx[2] = vcat((n_nodes+1-elem_dat.Ci):(n_nodes+elem_dat.div2[1]-1),[elem_dat.v[2]])
+			#n_nodes=maximum(indx[2])
+			if elem_dat.Ci>0
+				indx[2] = vcat([n_nodes.-elem_dat.Ci:-1:1],collect(n_nodes+#=1=#elem_dat.Ci:n_nodes-2+elem_dat.div2[2]),[elem_dat.v[2]],[n_nodes-#=0=#1+elem_dat.Ci])
 				n_nodes = maximum(indx[2])
 			else 
 				indx[2] = vcat(collect(n_nodes:n_nodes+elem_dat.div2[2]-2),[elem_dat.v[2]])
@@ -211,12 +213,13 @@ module NonLinBeam
 
 			indx[1] = vcat([elem_dat.v[1]],(n_nodes+1):(n_nodes-1+elem_dat.div2[1]+Int(elem_dat.Ci)))
 			n_nodes = maximum(indx[1]) 
-			if elem_dat.Ci
+			if elem_dat.Ci>0
 				for i = 2:n_ke-1
-					indx[i] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div2[i]-1),[n_nodes;n_nodes+elem_dat.div2[i]])
+					supp = vcat(collect(n_nodes-elem_dat.Ci:n_nodes)', collect(n_nodes+elem_dat.div2[i]-1:n_nodes+elem_dat.div2[i]-1+elem_dat.Ci)')
+					indx[i] = vcat(collect(n_nodes+1:n_nodes+elem_dat.div2[i]-2),supp[1:end])
 					n_nodes = maximum(indx[i])
 				end
-				indx[n_ke] = vcat([n_nodes-1],collect(n_nodes+1:n_nodes+elem_dat.div2[n_ke]-2),[elem_dat.v[2]],[n_nodes])
+				indx[n_ke] = vcat([n_nodes-elem_dat.Ci],collect(n_nodes+1:n_nodes+elem_dat.div2[n_ke]-2),[elem_dat.v[2]],collect(n_nodes-elem_dat.Ci+1:n_nodes))
 				n_nodes = maximum(indx[n_ke])
 
 			else
@@ -348,7 +351,10 @@ module NonLinBeam
 			   ([-1.0; QuadInt(elem_dat.div2[i],mtd = string(elem_dat.dist))[1][2:end-1] ;1.0].+1)/2*Li[i]
 			   end;
 
-				(!elem_dat.Ci) ? re_gramschmid([intrnode]) : (1<i<n_ke ? re_gramschmid([intrnode,[0.0,Li[i]]]) : ( i==1 ? re_gramschmid([intrnode,[Li[i]]]) : re_gramschmid([intrnode,[0.0]])))
+				#=
+				(!elem_dat.Ci ) ? re_gramschmid([intrnode]) : (1<i<n_ke ? re_gramschmid([intrnode,[0.0,Li[i]]]) : ( i==1 ? re_gramschmid([intrnode,[Li[i]]]) : re_gramschmid([intrnode,[0.0]])))
+				=#
+				(elem_dat.Ci == 0 ) ? re_gramschmid([intrnode]) : (1<i<n_ke ? re_gramschmid([intrnode,map(a-> [0.0,Li[i]],1:elem_dat.Ci)...]) : ( i==1 ? re_gramschmid([intrnode,map(a-> [Li[i]],1:elem_dat.Ci)...]) : re_gramschmid([intrnode,map(a-> [0.0],1:elem_dat.Ci)...])))
 			end
 		   ,1:n_ke)
 
@@ -518,7 +524,7 @@ module NonLinBeam
 	end
 
 
-	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},tstep::Int64;p0 = nothing,opt...)
+	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},tstep::Int64;init_konf::Bool = true,p0 = nothing,opt...)
 
 	if !isnothing(p0)
 		p = p0
@@ -562,11 +568,11 @@ module NonLinBeam
 			round.(ksi,digits=12)
 
 			r0 = hcat(map(j->PolyValue(ksi[j],Geom_Poly),eachindex(ksi))'...)
-			if isnothing(p0)
+			if isnothing(p0) && init_konf
 			plot!(r0[1,:],r0[2,:];linecolor = :black, aspect_ratio = :equal,legends = :none)
 			end
 
-			plot!(r0[1,:] + PolyValue(xl,EP[i1].P[i2]*M.ux[EP[i1].indx[i2],tstep]),r0[2,:]+PolyValue(xl,EP[i1].P[i2]*M.uz[EP[i1].indx[i2],tstep]);opt...)
+			plot!(p,r0[1,:] + PolyValue(xl,EP[i1].P[i2]*M.ux[EP[i1].indx[i2],tstep]),r0[2,:]+PolyValue(xl,EP[i1].P[i2]*M.uz[EP[i1].indx[i2],tstep]);opt...)
 
 
 		end
@@ -574,22 +580,26 @@ module NonLinBeam
 
 	return p
 	end
-	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Vector{Int64};opt...)
-		p = plotVar3(M,EP,ED,VD,indx_step[1];p0 = nothing, opt...)
+	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Vector{Int64};init_konf::Bool = true,opt...)
+		if init_konf
+			p = plotVar3(M,EP,ED,VD,indx_step[1];p0 = nothing, opt...)
+		else
+			p = plot()
+		end
 		for it in indx_step[2:end]
-			p = plotVar3(M,EP,ED,VD,it;p0 = p,opt...)
+			p = plotVar3(M,EP,ED,VD,it;p0 = p, init_konf = init_konf,opt...)
 		end
 		return p
 	end
-	function plotVar3anim(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Int64;opt...)
+	function plotVar3anim(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Int64;init_konf::Bool = true,opt...)
 
 		anim = @animate for it = 1:indx_step:size(M.ux)[2]
-			plotVar3(M,EP,ED,VD,it;opt...)
+			plotVar3(M,EP,ED,VD,it;init_konf = init_konf, opt...)
 		end
 		return anim
 	end
 
-	function plotModes(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},massM::Matrix{Float64},nnod::Int64,nvoz::Int64,tInt::MidPoint,i_time::Int64,mode::Int64)
+	function plotModes(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},massM::Matrix{Float64},nnod::Int64,nvoz::Int64,tInt::MidPoint,i_time::Int64,mode::Int64;init_konf::Bool=false,def_konf::Bool=false, opt...)
 
 		Ja = zeros(Float64,3*nnod,3*nnod)
 
@@ -650,18 +660,22 @@ module NonLinBeam
 		ve = real.(ve)
 		mod = BeamMotion(zeros(size(M.ux)[1],2),zeros(size(M.uz)[1],2),zeros(size(M.phi)[1],2),zeros(size(M.ux)[1],2),zeros(size(M.uz)[1],2),zeros(size(M.phi)[1],2),zeros(nnod,2),zeros(nnod,2),zeros(nnod,2))
 
+		println("T = ",2*pi/omg[mode])
+
 		scale = abs.(ve[[indxX_solve;indxZ_solve],mode]) |> maximum
 
+		if def_konf
 		mod.ux[:,1]= M.ux[:,i_time-1]
 		mod.uz[:,1]= M.uz[:,i_time-1]
 		mod.phi[:,1] = M.phi[:,i_time-1]
+		end
 
 		mod.ux[indxX,2] = mod.ux[indxX,1] +   ve[indxX_solve,mode]/scale
 		mod.uz[indxZ,2] = mod.uz[indxZ,1] +  ve[indxZ_solve,mode]/scale
 		mod.Omg[indxP,2] =mod.phi[indxP,1] +  ve[indxP_solve,mode]/scale
 
 
-		plotVar3(mod,EP,ED,VD,[1,2])
+		plotVar3(mod,EP,ED,VD,[1,2];init_konf=init_konf,opt...)
 
 		#return omg,ve
 
@@ -694,7 +708,6 @@ module NonLinBeam
 		indx2 = CartesianIndex.((1:size(Pval)[2]),(1:size(Pval)[2])')
 
 		D = [0.;1.;0.;;-1.0;0.0;0.0;;0.0;0.0;0.0]
-			   #-      +
 		Id = [1.0;0.0;0.0;;0.0;1.0;0.0;;0.0;0.0;1.0]
 		Mai = [M[1] 0.0 0.0; 0.0 M[1] 0.0; 0.0 0.0 M[2]]
 		eps3 = [0.0;; 0.0;; 1.0]
@@ -739,6 +752,7 @@ module NonLinBeam
 			# 	L I N E A R I Z A C I J A
 			dlE = (dt/2.0*D*E_e,dt/2.0*Rm)
 			dlE2 = (dt*D*(dt/2.0*Rm*dV+E_e+V[3]*dlE[1]),dt*(Rm+V[3]*D*dlE[2]))
+ 			#dlE2 = (dt^2/2.0*D*Rm*dV+(2.0*Id+dt*V[3]*D)*dlE[1],(2.0*Id+dt*V[3]*D)*dlE[2])
 			dlN = (C*dlE2[1]*(1.0/2.0+beta),C*dlE2[2]*(1.0/2.0+beta))
 			dlRe = (Rm'*(-dt/2.0*D*N+dlN[1]),Rm'*dlN[2])
 			dlX = ([0.0;0.0;1.0]*(-N'*D*dlE[1]+E_e'*D*dlN[1]),
@@ -1469,6 +1483,78 @@ module NonLinBeam
 		end
 
 		return indx_permute
+	end
+
+
+	function tree_gen(cr::Matrix{Float64},cn::Matrix{Int64},stm::Int64,br::Vector{Int64},rep::Int64)
+	tr_cr = copy(cr)
+	tr_cn = copy(cn)
+	l0 = norm(cr[cn[stm,1],:]-cr[cn[stm,2],:])
+	a0 = atan(cr[cn[stm,2],2]-cr[cn[stm,1],2],cr[cn[stm,2],1]-cr[cn[stm,1],1])
+
+	cr = cr/l0*[cos(a0) -sin(a0);sin(a0) cos(a0)]
+
+
+	uniq_indx = setdiff(1:size(cn)[1],cn[stm])
+	cr_uniq_indx = setdiff(1:size(cr)[1],cn[stm,:])
+
+	n_br = size(cn)[1]
+	end_indx_br =  (1:n_br)[br]
+	indx_rpl = map(i->findall(cn[uniq_indx,1].==cn[br[i],1]), eachindex(br))
+
+	#display(indx_rpl)
+
+
+
+
+	#display(l0)
+	#display(a0)
+
+
+	for i1 in 1:rep
+	#println("i1 = ",i1)
+	br1::Vector{Int64} = []
+
+	for i2 in eachindex(br)
+	#println("   i2 = ",i2)
+
+	l = norm(tr_cr[tr_cn[br[i2],1],:]-tr_cr[tr_cn[br[i2],2],:])
+	a = atan(tr_cr[tr_cn[br[i2],2],2]-tr_cr[tr_cn[br[i2],1],2],tr_cr[tr_cn[br[i2],2],1]-tr_cr[tr_cn[br[i2],1],1])
+
+	maxindx = maximum(tr_cn)
+
+	ad_cr = cr[cr_uniq_indx,:]*l*[cos(a) sin(a);-sin(a) cos(a)]
+	ad_cn = cn[uniq_indx,:].-minimum(cn[uniq_indx,:]).+maxindx
+
+	#display(mod(i2-1,length(end_indx_br))+1)
+	#display(indx_rpl[mod(i2-1,length(end_indx_br))+1])
+	ad_cn[indx_rpl[1],1] .= tr_cn[br[i2],2]
+	#display(tr_cn[br[i2],1])
+	#display(ad_cn)
+	#ad_cn[:,1] = replace(ad_cn[:,1], tr_cn[br[i2],1].-minimum(cn[uniq_indx]).+maxindx.+1 .-i2 => tr_cn[br[i2],2])
+	#display(ad_cn)
+
+
+
+	#display(l)
+	#display(a)
+
+
+	ad_cr[:,1] = ad_cr[:,1] .+ tr_cr[tr_cn[br[i2],1],1]
+	ad_cr[:,2] = ad_cr[:,2] .+ tr_cr[tr_cn[br[i2],1],2]
+
+
+	tr_cr = vcat(tr_cr,ad_cr)
+	tr_cn = vcat(tr_cn,ad_cn)
+
+	br1 = vcat(br1,end_indx_br.+(-minimum(cn[uniq_indx,:])+maxindx))
+	end
+	br = br1
+	#display(br1)
+	end
+
+	return tr_cr,tr_cn
+
 	end
 		
 
