@@ -75,20 +75,6 @@ end
 
 begin
 
-	if metoda_t_integracije == "timeelement"
-		Ibtime = trig_re_gramschmid([tnodes])
-		xt,wt = QuadInt(it)
-		xt = (xt.+1)*dt/2*(nt-1)
-		wt = wt*dt/2*(nt-1)
-		Tvals = TrigValue
-		tInt = TimeElement(dt,tnodes,Ibtime,)
-	elseif metoda_t_integracije == "midpoint"
-		tInt = MidPoint(dt)
-	end
-
-
-
-
 
 	#Tip casovne integracije -> Multiple dispatch
 	if contains(metoda_t_integracije, "timeelement")
