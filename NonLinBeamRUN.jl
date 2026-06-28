@@ -62,15 +62,6 @@ time_st = collect(ti:dt:tf)
 n_time = length(time_st)
 
 
-begin
-	for i in eachindex(ElementDataIn)
-		ElementDataIn[i].C = ElementDataIn[i].C*E[i].L[1]^2*diagm([1.0,1.0,0.4])
-		ElementDataIn[i].M = diagm([1.0,0.4])*ElementDataIn[i].M*E[i].L[1]
-	end
-end
-
-
-
 
 
 begin
