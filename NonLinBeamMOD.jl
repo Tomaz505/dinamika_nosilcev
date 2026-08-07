@@ -524,7 +524,7 @@ module NonLinBeam
 	end
 
 
-	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},tstep::Int64;init_konf::Bool = true,p0 = nothing,opt...)
+	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},tstep::Int64;init_konf::Bool = true,p0 = nothing,np::Int64=20,opt...)
 
 	if !isnothing(p0)
 		p = p0
@@ -535,7 +535,7 @@ module NonLinBeam
 	for i1 = 1:length(EP)
 		for i2 = 1:length(EP[i1].P)
 
-			xl = (0:0.05:1)*EP[i1].L[i2] |> collect
+			xl = range(0.0,EP[i1].L[i2],length=np+1)|>collect#(0:0.05:1)*EP[i1].L[i2] |> collect
 			#=
 			xl = if elem_dat.dist == :uniform || elem_dat.div2 == 2
 			range(0.0EP[i1].L[i2],length = ED[i1].div2[i2]) |> collect
@@ -580,7 +580,7 @@ module NonLinBeam
 
 	return p
 	end
-	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Vector{Int64};init_konf::Bool = true,opt...)
+	function plotVar3(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Vector{Int64};init_konf::Bool = true,np::Int64=20,opt...)
 		if init_konf
 			p = plotVar3(M,EP,ED,VD,indx_step[1];p0 = nothing, opt...)
 		else
@@ -591,7 +591,7 @@ module NonLinBeam
 		end
 		return p
 	end
-	function plotVar3anim(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Int64;init_konf::Bool = true,opt...)
+	function plotVar3anim(M::BeamMotion,EP::Array{BeamDataProcess},ED::Array{BeamDataIn},VD::Array{NodeDataIn},indx_step::Int64;init_konf::Bool = true,np::Int64=20,opt...)
 
 		anim = @animate for it = 1:indx_step:size(M.ux)[2]
 			plotVar3(M,EP,ED,VD,it;init_konf = init_konf, opt...)
@@ -658,26 +658,28 @@ module NonLinBeam
 		omg,ve = eigen(Ja[indx_solve,indx_solve]/tInt.dt,massM[indx_solve,indx_solve])
 		omg = real.(omg)
 		ve = real.(ve)
-		mod = BeamMotion(zeros(size(M.ux)[1],2),zeros(size(M.uz)[1],2),zeros(size(M.phi)[1],2),zeros(size(M.ux)[1],2),zeros(size(M.uz)[1],2),zeros(size(M.phi)[1],2),zeros(nnod,2),zeros(nnod,2),zeros(nnod,2))
+		mod = BeamMotion(zeros(size(M.ux)[1],1+length(omg)),zeros(size(M.uz)[1],1+length(omg)),zeros(size(M.phi)[1],1+length(omg)),zeros(size(M.ux)[1],1+length(omg)),zeros(size(M.uz)[1],1+length(omg)),zeros(size(M.phi)[1],1+length(omg)),zeros(nnod,1+length(omg)),zeros(nnod,1+length(omg)),zeros(nnod,1+length(omg)))
 
 		println("T = ",2*pi/omg[mode])
 
 		scale = abs.(ve[[indxX_solve;indxZ_solve],mode]) |> maximum
+
 
 		if def_konf
 		mod.ux[:,1]= M.ux[:,i_time-1]
 		mod.uz[:,1]= M.uz[:,i_time-1]
 		mod.phi[:,1] = M.phi[:,i_time-1]
 		end
+		for i=2:length(omg)+1
+		mod.ux[indxX,i] = mod.ux[indxX,1] +   ve[indxX_solve,i-1]/scale
+		mod.uz[indxZ,i] = mod.uz[indxZ,1] +  ve[indxZ_solve,i-1]/scale
+		mod.Omg[indxP,i] =mod.phi[indxP,1] +  ve[indxP_solve,i-1]/scale
+		end
 
-		mod.ux[indxX,2] = mod.ux[indxX,1] +   ve[indxX_solve,mode]/scale
-		mod.uz[indxZ,2] = mod.uz[indxZ,1] +  ve[indxZ_solve,mode]/scale
-		mod.Omg[indxP,2] =mod.phi[indxP,1] +  ve[indxP_solve,mode]/scale
 
+		plotVar3(mod,EP,ED,VD,[1,mode];init_konf=init_konf,opt...)
 
-		plotVar3(mod,EP,ED,VD,[1,2];init_konf=init_konf,opt...)
-
-		#return omg,ve
+		return mod
 
 	end
 
@@ -915,7 +917,7 @@ module NonLinBeam
 			for i_ke in eachindex(EP[i_el].P)
 				V = [M.vx[EP[i_el].indx[i_ke],i1];;
 					M.vz[EP[i_el].indx[i_ke],i1];;
-					M.Omg[EP[i_el].indx[i_ke],i1]]
+					M.Omg[EP[i_el].indxP[i_ke],i1]]
 				Ei = [M.gamma1[EP[i_el].indx_int[i_ke],i1];;
 					M.gamma2[EP[i_el].indx_int[i_ke],i1];;
 					M.gamma3[EP[i_el].indx_int[i_ke],i1]]

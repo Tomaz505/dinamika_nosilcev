@@ -1,3 +1,5 @@
+#   PRIMER: LETEC SPAGET
+
 #   K O O R D I N A T E   V O Z L I S C
 vozlisca::Array{Float64} = [
     0.0 -8.0;
@@ -42,8 +44,8 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 #
 #	param	tip			oblika		default
 #
-#	v	- Vector{Int64}		(2)		...
-#	C 	- Matrix{Float64} 	(3x3)
+#	v	    - Vector{Int64}		(2)		    ...
+#	C 	    - Matrix{Float64} 	(3x3)       10^4*[1. 0. 0.;0. 1. 0.;0. 0. 0.1]
 #	M 	    - Matrix{Float64} 	(nx2)
 #	div1	- Vector{Float64} 	(n+1)		[-1.; 1,]
 #	div2	- Vector{Int64} 	(n)		    [4]
@@ -79,20 +81,20 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 #@assignto :(ElementDataIn) [1] :(t->[0.1, 0.1]*t) :(px)
-@assignto :(ElementDataIn) [1] :(t->[repeat([0.],9);8.0]*Int(t<=2.5) ) :(Px)
 #@assignto :(ElementDataIn) [1] :(t->[5.  5.]*t  ) :(pz)
-#@assignto :(ElementDataIn) [1] :(t->[repeat([0.],1);8.0*8/10]*Int(t<=2.5)) :(Pz)
 #@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(my)
-@assignto :(ElementDataIn) [1] :(t->[repeat([0.],9);-80.]*Int(t<=2.5)) :(My)
+@assignto :(ElementDataIn) [1] :(t->[repeat([0.],59);8.0*Int(t<=2.5)] ) :(Px)
+#@assignto :(ElementDataIn) [1] :(t->[repeat([0.],1);8.0*8/10]*Int(t<=2.5)) :(Pz)
+@assignto :(ElementDataIn) [1] :(t->[repeat([0.],59);-80.0*Int(t<=2.5)]) :(My)
 
 
-@assignto :(ElementDataIn) [1] :( range(-1,1,length=6) |> collect ) :(div1)
-@assignto :(ElementDataIn) [1] :( [4;repeat([2],3);4] ) :(div2)
+@assignto :(ElementDataIn) [1] :( range(-1,1,length=31) |> collect ) :(div1)
+@assignto :(ElementDataIn) [1] :( repeat([4],30) ) :(div2)
 #@assignto :(ElementDataIn) [1] :( repeat([4],30) ) :(div2)
 #@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
-@assignto :(ElementDataIn) [1] :( repeat([15],5) ) :(nInt)
+@assignto :(ElementDataIn) [1] :( repeat([8],30) ) :(nInt)
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
-ElementDataIn[1].Ci = 2
+#ElementDataIn[1].Ci = 2
 
 #@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,1.,0.]])) :(Ib_geom)
 #@assignto :(ElementDataIn) [1] :( [2.5 -0.5] ) :(Kb)
@@ -106,7 +108,82 @@ ElementDataIn[1].Ci = 2
 
 #@assignto :(VozDataIn) [1] :( pi/3. ) :(dir)
 
+#=
+macro iteration_hook()
+nothing
+end;
+=#
+
+#=
+macro precompute_hook()
+nothing
+end;
+=#
 
 
 
+proc_check=true
 
+include("../NonLinBeamRUN.jl")
+plt1 = plotVar3(M,E,ElementDataIn,VozDataIn,[1;1:20:201|>collect];init_konf=false,np=3,linecolor=:black,label=:none,aspectratio=:equal,minorgrid=false,yflip=true,yrange=(-9,1))
+plt2 = plot(vcat(map(i-> E[1].xInt[1] .+ [0.;cumsum(E[1].L)][i],1:length(E[1].indx))...),M.gamma3[:,end],label = false,linecolor = :black, xticks = 0:2.5:10|>collect,minorgrid=false)
+plt3 = plot(time_st[1:40:end],energija(M,ElementDataIn,E,VozDataIn)[1:40:end];lc=:black,label = false)
+
+
+@assignto :(ElementDataIn) [1] :(t->[repeat([0.],9);8.0*Int(t<=2.5)] ) :(Px)
+@assignto :(ElementDataIn) [1] :(t->[repeat([0.],9);-80.0*Int(t<=2.5)]) :(My)
+@assignto :(ElementDataIn) [1] :( range(-1,1,length=6) |> collect ) :(div1)
+@assignto :(ElementDataIn) [1] :( [4;repeat([2],3);4] ) :(div2)
+@assignto :(ElementDataIn) [1] :( repeat([11],5) ) :(nInt)
+ElementDataIn[1].Ci=2
+const dt::Float64        = 0.125/2
+
+include("../NonLinBeamRUN.jl")
+plotVar3(M,E,ElementDataIn,VozDataIn,[1;1:20:201|>collect];init_konf=false, p0=plt1,linecolor=:dodgerblue,line=:dash,label=:none,aspectratio=:equal,minorgrid=false,yflip=true,yrange=(-9,1))
+plt2 = plot(plt2,vcat(map(i-> E[1].xInt[1] .+ [0.;cumsum(E[1].L)][i],1:length(E[1].indx))...),M.gamma3[:,end],label = false,linecolor = :dodgerblue,line=:dash, xticks =0:2.0:10|>collect,minorgrid=false)
+plt3 = plot(plt3,time_st[1:40:end],energija(M,ElementDataIn,E,VozDataIn)[1:40:end];lc=:dodgerblue,label = false,line=:dash)
+
+
+
+# @assignto :(ElementDataIn) [1] :(t->[repeat([0.],7);8.0*Int(t<=2.5)] ) :(Px)
+# @assignto :(ElementDataIn) [1] :(t->[repeat([0.],7);-80.0*Int(t<=2.5)]) :(My)
+# @assignto :(ElementDataIn) [1] :( range(-1,1,length=5) |> collect ) :(div1)
+# @assignto :(ElementDataIn) [1] :( [4;repeat([2],2);4] ) :(div2)
+# @assignto :(ElementDataIn) [1] :( repeat([11],4) ) :(nInt)
+# const dt::Float64        = 0.125/2
+# ElementDataIn[1].Ci=2
+
+macro precompute_hook()
+E[1].P[1] = re_gramschmid([[0.,E[1].L[1]],[E[1].L[1]/3 , E[1].L[1],E[1].L[1]*2/3],[E[1].L[1]]])[:,[1,3,5,2,4,6]]
+E[1].P[5] = re_gramschmid([[0.,E[1].L[1]],[0.,E[1].L[1]/3,E[1].L[1]/3*2],[0.]])[:,[1,4,5,2,3,6]]
+end;
+
+
+include("../NonLinBeamRUN.jl")
+
+
+plotVar3(M,E,ElementDataIn,VozDataIn,[1;1:20:201|>collect];init_konf=false, p0=plt1,linecolor=:lawngreen,line=:dash,label=:none,minorgrid=false,yflip=true,yrange=(-9,1),aspectratio=:equal)
+
+plt2 = plot(plt2,vcat(map(i-> E[1].xInt[1] .+ [0.;cumsum(E[1].L)][i],1:length(E[1].indx))...),M.gamma3[:,end],label = false,linecolor = :lawngreen,line=:dash, xticks =unique([0:2.5:10|>collect;0:2.0:10|>collect]),minorgrid=false)
+
+plt3 = plot(plt3,time_st,energija(M,ElementDataIn,E,VozDataIn);lc=:lawngreen,line=:dash,label = false)
+
+
+
+plt1=plot(plt1,[0,0],[0,0],label = latexify("30C^0"), ylabel = latexify("z"),yguidefontrotation=-90,xlabel = latexify("x"),lc=:black)
+plt1=plot(plt1,[0,0],[0,0],label = latexify("5C^2"),lc=:dodgerblue,line=:dash)
+plt1=plot(plt1,[0,0],[0,0],label = latexify("4C^2"),lc=:lawngreen,line=:dash,aspectratio=:equal)
+
+plt2=plot(plt2,[0,0],[0,0],label = latexify("30C^0"), ylabel = latexify("K_2"),yguidefontrotation=-90,xlabel = latexify("s"),lc=:black)
+plt2=plot(plt2,[0,0],[0,0],label = latexify("5C^2"),lc=:dodgerblue,line=:dash)
+plt2=plot(plt2,[0,0],[0,0],label = latexify("4C^2"),lc=:lawngreen,line=:dash)
+
+plt3=plot(plt3,[0,0],[0,0],label = latexify("30C^0"), ylabel = latexify("W"),yguidefontrotation=-90,xlabel = latexify("t"),lc=:black)
+plt3=plot(plt3,[0,0],[0,0],label = latexify("5C^2"),lc=:dodgerblue,line=:dash)
+plt3=plot(plt3,[0,0],[0,0],label = latexify("4C^2"),lc=:lawngreen,line=:dash,minorgrid=false)
+
+#plt4 = contour(time_st,vcat(map(i-> E[1].xInt[1] .+ [0.;cumsum(E[1].L)][i],1:length(E[1].indx))...), M.gamma3)
+
+#savefig(plt1,"~/0_git/dinamika_nosilcev/out/bm1_konf.tex")
+#savefig(plt2,"~/0_git/dinamika_nosilcev/out/bm1_K2.tex")
+#savefig(plt3,"~/0_git/dinamika_nosilcev/out/bm1_W.tex")

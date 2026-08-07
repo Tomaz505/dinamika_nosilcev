@@ -1,5 +1,5 @@
 #   B R A N J E   P O D A T K O V   I Z   D A T O T E K E
-#
+#=
 begin
 println("Ime datoteke v ./in")
 file = readline()
@@ -7,6 +7,7 @@ include("in/"*file*".jl")
 println()
 @info "Vnos podatkov\n\t\t[  Ok  ]"
 end
+=#
 
 
 #   P R E D P O C E S I R A N J E
@@ -23,41 +24,46 @@ end
 @info "Procesiranje podatkov\n\t\t[  Ok  ]"
 end
 
-
 #   P L O T
 #
 begin
-	println("\n Kako nadaljujem?")
-	println("0 → prekini postopek")
-	println("1 → nariši konstrukcijo in nadaljuj")
-	println("2 → nariši konstrukcijo in prekini")
-	println("↲ → nadaljuj račun")
-	local elt = time()
-	local test = readline()
 
-	if (test == "0")
+
+
+	if !proc_check
+	println("\n Kako nadaljujem?")
+	println("0 → prekini")
+	println("1 → prekini   nariši konstrukcijo")
+	println("2 → nadaljuj  nariši konstrukcijo")
+	println("↲ → nadaljuj")
+		test=readline()
+		if (test == "0")
 		error("Preklic")
-	elseif (test == "1")
-		println("-> 1")
+		elseif (test == "1")
+		println("→ 1")
 		konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
 		display(konstr_img)
 		@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
-	elseif (test == "2")
-	println("-> 2")
-	konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
-	display(konstr_img)
-	@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
-	error("Preklic")
-	else
-		println("->")
+		error("Preklic")
+		elseif (test == "2")
+		println("→ 2")
+		konstr_img = plotbeams(E,ElementDataIn,VozDataIn)
+		display(konstr_img)
+		@info "Risnaje konstrukcije\n\t\t[  Ok  ]"
+		else
+		println("→")
+		end
 	end
+
 end
 
 
+@precompute_hook
 
 
 
 time_st = collect(ti:dt:tf)
+itr_cnt = zeros(Float64,length(time_st))
 n_time = length(time_st)
 
 
@@ -233,6 +239,7 @@ begin
 
 
 
+
 	#Vsiljeno gibanje podprte prostostne stopnje
 	for i1 in eachindex(VozDataIn)
 		local V = (hcat(VozDataIn[i1].mot.(time_st)...)-hcat(VozDataIn[i1].mot.(time_st.-dt)...))/dt
@@ -251,6 +258,8 @@ begin
 	M.Omg[i1,i2] = -M.Omg[i1,i2-1]+2*V[3,i2-1]
 	end=#
 	end
+
+	@precompute_hook
 
 	@info "Priprava na račun\n\t\t[  Ok  ] "
 
@@ -271,6 +280,8 @@ begin
 			count += 1
 			Ja *=0.0
 			Re *=0.0
+
+			@iteration_hook
 
 			for i_el in eachindex(E)
 				for i_ke in eachindex(E[i_el].P)
@@ -295,6 +306,7 @@ begin
 
 				end # i_ke
 			end # i_el
+
 
 			Ja = Ja+mass_m
 
@@ -323,8 +335,11 @@ begin
 
 		end # while norm(Dv) > x
 		print("it = ",i_time,"    \tt = ",time_st[i_time])
-		print("    \titr.cnt.=",count,"\n")
+		print("    \titr_cnt=",count,"\n")
+		itr_cnt[i_time] = count
 	end # i_time
 end
 @info "Račun\n\t\t[  Ok  ]"
+
+@postcompute_hook
 

@@ -1,24 +1,22 @@
 #   K O O R D I N A T E   V O Z L I S C
 vozlisca::Array{Float64} = [
     0. 0.;
-	5. 0.;
-	5. 5.;
+	50. 50.;
     ]# * [1 0; -0.005 1] imperfektnosti v z
 
 
 #   E L E M E N T I   M E D   V O Z L I S C I
 elementi::Array{Int64} = [
         1 2;
-        2 3;
     ]
 
 
 
 #   P O D A T K I   R A Č U N A 
 const ti::Float64 = 0.0
-const dt::Float64 = 0.002
-const tf::Float64 = 3.
-const g::Vector{Float64}  = [0.; 0.]
+const dt::Float64 = 0.1
+const tf::Float64 = 40.
+const g::Vector{Float64}  = [0.; -9.81]
 
 
 #	K O N T R O L N I   P A R A M E T R I
@@ -28,7 +26,7 @@ metoda_t_integracije::String    = ["midpoint", "timeelement"][1]
 Integracija::String 	        = ["gauss", "lobatto"][1]
 nt = 2
 
-const dv_norm_tol_exp::Int64	   = -13
+const dv_norm_tol_exp::Int64	   = -8
 const nwt_iter_max_count::Int64	   = 170
 
 
@@ -88,21 +86,25 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
  
 # E L E M E N T I
-@assignto :(ElementDataIn) [1,2] :( [1.; 1.] ) :(M)
-@assignto :(ElementDataIn) [1,2] :( 10^4*[1. 0. 0.;0. 1. 0.; 0. 0. 0.1] ) :(C)
+@assignto :(ElementDataIn) [1] :( [0.1; 0.01] ) :(M)
+@assignto :(ElementDataIn) [1] :( 7200.0*[3. 0. 0.;0. 3.0*5/6/2.6 0.; 0. 0. 3.0/12.0] ) :(C)
 
 
 #@assignto :(ElementDataIn) [1] :(t->[0.1, 0.1]*t) :(px)
-@assignto :(ElementDataIn) [2] :(t->[0.;400.]*t ) :(Px)
+#@assignto :(ElementDataIn) [2] :(t->[0.0;0.0;0.0;0.01*(t^2+t);repeat([0.0],16)] ) :(Pz)
 #@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(pz)
 #@assignto :(ElementDataIn) [1] :(t->[0.;0.;0.;0.;0.;100. *t^2] ) :(Pz)
 #@assignto :(ElementDataIn) [1] :(t->[0., 0.]  ) :(my)
 #@assignto :(ElementDataIn) [1] :(t->[0.;0.;0.;0.;0.;10.]*t^2) :(My)
 
 
-@assignto :(ElementDataIn) [1,2] :( [-1.0; 1.0] ) :(div1)
-@assignto :(ElementDataIn) [1,2] :( [4] ) :(div2)
-@assignto :(ElementDataIn) [1,2] :( [6] ) :(nInt)
+@assignto :(ElementDataIn) [1] :( range(-1,1,length=11) |> collect ) :(div1)
+@assignto :(ElementDataIn) [1] :( repeat([5],10) ) :(div2)
+#@assignto :(ElementDataIn) [1] :( repeat([5],8) ) :(div2)
+
+#@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
+@assignto :(ElementDataIn) [1] :( repeat([8],10) ) :(nInt)
+#@assignto :(ElementDataIn) [2] :( (true,false) ) :(relese)
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 
 
@@ -111,11 +113,13 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 # V O Z L I Š Č A
-@assignto :(VozDataIn) [1] :( Bool[0, 0, 0] ) :(Supp)
+@assignto :(VozDataIn) [1] :( Bool[0, 0, 1] ) :(Supp)
 #@assignto :(VozDataIn) [2] :( Bool[1, 0, 0] ) :(Supp)
 
 #@assignto :(VozDataIn) [1] :( pi/3. ) :(dir)
 
+
+include("../NonLinBeamRUN.jl")
 
 
 

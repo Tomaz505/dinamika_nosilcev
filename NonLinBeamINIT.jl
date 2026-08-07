@@ -31,3 +31,15 @@ macro assignto(DatVar::Any,ei::Any,Prop::Expr,StrucField::Any)
         )
     end
 end;    
+
+macro iteration_hook()
+nothing
+end;
+
+macro precompute_hook()
+nothing
+end;
+
+macro postcompute_hook()
+nothing
+end;

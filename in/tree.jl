@@ -108,7 +108,7 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 # V O Z L I Š Č A
 @assignto :(VozDataIn) [1] :( Bool[0, 0, 0] ) :(Supp)
-@assignto :(VozDataIn) [1] :( t->[0, 0, sin(t*pi*2)*Int(t<0.5)*0.3] ) :(mot)
+@assignto :(VozDataIn) [1] :( t->[0, 0, sin(t*pi*2)*Int(t<0.5)*0.2] ) :(mot)
 
 #@assignto :(VozDataIn) [2] :( Bool[1, 0, 1] ) :(Supp)
 
