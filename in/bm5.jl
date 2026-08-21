@@ -99,13 +99,13 @@ n_elem,n_voz,ElementDataIn,VozDataIn = datainit(elementi,vozlisca)
 
 
 @assignto :(ElementDataIn) [1] :( range(-1,1,length=5) |> collect ) :(div1)
-@assignto :(ElementDataIn) [1] :( [3,2,2,3] ) :(div2)
+@assignto :(ElementDataIn) [1] :( [4,4,4,4] ) :(div2)
 #@assignto :(ElementDataIn) [1] :( :chebyshev2 ) :(dist)
 @assignto :(ElementDataIn) [1] :( repeat([15],4) ) :(nInt)
 #@assignto :(ElementDataIn) [1] :( true ) :(Ci)
 #@assignto :(ElementDataIn) [1] :($(:(0.1))) :(beta)
 #ElementDataIn[1].beta = 0.5
-ElementDataIn[1].Ci=2
+ElementDataIn[1].Ci=0
 
 
 #@assignto :(ElementDataIn) [1] :( re_gramschmid([[-1.,1.,0.]])) :(Ib_geom)
@@ -143,7 +143,7 @@ proc_check=true
 
 include("../NonLinBeamRUN.jl")
 
-#=
+
 plt1 = plotVar3(M,E,ElementDataIn,VozDataIn,[1;1:20:101|>collect];init_konf=false,linecolor=:black,label=:none,aspectratio=:equal,minorgrid=false,yflip=true,yrange=(-8,1),xrange=(-3,11))
 
 plt2 = plot(vcat(map(i-> E[1].xInt[1] .+ [0.;cumsum(E[1].L)][i],1:length(E[1].indx))...),M.gamma3[:,end],label = false,linecolor = :black, xticks = 0:2.5:10|>collect,minorgrid=false)
@@ -158,10 +158,8 @@ B1 = M.gamma3[:,end]
 
 
 
-
-
-@assignto :(ElementDataIn) [1] :( [4;repeat([2],2);4] ) :(div2)
-ElementDataIn[1].Ci=2
+@assignto :(ElementDataIn) [1] :( [3,2,2,3] ) :(div2)
+ElementDataIn[1].Ci=1
 
 
 include("../NonLinBeamRUN.jl")
@@ -178,14 +176,18 @@ B2 = M.gamma3[:,end]
 
 
 
-
-
-
+@assignto :(ElementDataIn) [1] :( [4,3,3,4] ) :(div2)
+ElementDataIn[1].Ci=1
 
 
 macro precompute_hook()
-        E[1].P[1] = re_gramschmid([[0.,E[1].L[1]],[E[1].L[1]/3 , E[1].L[1],E[1].L[1]*2/3],[E[1].L[1]]])[:,[1,3,5,2,4,6]]
-        E[1].P[4] = re_gramschmid([[0.,E[1].L[1]],[0.,E[1].L[1]/3,E[1].L[1]/3*2],[0.]])[:,[1,4,5,2,3,6]]
+        E[1].P[1] = re_gramschmid([[0.,E[1].L[1]/3,E[1].L[1]/3*2,E[1].L[1]],zeros(Float64,0),[E[1].L[1]]])
+        E[1].P[2]=E[1].P[3]= re_gramschmid([[0.,E[1].L[1]/2, E[1].L[1]],zeros(Float64,0),[0.,E[1].L[1]]])
+        E[1].indx[2]=E[1].indxP[2]=[5,7,8,6,9]
+        E[1].indx[3]=E[1].indxP[3]=[8,10,11,9,12]
+        E[1].P[4] = re_gramschmid([[0.,E[1].L[1]/3,E[1].L[1]/3*2,E[1].L[1]],zeros(Float64,0),[0.]])
+        E[1].indx[4]=E[1].indxP[4]=[11,13,14,2,12]
+
 end;
 
 
@@ -197,6 +199,25 @@ plotVar3(M,E,ElementDataIn,VozDataIn,[1;1:20:101|>collect];init_konf=false, p0=p
 plt2 = plot(plt2,vcat(map(i-> E[1].xInt[1] .+ [0.;cumsum(E[1].L)][i],1:length(E[1].indx))...),M.gamma3[:,end],label = false,linecolor = :crimson,line=:dot, xticks =0:2.5:10|>collect,minorgrid=false)
 
 
+@assignto :(ElementDataIn) [1] :( [3,2,2,3] ) :(div2)
+ElementDataIn[1].Ci=2
+
+
+macro precompute_hook()
+nothing
+end;
+
+
+
+include("../NonLinBeamRUN.jl")
+
+plotVar3(M,E,ElementDataIn,VozDataIn,[1;1:20:101|>collect];init_konf=false, p0=plt1,linecolor=:dodgerblue,line=:dashdot,label=:none,aspectratio=:equal,minorgrid=false,yflip=true,yrange=(-8,1),xrange=(-3,11))
+
+plt2 = plot(plt2,vcat(map(i-> E[1].xInt[1] .+ [0.;cumsum(E[1].L)][i],1:length(E[1].indx))...),M.gamma3[:,end],label = false,linecolor = :dodgerblue,line=:dashdot, xticks =0:2.5:10|>collect,minorgrid=false)
+
+
+
+#=
 plt1=plot(plt1,[0,0],[0,0],label = latexify("4^3C^0"), ylabel = latexify("z"),yguidefontrotation=-90,xlabel = latexify("x"),lc=:black)
 plt1=plot(plt1,[0,0],[0,0],label = latexify("4^5C^2"),lc=:lawngreen,line=:dash)
 plt1=plot(plt1,[0,0],[0,0],label = latexify("4^5C^0"),lc=:crimson,line=:dot)
@@ -206,7 +227,7 @@ plt2=plot(plt2,[0,0],[0,0],label = latexify("4^3C^0"), ylabel = latexify("K_2"),
 plt2=plot(plt2,[0,0],[0,0],label = latexify("4^5C^2"),lc=:lawngreen,line=:dash)
 plt2=plot(plt2,[0,0],[0,0],label = latexify("4^5C^0"),lc=:crimson,line=:dot)
 plt3 = plot(plt2,yrange=(0.58,0.69),xrange=(2.5,5.0))
-
+=#
 
 #savefig(plt1,"~/0_git/dinamika_nosilcev/out/bm5_konf.tex")
 #savefig(plt2,"~/0_git/dinamika_nosilcev/out/bm5_K2.tex")
@@ -215,5 +236,5 @@ A3 = [M.ux[[2,4,7,10],end]  M.uz[[2,4,7,10],end]]
 B3 = M.gamma3[:,end]
 
 
-=#
+
 
